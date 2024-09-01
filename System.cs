@@ -22,7 +22,9 @@ namespace TravellerSystemGenerator
                 Console.WriteLine("Colour = " + primary.colour);
             Console.WriteLine("Mass = " + primary.mass);
             Console.WriteLine("Temperture = " + primary.temperture);
-
+            Console.WriteLine("Diameter = " + primary.diameter);
+            Console.WriteLine("Luminosity = " + primary.luminosity);
+            Console.WriteLine("Age = " + primary.age);
         }
 
         
