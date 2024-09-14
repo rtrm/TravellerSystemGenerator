@@ -20,6 +20,10 @@ namespace TravellerSystemGenerator
         public float diameter { get; set; }
         public float luminosity { get; set; }
         public float age { get; set; }
+        public Starhelper.starOrbitType starOrbitType { get; set; }
+        public List<CelestrialObject> orbits { get; set; }
+
+        //public float eccentricity { get; set; }
 
         private static float solTemperture = 5772;
 
@@ -47,8 +51,19 @@ namespace TravellerSystemGenerator
                 { 20, 12, 7, 3.5F, 2.2F, 2, 1.7F, 1.5F, 1.1F, 0.95F, 0.9F, 0.8F, 0.7F, 0.2F, 0.1F },
                 { 0.18F, 0.18F, 0.2F, 0.5F, 0, 0, 0, 0, 0.8F, 0.7F, 0.6F, 0.5F, 0.4F, 0.1F, 0.08F }
             };
-        public Star(bool primaryStar, Random dice)
+        public Star(Random dice)
         {
+            CreateStar(0, Starhelper.starOrbitType.Primary, dice);
+        }
+        public Star(float orbit, Starhelper.starOrbitType starOrbitType, Random dice)
+        {
+            CreateStar(orbit, starOrbitType, dice);
+        }
+
+
+        public void CreateStar(float orbit, Starhelper.starOrbitType orbitType, Random dice)
+        {
+            starOrbitType = orbitType;
             int starTypeNum = Starhelper.diceRoll(6, 2, dice);
             //Console.WriteLine("starTypeNum = " + starTypeNum);
             if (starTypeNum <= 2)
@@ -219,6 +234,7 @@ namespace TravellerSystemGenerator
                 }
             }
 
+            Starhelper.systemAge = age;
 
         }
 
@@ -281,10 +297,10 @@ namespace TravellerSystemGenerator
             }
         }
 
-        private float Extrapolate (float lnumber, float unumber, int factor )
+        private float Extrapolate(float lnumber, float unumber, int factor)
         {
             float per = (float)factor / 10;
-            return lnumber+(per*(unumber-lnumber));
+            return lnumber + (per * (unumber - lnumber));
         }
 
         private void StarVariance(Random dice)
