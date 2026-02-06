@@ -12,7 +12,8 @@ namespace TravellerSystemGenerator
         {
             // Initialize debug logging
             DebugLogger.Initialize();
-            DebugLogger.Log("Starting Traveller System Generation");
+            DebugLogger.Log($"Starting {Version.GetFullVersionString()}");
+            DebugLogger.Log($"Version: {Version.VersionString}");
 
             try
             {

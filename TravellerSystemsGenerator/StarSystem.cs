@@ -40,6 +40,7 @@ namespace TravellerSystemGenerator
             Console.WriteLine();
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
             Console.WriteLine("              TRAVELLER STAR SYSTEM GENERATION                 ");
+            Console.WriteLine($"                        Version {Version.VersionString}                        ");
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
             Console.WriteLine();
 
