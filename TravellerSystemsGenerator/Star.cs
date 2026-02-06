@@ -83,14 +83,14 @@ namespace TravellerSystemGenerator
             if (primaryStar.type == "D" || primaryStar.type == "BD")
             {
                 type = primaryStar.type;
-                starclass = primaryStar.starclass;
+                subType = "";  // D and BD have no subtype
+                starclass = "";  // D and BD have no starclass
                 DebugLogger.LogFormat("  Primary is {0} - companion will also be {0}", primaryStar.type);
 
-                // Generate mass and other properties
-                GetMassTempertureDiameter(type, subType, dice);
-                StarVariance(dice);
-                luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+                // Set fixed properties for D and BD stars
+                SetDwarfProperties(type);
 
+                // Generate age
                 while (age < 0.1F)
                 {
                     if (mass <= 0.9)
@@ -136,7 +136,8 @@ namespace TravellerSystemGenerator
                     type = "BD";
                     DebugLogger.Log("    Result: Brown Dwarf (BD)");
                 }
-                starclass = primaryStar.starclass;
+                subType = "";  // D and BD have no subtype
+                starclass = "";  // D and BD have no starclass
             }
             else if ((!isCompanionOrbit && companionTypeRoll >= 4 && companionTypeRoll <= 6) ||
                      (isCompanionOrbit && companionTypeRoll >= 4 && companionTypeRoll <= 5))
@@ -175,14 +176,20 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Base mass: {0:F3} solar masses", mass);
                 DebugLogger.LogFormat("  Base temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Base diameter: {0:F4} solar diameters", diameter);
+
+                StarVariance(dice);
+                DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
             }
             else
             {
                 DebugLogger.LogFormat("  Final star type: {0} ({1})", type, type == "BD" ? "Brown Dwarf" : "White Dwarf");
-            }
 
-            StarVariance(dice);
-            DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
+                // Set fixed properties for D and BD stars
+                SetDwarfProperties(type);
+                DebugLogger.LogFormat("  Mass: {0:F3} solar masses", mass);
+                DebugLogger.LogFormat("  Temperature: {0} K", temperture);
+                DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
+            }
 
             luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
             DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
@@ -364,17 +371,27 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Base mass: {0:F3} solar masses", mass);
                 DebugLogger.LogFormat("  Base temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Base diameter: {0:F4} solar diameters", diameter);
+
+                StarVariance(dice);
+                DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
+
+                luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+                DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
             }
             else
             {
+                // D and BD stars have no subtype or starclass
+                subType = "";
+                starclass = "";
                 DebugLogger.LogFormat("  Star type: {0} ({1})", type, type == "BD" ? "Brown Dwarf" : "White Dwarf");
+
+                // Set fixed properties for D and BD stars
+                SetDwarfProperties(type);
+                DebugLogger.LogFormat("  Mass: {0:F3} solar masses", mass);
+                DebugLogger.LogFormat("  Temperature: {0} K", temperture);
+                DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
+                DebugLogger.LogFormat("  Luminosity: {0:F6}", luminosity);
             }
-
-            StarVariance(dice);
-            DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
-
-            luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
-            DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
 
             while (age < 0.1F) { 
             if (mass <= 0.9)
@@ -613,6 +630,29 @@ namespace TravellerSystemGenerator
                 default:
                     colour = "";
                     break;
+            }
+        }
+
+        // Helper to set fixed properties for D and BD stars
+        private void SetDwarfProperties(string starType)
+        {
+            if (starType == "BD")
+            {
+                // Brown Dwarf properties
+                colour = "Brown";
+                temperture = 1850;
+                mass = 0.06f;
+                diameter = 0.08f;
+                luminosity = 0.000066f;
+            }
+            else if (starType == "D")
+            {
+                // White Dwarf properties
+                colour = "White";
+                temperture = 8000;
+                mass = 0.6f;
+                diameter = 0.017f;
+                luminosity = 0.001f;
             }
         }
 

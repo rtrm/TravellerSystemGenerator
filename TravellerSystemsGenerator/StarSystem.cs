@@ -143,19 +143,20 @@ namespace TravellerSystemGenerator
             }
 
             // Star classification
-            Console.WriteLine($"Classification:      {star.type}{star.subType} {star.starclass}");
-            DebugLogger.LogFormat("  Classification: {0}{1} {2}", star.type, star.subType, star.starclass);
-
             if (star.type != "BD" && star.type != "D")
             {
-                Console.WriteLine($"Colour:              {star.colour}");
-                DebugLogger.LogFormat("  Colour: {0}", star.colour);
+                Console.WriteLine($"Classification:      {star.type}{star.subType} {star.starclass}");
+                DebugLogger.LogFormat("  Classification: {0}{1} {2}", star.type, star.subType, star.starclass);
             }
             else
             {
                 string typeName = star.type == "BD" ? "Brown Dwarf" : "White Dwarf";
-                Console.WriteLine($"Type:                {typeName}");
+                Console.WriteLine($"Classification:      {star.type} ({typeName})");
+                DebugLogger.LogFormat("  Classification: {0} ({1})", star.type, typeName);
             }
+
+            Console.WriteLine($"Colour:              {star.colour}");
+            DebugLogger.LogFormat("  Colour: {0}", star.colour);
 
             // Physical properties
             Console.WriteLine($"Mass:                {star.mass:F3} solar masses");
