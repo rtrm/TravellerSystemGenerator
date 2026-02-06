@@ -309,7 +309,7 @@ namespace TravellerSystemGenerator
             float fractionalOrbit = 0;
             int roll = Starhelper.diceRoll(10, 1, dice);
             roll++; //so roll is 1-10
-            if (orbitType == Starhelper.starOrbitType.Close && orbitNum < 0)
+            if (orbitType == Starhelper.starOrbitType.Close && orbitNum <= 0)
                 orbitNum = 0.5F;
 
             if (orbitNum != 0)
