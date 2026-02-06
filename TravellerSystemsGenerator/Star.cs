@@ -804,22 +804,28 @@ namespace TravellerSystemGenerator
             subType = primaryStar.subType;
             colour = primaryStar.colour;
 
-            int diceRoll = Starhelper.diceRoll(6, 1, dice);
-            float reductionPercent = (diceRoll - 1) / 100.0f;
-            DebugLogger.LogFormat("    Reduction: {0}% (dice roll: {1})", reductionPercent * 100, diceRoll);
+            // Randomize mass reduction separately
+            int massDiceRoll = Starhelper.diceRoll(6, 1, dice);
+            float massReductionPercent = (massDiceRoll - 1) / 100.0f;
+            DebugLogger.LogFormat("    Mass reduction: {0}% (dice roll: {1})", massReductionPercent * 100, massDiceRoll);
 
-            // Copy base properties from primary
-            mass = primaryStar.mass * (1.0f - reductionPercent);
-            diameter = primaryStar.diameter * (1.0f - reductionPercent);
+            // Randomize diameter reduction separately
+            int diameterDiceRoll = Starhelper.diceRoll(6, 1, dice);
+            float diameterReductionPercent = (diameterDiceRoll - 1) / 100.0f;
+            DebugLogger.LogFormat("    Diameter reduction: {0}% (dice roll: {1})", diameterReductionPercent * 100, diameterDiceRoll);
+
+            // Apply reductions to primary's properties
+            mass = primaryStar.mass * (1.0f - massReductionPercent);
+            diameter = primaryStar.diameter * (1.0f - diameterReductionPercent);
             temperture = primaryStar.temperture;
             age = primaryStar.age;
 
-            // Recalculate luminosity
+            // Recalculate luminosity based on new diameter
             luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
 
             DebugLogger.LogFormat("    Twin companion: {0}{1} {2}", type, subType, starclass);
-            DebugLogger.LogFormat("    Mass: {0:F3} solar masses ({1:F1}% of primary)", mass, (1.0f - reductionPercent) * 100);
-            DebugLogger.LogFormat("    Diameter: {0:F4} solar diameters ({1:F1}% of primary)", diameter, (1.0f - reductionPercent) * 100);
+            DebugLogger.LogFormat("    Mass: {0:F3} solar masses ({1:F1}% of primary)", mass, (1.0f - massReductionPercent) * 100);
+            DebugLogger.LogFormat("    Diameter: {0:F4} solar diameters ({1:F1}% of primary)", diameter, (1.0f - diameterReductionPercent) * 100);
             DebugLogger.LogFormat("    Temperature: {0} K", temperture);
             DebugLogger.LogFormat("    Luminosity: {0:F6}", luminosity);
             DebugLogger.LogFormat("    Age: {0:F2} billion years", age);
