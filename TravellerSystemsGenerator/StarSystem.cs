@@ -69,6 +69,26 @@ namespace TravellerSystemGenerator
                 {
                     Star starObj = (Star)Cobj.celestrialObject;
                     PrintStar(starObj, Cobj.orbit, Cobj, dice);
+
+                    // Check if this companion has its own Companion orbit companions
+                    if (Cobj.celestrialObjectOrbits.Count > 0)
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine($"  {starObj.starOrbitType} star has {Cobj.celestrialObjectOrbits.Count} Companion orbit companion(s)");
+                        Console.WriteLine();
+                        DebugLogger.Log($"  {starObj.starOrbitType} companion has {Cobj.celestrialObjectOrbits.Count} sub-companion(s)");
+
+                        foreach (CelestrialObject subCobj in Cobj.celestrialObjectOrbits)
+                        {
+                            if (subCobj.celestrialObject is Star)
+                            {
+                                Star subStarObj = (Star)subCobj.celestrialObject;
+                                Console.WriteLine($"    Orbiting the {starObj.starOrbitType} companion:");
+                                DebugLogger.LogFormat("    Sub-companion of {0} companion:", starObj.starOrbitType);
+                                PrintStar(subStarObj, subCobj.orbit, subCobj, dice);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -252,14 +272,53 @@ namespace TravellerSystemGenerator
             return starPresent;
         }
 
+        private int CheckCompanionTypePresentForStar(Star star, Random dice)
+        {
+            int starPresent = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogFormat("    Checking for Companion orbit companion - Base roll: {0}", starPresent);
+
+            // Apply modifiers based on the companion star's properties
+            // For Companion orbit companions (only checking for very close companions)
+            if (star.starclass == "Ia" ||
+                star.starclass == "Ib" ||
+                star.starclass == "II" ||
+                star.starclass == "III" ||
+                star.starclass == "IV")
+            {
+                starPresent++;
+                DebugLogger.Log("      Star is Class Ia/Ib/II/III/IV - adding +1");
+            }
+            if ((star.starclass == "V" || star.starclass == "VI") &&
+                (star.type == "O" || star.type == "B" || star.type == "A" || star.type == "F"))
+            {
+                starPresent++;
+                DebugLogger.Log("      Star is Class V/VI and type O/B/A/F - adding +1");
+            }
+            if (star.starclass == "V" || star.starclass == "VI" || star.type == "M")
+            {
+                starPresent--;
+                DebugLogger.Log("      Star is Class V/VI or M-type - subtracting 1");
+            }
+            if (star.type == "D" || star.type == "BD")
+            {
+                starPresent--;
+                DebugLogger.Log("      Star is D or BD - subtracting 1");
+            }
+
+            DebugLogger.LogFormat("    Final roll for Companion orbit companion: {0} (need 10+)", starPresent);
+            return starPresent;
+        }
+
         private void GenerateAdditionalStars(CelestrialObject cObj, Random dice)
         {
-            
+
             int closeStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Close, dice);
             int nearStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Near, dice);
             int farStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Far, dice);
             int companionStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Companion, dice);
 
+            // Track companions that can have their own Companion orbit companions
+            List<CelestrialObject> companionsToCheck = new List<CelestrialObject>();
 
             if (closeStarPresent >= 10)
                 {
@@ -270,6 +329,8 @@ namespace TravellerSystemGenerator
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Close);
                 DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Close, dice);
+                // Add to list to check for Companion orbit companions
+                companionsToCheck.Add(cObj.celestrialObjectOrbits[cObj.celestrialObjectOrbits.Count - 1]);
                 }
             if (nearStarPresent >= 10)
             {
@@ -280,6 +341,8 @@ namespace TravellerSystemGenerator
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Near);
                 DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Near, dice);
+                // Add to list to check for Companion orbit companions
+                companionsToCheck.Add(cObj.celestrialObjectOrbits[cObj.celestrialObjectOrbits.Count - 1]);
             }
             if (farStarPresent >= 10)
             {
@@ -290,6 +353,8 @@ namespace TravellerSystemGenerator
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Far);
                 DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Far, dice);
+                // Add to list to check for Companion orbit companions
+                companionsToCheck.Add(cObj.celestrialObjectOrbits[cObj.celestrialObjectOrbits.Count - 1]);
             }
             if(companionStarPresent >= 10)
             {
@@ -300,6 +365,35 @@ namespace TravellerSystemGenerator
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
                 DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
+            }
+
+            // Check each Close/Near/Far companion for Companion orbit companions
+            foreach (CelestrialObject companion in companionsToCheck)
+            {
+                if (companion.celestrialObject is Star)
+                {
+                    Star companionStar = (Star)companion.celestrialObject;
+                    DebugLogger.Log("");
+                    DebugLogger.LogFormat("Checking if {0} companion has its own Companion orbit companion...", companionStar.starOrbitType);
+
+                    // Check for Companion orbit companion of this companion
+                    int subCompanionPresent = CheckCompanionTypePresentForStar(companionStar, dice);
+
+                    if (subCompanionPresent >= 10)
+                    {
+                        Console.WriteLine($"  {companionStar.starOrbitType} star has Companion orbit companion");
+                        DebugLogger.LogFormat("  {0} companion will have a Companion orbit companion", companionStar.starOrbitType);
+                        int baseOrb = Starhelper.diceRoll(6, 1, dice) / 10 + (Starhelper.diceRoll(6, 2, dice) - 7) / 100;
+                        DebugLogger.LogFormat("    Base orbit: {0}", baseOrb);
+                        float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
+                        DebugLogger.LogFormat("    Fractional orbit: {0:F2}", fractionalOrbit);
+                        companion.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
+                    }
+                    else
+                    {
+                        DebugLogger.LogFormat("  No Companion orbit companion for {0} companion", companionStar.starOrbitType);
+                    }
+                }
             }
 
         }

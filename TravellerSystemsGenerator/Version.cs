@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 0;
-        public const int Minor = 5;
-        public const int Build = 3;
+        public const int Minor = 6;
+        public const int Build = 1;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -29,6 +29,7 @@ namespace TravellerSystemGenerator
         // 0.2.x - Companion star types (Other, Random, Lesser, Sibling, Twin)
         // 0.3.x - Twin companion separate mass/diameter randomization
         // 0.4.x - Console output formatting improvements
-        // 0.5.x - D/BD star property fixes
+        // 0.5.x - D/BD star property fixes, version system, close orbit fix
+        // 0.6.x - Hierarchical companion stars (companions can have Companion orbit companions)
     }
 }
