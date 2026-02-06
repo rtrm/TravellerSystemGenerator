@@ -34,6 +34,9 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("Checking for additional companion stars...");
             GenerateAdditionalStars(primaryObject, dice);
 
+            // Calculate orbital periods for all companion stars
+            CalculateAllOrbitalPeriods();
+
             Star? star = primaryObject.celestrialObject as Star;
 
             // Print console output header
@@ -160,6 +163,15 @@ namespace TravellerSystemGenerator
                     DebugLogger.LogFormat("  Max Separation: {0:F2} AU", Cobj.orbitMaxSep);
                     DebugLogger.LogFormat("  Min Separation: {0:F2} AU", Cobj.orbitMinSep);
                 }
+
+                // Display orbital period
+                if (Cobj.OrbitalPeriodYears > 0)
+                {
+                    string periodDisplay = FormatOrbitalPeriod(Cobj.OrbitalPeriodYears);
+                    Console.WriteLine($"Orbital Period:      {periodDisplay}");
+                    DebugLogger.LogFormat("  Orbital Period: {0}", periodDisplay);
+                }
+
                 Console.WriteLine();
             }
 
@@ -434,6 +446,198 @@ namespace TravellerSystemGenerator
             }
 
             return fractionalOrbit;
+        }
+
+        private float CalculateTotalOrbitedMass(CelestrialObject orbitingObj, Star orbitingStar)
+        {
+            // Calculate M = total mass of stars being orbited
+            float totalMass = 0;
+
+            if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                // Companion orbits just its parent star
+                CelestrialObject? parent = FindParentObject(orbitingObj);
+                if (parent != null && parent.celestrialObject is Star)
+                {
+                    totalMass = ((Star)parent.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Companion orbit - orbiting parent star with mass {0:F3}", totalMass);
+                }
+            }
+            else if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Close orbits: primary + any companion of the primary
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass = ((Star)primaryObject.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Close orbit - primary mass: {0:F3}", totalMass);
+
+                    // Add any Companion orbit companion of the primary
+                    foreach (var obj in primaryObject.celestrialObjectOrbits)
+                    {
+                        if (obj.celestrialObject is Star)
+                        {
+                            Star s = (Star)obj.celestrialObject;
+                            if (s.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                totalMass += s.mass;
+                                DebugLogger.LogFormat("    Adding primary's companion mass: {0:F3}", s.mass);
+                            }
+                        }
+                    }
+                }
+            }
+            else if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Near)
+            {
+                // Near orbits: primary + any close companion + companion companions of either
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass = ((Star)primaryObject.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Near orbit - primary mass: {0:F3}", totalMass);
+
+                    foreach (var obj in primaryObject.celestrialObjectOrbits)
+                    {
+                        if (obj.celestrialObject is Star)
+                        {
+                            Star s = (Star)obj.celestrialObject;
+                            if (s.starOrbitType == Starhelper.starOrbitType.Close || s.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                totalMass += s.mass;
+                                DebugLogger.LogFormat("    Adding {0} companion mass: {1:F3}", s.starOrbitType, s.mass);
+
+                                // Add any Companion orbit companions
+                                foreach (var subObj in obj.celestrialObjectOrbits)
+                                {
+                                    if (subObj.celestrialObject is Star)
+                                    {
+                                        Star subStar = (Star)subObj.celestrialObject;
+                                        totalMass += subStar.mass;
+                                        DebugLogger.LogFormat("    Adding sub-companion mass: {0:F3}", subStar.mass);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Far)
+            {
+                // Far orbits: primary + close + near + all companion companions
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass = ((Star)primaryObject.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Far orbit - primary mass: {0:F3}", totalMass);
+
+                    foreach (var obj in primaryObject.celestrialObjectOrbits)
+                    {
+                        if (obj.celestrialObject is Star)
+                        {
+                            Star s = (Star)obj.celestrialObject;
+                            if (s.starOrbitType == Starhelper.starOrbitType.Close ||
+                                s.starOrbitType == Starhelper.starOrbitType.Near ||
+                                s.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                totalMass += s.mass;
+                                DebugLogger.LogFormat("    Adding {0} companion mass: {1:F3}", s.starOrbitType, s.mass);
+
+                                // Add any Companion orbit companions
+                                foreach (var subObj in obj.celestrialObjectOrbits)
+                                {
+                                    if (subObj.celestrialObject is Star)
+                                    {
+                                        Star subStar = (Star)subObj.celestrialObject;
+                                        totalMass += subStar.mass;
+                                        DebugLogger.LogFormat("    Adding sub-companion mass: {0:F3}", subStar.mass);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return totalMass;
+        }
+
+        private CelestrialObject? FindParentObject(CelestrialObject childObj)
+        {
+            // Search through all celestial objects to find the parent of childObj
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObjectOrbits.Contains(childObj))
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        private void CalculateOrbitalPeriod(CelestrialObject cObj)
+        {
+            if (cObj.celestrialObject is Star)
+            {
+                Star star = (Star)cObj.celestrialObject;
+
+                // Primary stars don't have orbital periods
+                if (star.starOrbitType == Starhelper.starOrbitType.Primary)
+                    return;
+
+                DebugLogger.LogFormat("  Calculating orbital period for {0} companion...", star.starOrbitType);
+
+                // Calculate M (total orbited mass)
+                float M = CalculateTotalOrbitedMass(cObj, star);
+
+                // m = mass of the orbiting star
+                float m = star.mass;
+                DebugLogger.LogFormat("    Orbiting star mass (m): {0:F3}", m);
+
+                // orbital period = sqrt(orbit^2 / (M + m))
+                float orbitAU = cObj.orbitAU;
+                float period = (float)Math.Sqrt((orbitAU * orbitAU) / (M + m));
+
+                cObj.OrbitalPeriodYears = period;
+                DebugLogger.LogFormat("    Orbital period: {0:F6} years", period);
+            }
+        }
+
+        private void CalculateAllOrbitalPeriods()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING ORBITAL PERIODS");
+
+            // Calculate for primary's companions
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                CalculateOrbitalPeriod(obj);
+
+                // Calculate for sub-companions
+                foreach (var subObj in obj.celestrialObjectOrbits)
+                {
+                    CalculateOrbitalPeriod(subObj);
+                }
+            }
+        }
+
+        private string FormatOrbitalPeriod(float years)
+        {
+            // Convert to days
+            float days = years * 365.25f;
+
+            // If less than 1 day, show in hours
+            if (days < 1.0f)
+            {
+                float hours = days * 24;
+                return $"{hours:F2} hours";
+            }
+            // If less than 5 years, show in days
+            else if (years < 5.0f)
+            {
+                return $"{days:F2} days";
+            }
+            // Otherwise show in years
+            else
+            {
+                return $"{years:F2} years";
+            }
         }
 
         public Star? primary { get; set; }

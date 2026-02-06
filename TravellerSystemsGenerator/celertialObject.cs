@@ -17,6 +17,7 @@ namespace TravellerSystemGenerator
         public float orbitAU {  get; set; }
         public float orbitMinSep {  get; set; }
         public float orbitMaxSep { get; set; }
+        public float OrbitalPeriodYears { get; set; }
 
         private float[,] starMAO =
             {
