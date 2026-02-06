@@ -634,7 +634,7 @@ namespace TravellerSystemGenerator
             // Use similar logic to CreateStar for type determination
             DetermineStarTypeFromRoll(starTypeNum, dice);
 
-            // If it's not BD or D, generate subtype
+            // If it's not BD or D, generate and validate subtype
             if (type != "BD" && type != "D")
             {
                 subType = GenerateSubType(dice);
@@ -645,11 +645,29 @@ namespace TravellerSystemGenerator
                 {
                     DebugLogger.Log("    Companion is hotter than primary - adjusting to one type cooler");
                     type = GetCoolerStarType(primaryStar.type);
-                    subType = GenerateSubType(dice);
                     SetColourFromType(type);
 
+                    // Recalculate subtype to ensure not hotter than primary
+                    if (type == primaryStar.type)
+                    {
+                        // Same type - must have higher (cooler) subtype
+                        int primarySubType = int.Parse(primaryStar.subType);
+                        int companionSubType = Starhelper.diceRoll(10, 1, dice) - 1;
+                        while (companionSubType <= primarySubType && companionSubType < 9)
+                        {
+                            companionSubType++;
+                        }
+                        subType = companionSubType.ToString();
+                        DebugLogger.LogFormat("    Recalculated subtype to be cooler: {0}", subType);
+                    }
+                    else
+                    {
+                        // Different (cooler) type - any subtype is fine
+                        subType = GenerateSubType(dice);
+                    }
+
                     // Special case: if primary is M and new subtype is higher, make it BD
-                    if (primaryStar.type == "M" && int.Parse(subType) > int.Parse(primaryStar.subType))
+                    if (primaryStar.type == "M" && type == "M" && int.Parse(subType) > int.Parse(primaryStar.subType))
                     {
                         type = "BD";
                         colour = "";
@@ -658,6 +676,40 @@ namespace TravellerSystemGenerator
                     else
                     {
                         DebugLogger.LogFormat("    Adjusted to: {0}{1} {2}", type, subType, starclass);
+                    }
+                }
+                else if (type == primaryStar.type)
+                {
+                    // Same type as primary - ensure subtype is higher (cooler)
+                    int primarySubType = int.Parse(primaryStar.subType);
+                    int companionSubType = int.Parse(subType);
+
+                    if (companionSubType <= primarySubType)
+                    {
+                        DebugLogger.LogFormat("    Same type as primary but subtype not cooler ({0} vs {1}) - recalculating", subType, primaryStar.subType);
+                        companionSubType = primarySubType + Starhelper.diceRoll(10, 1, dice);
+
+                        if (companionSubType > 9)
+                        {
+                            if (type == "M")
+                            {
+                                type = "BD";
+                                colour = "";
+                                DebugLogger.Log("    Subtype would exceed 9 for M type - making companion a BD");
+                            }
+                            else
+                            {
+                                type = GetCoolerStarType(type);
+                                subType = (companionSubType - 10).ToString();
+                                SetColourFromType(type);
+                                DebugLogger.LogFormat("    Subtype exceeded 9 - moving to cooler type: {0}{1}", type, subType);
+                            }
+                        }
+                        else
+                        {
+                            subType = companionSubType.ToString();
+                            DebugLogger.LogFormat("    Recalculated subtype: {0}", subType);
+                        }
                     }
                 }
             }
@@ -674,25 +726,32 @@ namespace TravellerSystemGenerator
 
             type = GetCoolerStarType(primaryStar.type);
             starclass = primaryStar.starclass;
-            subType = GenerateSubType(dice);
             SetColourFromType(type);
 
-            // Special case: if primary is M and new subtype is higher, make it BD
-            if (primaryStar.type == "M")
+            // If same type as primary (can happen with M), ensure cooler subtype
+            if (type == primaryStar.type)
             {
-                if (int.Parse(subType) > int.Parse(primaryStar.subType))
+                int primarySubType = int.Parse(primaryStar.subType);
+                int companionSubType = primarySubType + Starhelper.diceRoll(10, 1, dice);
+
+                DebugLogger.LogFormat("    Same type (M) - calculating cooler subtype from {0}", primaryStar.subType);
+
+                if (companionSubType > 9)
                 {
                     type = "BD";
                     colour = "";
-                    DebugLogger.Log("    Primary is M and subtype too high - making companion a BD");
+                    DebugLogger.Log("    Subtype would exceed 9 for M type - making companion a BD");
                 }
                 else
                 {
+                    subType = companionSubType.ToString();
                     DebugLogger.LogFormat("    Lesser companion: {0}{1} {2}", type, subType, starclass);
                 }
             }
             else
             {
+                // Different type - any subtype is fine since we're already cooler
+                subType = GenerateSubType(dice);
                 DebugLogger.LogFormat("    Lesser companion: {0}{1} {2}", type, subType, starclass);
             }
         }
