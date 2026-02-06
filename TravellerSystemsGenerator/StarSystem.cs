@@ -16,20 +16,38 @@ namespace TravellerSystemGenerator
         
         internal StarSystem()
         {
+            DebugLogger.LogSection("STAR SYSTEM GENERATION");
             Random dice = new Random();
+            DebugLogger.Log("Random number generator initialized");
 
+            DebugLogger.Log("");
+            DebugLogger.Log("Creating primary celestial object...");
             primaryObject = new CelestrialObject();
 
+            DebugLogger.Log("Generating primary star...");
             primaryObject.celestrialObject = new Star(dice);
 
+            DebugLogger.Log("Loading orbital values...");
             Starhelper.LoadOrbitalValues();
 
+            DebugLogger.Log("");
+            DebugLogger.Log("Checking for additional companion stars...");
             GenerateAdditionalStars(primaryObject, dice);
 
             Star? star = primaryObject.celestrialObject as Star;
 
+            DebugLogger.LogSection("SYSTEM SUMMARY");
             if (star != null)
                 PrintStar(star, 0, primaryObject, dice);
+
+            if (primaryObject.celestrialObjectOrbits.Count > 0)
+            {
+                DebugLogger.Log($"Total companion stars found: {primaryObject.celestrialObjectOrbits.Count}");
+            }
+            else
+            {
+                DebugLogger.Log("No companion stars in this system");
+            }
 
             foreach (CelestrialObject Cobj in primaryObject.celestrialObjectOrbits)
             {
@@ -79,26 +97,43 @@ namespace TravellerSystemGenerator
             if (star.starOrbitType == Starhelper.starOrbitType.Primary)
             {
                 Console.WriteLine(star.starOrbitType.ToString() + " Star");
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("{0} STAR:", star.starOrbitType.ToString().ToUpper());
             }
             else
             {
                 Console.WriteLine("Orbit " + " " + orbit + " (" + Cobj.orbitAU + "AU) - " + star.starOrbitType.ToString() + " Star");
                 Console.WriteLine("Orbit Eccentricity = " + Cobj.orbitEccentricity.ToString());
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("{0} STAR:", star.starOrbitType.ToString().ToUpper());
+                DebugLogger.LogFormat("  Orbit: {0:F2} ({1:F2} AU)", orbit, Cobj.orbitAU);
+                DebugLogger.LogFormat("  Eccentricity: {0:F3}", Cobj.orbitEccentricity);
                 if (Cobj.orbitEccentricity > 0)
                 {
                     Console.WriteLine("Orbit Max seperation = " + Cobj.orbitMaxSep.ToString());
                     Console.WriteLine("Orbit Min seperation = " + Cobj.orbitMinSep.ToString());
+                    DebugLogger.LogFormat("  Max Separation: {0:F2} AU", Cobj.orbitMaxSep);
+                    DebugLogger.LogFormat("  Min Separation: {0:F2} AU", Cobj.orbitMinSep);
                 }
             }
             Console.WriteLine(star.type + star.subType + " " + star.starclass);
+            DebugLogger.LogFormat("  Classification: {0}{1} {2}", star.type, star.subType, star.starclass);
             if (star.type != "BD" && star.type != "D")
+            {
                 Console.WriteLine("Colour = " + star.colour);
-            
+                DebugLogger.LogFormat("  Colour: {0}", star.colour);
+            }
+
             Console.WriteLine("Mass = " + star.mass);
             Console.WriteLine("Temperture = " + star.temperture);
             Console.WriteLine("Diameter = " + star.diameter);
             Console.WriteLine("Luminosity = " + star.luminosity);
             Console.WriteLine("Age = " + star.age);
+            DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
+            DebugLogger.LogFormat("  Temperature: {0} K", star.temperture);
+            DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", star.diameter);
+            DebugLogger.LogFormat("  Luminosity: {0:F6}", star.luminosity);
+            DebugLogger.LogFormat("  Age: {0:F2} billion years", star.age);
         }
 
         private string GetProperty(Object? obj, string prop)
@@ -131,6 +166,8 @@ namespace TravellerSystemGenerator
         private int CheckCompanionTypePresent (Starhelper.starOrbitType starOrbit, Random dice)
         {
             int starPresent = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogFormat("  Checking for {0} companion star - Base roll: {1}", starOrbit, starPresent);
+
             if (starOrbit == Starhelper.starOrbitType.Close)
             {
                 if (GetProperty(primaryObject.celestrialObject, "starclass") == "Ia" ||
@@ -139,6 +176,7 @@ namespace TravellerSystemGenerator
                     GetProperty(primaryObject.celestrialObject, "starclass") == "III")
                 {
                     starPresent = 0;
+                    DebugLogger.Log("    Giant/Supergiant stars cannot have close companions - setting to 0");
                 }
             }
             else
@@ -173,6 +211,7 @@ namespace TravellerSystemGenerator
                 }
             }
 
+            DebugLogger.LogFormat("  Final roll for {0} companion: {1} (need 10+)", starOrbit, starPresent);
             return starPresent;
         }
 
@@ -188,29 +227,41 @@ namespace TravellerSystemGenerator
             if (closeStarPresent >= 10)
                 {
                 Console.WriteLine("Close Star present");
+                DebugLogger.Log("CLOSE STAR DETECTED - Generating orbital position");
                 int baseOrb = Starhelper.diceRoll(6, 1, dice) - 1;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Close);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Close, dice);
                 }
             if (nearStarPresent >= 10)
             {
                 Console.WriteLine("Near Star present");
+                DebugLogger.Log("NEAR STAR DETECTED - Generating orbital position");
                 int baseOrb = Starhelper.diceRoll(6, 1, dice) + 5;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Near);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Near, dice);
             }
             if (farStarPresent >= 10)
             {
                 Console.WriteLine("Far Star present");
+                DebugLogger.Log("FAR STAR DETECTED - Generating orbital position");
                 int baseOrb = Starhelper.diceRoll(6, 1, dice) + 11;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Far);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Far, dice);
             }
             if(companionStarPresent >= 10)
             {
                 Console.WriteLine("Companion Star present");
+                DebugLogger.Log("COMPANION STAR DETECTED - Generating orbital position");
                 int baseOrb = Starhelper.diceRoll(6, 1, dice) / 10 + (Starhelper.diceRoll(6, 2, dice) - 7) / 100;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
                 float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
             }
 

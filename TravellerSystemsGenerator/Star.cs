@@ -63,8 +63,10 @@ namespace TravellerSystemGenerator
 
         public void CreateStar(float orbit, Starhelper.starOrbitType orbitType, Random dice)
         {
+            DebugLogger.LogFormat("Creating {0} star...", orbitType);
             starOrbitType = orbitType;
             int starTypeNum = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, starTypeNum, "Star type determination");
             //Console.WriteLine("starTypeNum = " + starTypeNum);
             if (starTypeNum <= 2)
             {
@@ -214,12 +216,22 @@ namespace TravellerSystemGenerator
             if (type != "BD" && type != "D")
             {
                 subType = (Starhelper.diceRoll(10, 1, dice) - 1).ToString();
+                DebugLogger.LogFormat("  Star type: {0}{1} {2}", type, subType, starclass);
                 GetMassTempertureDiameter(type, subType, dice);
+                DebugLogger.LogFormat("  Base mass: {0:F3} solar masses", mass);
+                DebugLogger.LogFormat("  Base temperature: {0} K", temperture);
+                DebugLogger.LogFormat("  Base diameter: {0:F4} solar diameters", diameter);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Star type: {0} ({1})", type, type == "BD" ? "Brown Dwarf" : "White Dwarf");
             }
 
             StarVariance(dice);
+            DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
 
             luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+            DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
 
             while (age < 0.1F) { 
             if (mass <= 0.9)
@@ -234,6 +246,7 @@ namespace TravellerSystemGenerator
                 }
             }
 
+            DebugLogger.LogFormat("  Star age: {0:F2} billion years", age);
             Starhelper.systemAge = age;
 
         }
