@@ -86,7 +86,22 @@ namespace TravellerSystemGenerator
             Cobj.orbitAU = Cobj.OrbitAU(orbit);
             Cobj.orbitMinSep = Cobj.orbitAU * (1 - Cobj.orbitEccentricity);
             Cobj.orbitMaxSep = Cobj.orbitAU * (1 + Cobj.orbitEccentricity);
-            Star NewStar = new Star(orbit, starOrbitType, dice);
+
+            // Get the primary star from this celestial object
+            Star? primaryStar = this.celestrialObject as Star;
+
+            // Create companion star using the new constructor that considers the primary
+            Star NewStar;
+            if (primaryStar != null)
+            {
+                NewStar = new Star(orbit, starOrbitType, primaryStar, dice);
+            }
+            else
+            {
+                // Fallback to old method if primary is not a star (shouldn't happen)
+                NewStar = new Star(orbit, starOrbitType, dice);
+            }
+
             Cobj.celestrialObject = NewStar;
             celestrialObjectOrbits.Add(Cobj);
         }

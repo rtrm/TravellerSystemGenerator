@@ -60,6 +60,149 @@ namespace TravellerSystemGenerator
             CreateStar(orbit, starOrbitType, dice);
         }
 
+        public Star(float orbit, Starhelper.starOrbitType starOrbitType, Star primaryStar, Random dice)
+        {
+            CreateCompanionStar(orbit, starOrbitType, primaryStar, dice);
+        }
+
+
+        public void CreateCompanionStar(float orbit, Starhelper.starOrbitType orbitType, Star primaryStar, Random dice)
+        {
+            DebugLogger.LogFormat("Creating {0} companion star based on primary {1}{2} {3}", orbitType, primaryStar.type, primaryStar.subType, primaryStar.starclass);
+            starOrbitType = orbitType;
+
+            // Check if primary is Class III or IV for dice modifier
+            int diceModifier = 0;
+            if (primaryStar.starclass == "III" || primaryStar.starclass == "IV")
+            {
+                diceModifier = 1;
+                DebugLogger.Log("  Primary is Class III or IV - adding +1 to companion type roll");
+            }
+
+            // Special case: D and BD primaries always have same-type companions
+            if (primaryStar.type == "D" || primaryStar.type == "BD")
+            {
+                type = primaryStar.type;
+                starclass = primaryStar.starclass;
+                DebugLogger.LogFormat("  Primary is {0} - companion will also be {0}", primaryStar.type);
+
+                // Generate mass and other properties
+                GetMassTempertureDiameter(type, subType, dice);
+                StarVariance(dice);
+                luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+
+                while (age < 0.1F)
+                {
+                    if (mass <= 0.9)
+                    {
+                        age = (float)Math.Round(((((float)Starhelper.diceRoll(6, 1, dice)) * 2) + (float)Starhelper.diceRoll(3, 1, dice) - 1) + ((float)Starhelper.diceRoll(3, 1, dice) / 10), 2);
+                        if (age > 12.0F)
+                            age = 0;
+                    }
+                    else
+                    {
+                        age = (float)Math.Round(((float)Starhelper.diceRoll(6, 1, dice) - 1 + ((float)Starhelper.diceRoll(6, 1, dice) / 6)) / 6, 2);
+                    }
+                }
+                DebugLogger.LogFormat("  Star age: {0:F2} billion years", age);
+                return;
+            }
+
+            // Roll for companion type determination
+            int companionTypeRoll = Starhelper.diceRoll(6, 2, dice) + diceModifier;
+            DebugLogger.LogDiceRoll(2, companionTypeRoll - diceModifier, "Companion type determination");
+            if (diceModifier > 0)
+            {
+                DebugLogger.LogFormat("  Roll after modifier: {0}", companionTypeRoll);
+            }
+
+            // Different thresholds for Close/Near/Far vs Companion
+            bool isCompanionOrbit = (orbitType == Starhelper.starOrbitType.Companion);
+
+            if (companionTypeRoll < 4)
+            {
+                // Other - D or BD
+                DebugLogger.Log("  Companion category: Other");
+                int otherRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, otherRoll, "Other type determination");
+
+                if (otherRoll < 8)
+                {
+                    type = "D";
+                    DebugLogger.Log("    Result: White Dwarf (D)");
+                }
+                else
+                {
+                    type = "BD";
+                    DebugLogger.Log("    Result: Brown Dwarf (BD)");
+                }
+                starclass = primaryStar.starclass;
+            }
+            else if ((!isCompanionOrbit && companionTypeRoll >= 4 && companionTypeRoll <= 6) ||
+                     (isCompanionOrbit && companionTypeRoll >= 4 && companionTypeRoll <= 5))
+            {
+                // Random - generate like primary but ensure not hotter
+                DebugLogger.Log("  Companion category: Random");
+                GenerateRandomCompanion(primaryStar, dice);
+            }
+            else if ((!isCompanionOrbit && companionTypeRoll >= 7 && companionTypeRoll <= 8) ||
+                     (isCompanionOrbit && companionTypeRoll >= 6 && companionTypeRoll <= 7))
+            {
+                // Lesser - one type cooler
+                DebugLogger.Log("  Companion category: Lesser");
+                GenerateLesserCompanion(primaryStar, dice);
+            }
+            else if ((!isCompanionOrbit && companionTypeRoll >= 9 && companionTypeRoll <= 10) ||
+                     (isCompanionOrbit && companionTypeRoll >= 8 && companionTypeRoll <= 9))
+            {
+                // Sibling - same type, higher subtype
+                DebugLogger.Log("  Companion category: Sibling");
+                GenerateSiblingCompanion(primaryStar, dice);
+            }
+            else // >= 11 for Close/Near/Far, >= 10 for Companion
+            {
+                // Twin - identical but slightly smaller
+                DebugLogger.Log("  Companion category: Twin");
+                GenerateTwinCompanion(primaryStar, dice);
+                return; // Twin handles all properties internally
+            }
+
+            // Generate remaining properties for non-Twin companions
+            if (type != "D" && type != "BD")
+            {
+                DebugLogger.LogFormat("  Final star type: {0}{1} {2}", type, subType, starclass);
+                GetMassTempertureDiameter(type, subType, dice);
+                DebugLogger.LogFormat("  Base mass: {0:F3} solar masses", mass);
+                DebugLogger.LogFormat("  Base temperature: {0} K", temperture);
+                DebugLogger.LogFormat("  Base diameter: {0:F4} solar diameters", diameter);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Final star type: {0} ({1})", type, type == "BD" ? "Brown Dwarf" : "White Dwarf");
+            }
+
+            StarVariance(dice);
+            DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
+
+            luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+            DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
+
+            while (age < 0.1F)
+            {
+                if (mass <= 0.9)
+                {
+                    age = (float)Math.Round(((((float)Starhelper.diceRoll(6, 1, dice)) * 2) + (float)Starhelper.diceRoll(3, 1, dice) - 1) + ((float)Starhelper.diceRoll(3, 1, dice) / 10), 2);
+                    if (age > 12.0F)
+                        age = 0;
+                }
+                else
+                {
+                    age = (float)Math.Round(((float)Starhelper.diceRoll(6, 1, dice) - 1 + ((float)Starhelper.diceRoll(6, 1, dice) / 6)) / 6, 2);
+                }
+            }
+
+            DebugLogger.LogFormat("  Star age: {0:F2} billion years", age);
+        }
 
         public void CreateStar(float orbit, Starhelper.starOrbitType orbitType, Random dice)
         {
@@ -389,6 +532,376 @@ namespace TravellerSystemGenerator
                     return 6;
                 default:
                     throw new NotImplementedException ();
+            }
+        }
+
+        // Helper method to get the next cooler star type
+        private string GetCoolerStarType(string currentType)
+        {
+            // Types from hottest to coolest: O B A F G K M
+            switch (currentType)
+            {
+                case "O": return "B";
+                case "B": return "A";
+                case "A": return "F";
+                case "F": return "G";
+                case "G": return "K";
+                case "K": return "M";
+                case "M": return "M"; // Can't go cooler than M
+                default: return currentType;
+            }
+        }
+
+        // Helper method to determine if star1 is hotter than star2
+        private bool IsHotterThan(string type1, string subType1, string type2, string subType2)
+        {
+            // Get type indices (higher = cooler)
+            int typeIndex1 = GetStarTypeHeatIndex(type1);
+            int typeIndex2 = GetStarTypeHeatIndex(type2);
+
+            if (typeIndex1 < typeIndex2) return true; // Lower index = hotter
+            if (typeIndex1 > typeIndex2) return false; // Higher index = cooler
+
+            // Same type, compare subtypes (higher subtype = cooler)
+            int sub1 = int.Parse(subType1);
+            int sub2 = int.Parse(subType2);
+            return sub1 < sub2;
+        }
+
+        // Helper to get heat index (lower = hotter)
+        private int GetStarTypeHeatIndex(string type)
+        {
+            switch (type)
+            {
+                case "O": return 0;
+                case "B": return 1;
+                case "A": return 2;
+                case "F": return 3;
+                case "G": return 4;
+                case "K": return 5;
+                case "M": return 6;
+                default: return 99; // D and BD
+            }
+        }
+
+        // Helper to set colour based on star type
+        private void SetColourFromType(string starType)
+        {
+            switch (starType)
+            {
+                case "O":
+                    colour = "Blue";
+                    break;
+                case "B":
+                    colour = "Blue White";
+                    break;
+                case "A":
+                    colour = "White";
+                    break;
+                case "F":
+                    colour = "Yellow White";
+                    break;
+                case "G":
+                    colour = "Yellow";
+                    break;
+                case "K":
+                    colour = "Light Orange";
+                    break;
+                case "M":
+                    colour = "Orange Red";
+                    break;
+                default:
+                    colour = "";
+                    break;
+            }
+        }
+
+        // Generate a random subtype (0-9)
+        private string GenerateSubType(Random dice)
+        {
+            return (Starhelper.diceRoll(10, 1, dice) - 1).ToString();
+        }
+
+        // Generate Random companion
+        private void GenerateRandomCompanion(Star primaryStar, Random dice)
+        {
+            DebugLogger.Log("    Generating random companion (may need adjustment if hotter than primary)");
+
+            // Generate a star using normal process
+            int starTypeNum = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, starTypeNum, "Random companion base type");
+
+            // Use similar logic to CreateStar for type determination
+            DetermineStarTypeFromRoll(starTypeNum, dice);
+
+            // If it's not BD or D, generate subtype
+            if (type != "BD" && type != "D")
+            {
+                subType = GenerateSubType(dice);
+                DebugLogger.LogFormat("    Generated type: {0}{1} {2}", type, subType, starclass);
+
+                // Check if it's hotter than primary
+                if (IsHotterThan(type, subType, primaryStar.type, primaryStar.subType))
+                {
+                    DebugLogger.Log("    Companion is hotter than primary - adjusting to one type cooler");
+                    type = GetCoolerStarType(primaryStar.type);
+                    subType = GenerateSubType(dice);
+                    SetColourFromType(type);
+
+                    // Special case: if primary is M and new subtype is higher, make it BD
+                    if (primaryStar.type == "M" && int.Parse(subType) > int.Parse(primaryStar.subType))
+                    {
+                        type = "BD";
+                        colour = "";
+                        DebugLogger.Log("    Primary is M and subtype too high - making companion a BD");
+                    }
+                    else
+                    {
+                        DebugLogger.LogFormat("    Adjusted to: {0}{1} {2}", type, subType, starclass);
+                    }
+                }
+            }
+            else
+            {
+                DebugLogger.LogFormat("    Generated type: {0}", type);
+            }
+        }
+
+        // Generate Lesser companion (one type cooler)
+        private void GenerateLesserCompanion(Star primaryStar, Random dice)
+        {
+            DebugLogger.Log("    Making companion one type cooler than primary");
+
+            type = GetCoolerStarType(primaryStar.type);
+            starclass = primaryStar.starclass;
+            subType = GenerateSubType(dice);
+            SetColourFromType(type);
+
+            // Special case: if primary is M and new subtype is higher, make it BD
+            if (primaryStar.type == "M")
+            {
+                if (int.Parse(subType) > int.Parse(primaryStar.subType))
+                {
+                    type = "BD";
+                    colour = "";
+                    DebugLogger.Log("    Primary is M and subtype too high - making companion a BD");
+                }
+                else
+                {
+                    DebugLogger.LogFormat("    Lesser companion: {0}{1} {2}", type, subType, starclass);
+                }
+            }
+            else
+            {
+                DebugLogger.LogFormat("    Lesser companion: {0}{1} {2}", type, subType, starclass);
+            }
+        }
+
+        // Generate Sibling companion (same type, higher subtype)
+        private void GenerateSiblingCompanion(Star primaryStar, Random dice)
+        {
+            DebugLogger.Log("    Making companion same type as primary with higher subtype");
+
+            type = primaryStar.type;
+            starclass = primaryStar.starclass;
+            colour = primaryStar.colour;
+
+            int diceRoll = Starhelper.diceRoll(6, 1, dice);
+            int newSubType = int.Parse(primaryStar.subType) + diceRoll;
+            DebugLogger.LogFormat("    Primary subtype: {0}, dice roll: {1}, new subtype: {2}", primaryStar.subType, diceRoll, newSubType);
+
+            if (newSubType > 9)
+            {
+                if (primaryStar.type == "M")
+                {
+                    // M type -> BD
+                    type = "BD";
+                    colour = "";
+                    DebugLogger.Log("    Primary is M and subtype > 9 - making companion a BD");
+                }
+                else
+                {
+                    // Move to next cooler type
+                    type = GetCoolerStarType(primaryStar.type);
+                    subType = (newSubType - 10).ToString();
+                    SetColourFromType(type);
+                    DebugLogger.LogFormat("    Subtype > 9 - moving to cooler type: {0}{1} {2}", type, subType, starclass);
+                }
+            }
+            else
+            {
+                subType = newSubType.ToString();
+                DebugLogger.LogFormat("    Sibling companion: {0}{1} {2}", type, subType, starclass);
+            }
+        }
+
+        // Generate Twin companion (identical but smaller)
+        private void GenerateTwinCompanion(Star primaryStar, Random dice)
+        {
+            DebugLogger.Log("    Making twin companion (same type/subtype, slightly smaller)");
+
+            type = primaryStar.type;
+            starclass = primaryStar.starclass;
+            subType = primaryStar.subType;
+            colour = primaryStar.colour;
+
+            int diceRoll = Starhelper.diceRoll(6, 1, dice);
+            float reductionPercent = (diceRoll - 1) / 100.0f;
+            DebugLogger.LogFormat("    Reduction: {0}% (dice roll: {1})", reductionPercent * 100, diceRoll);
+
+            // Copy base properties from primary
+            mass = primaryStar.mass * (1.0f - reductionPercent);
+            diameter = primaryStar.diameter * (1.0f - reductionPercent);
+            temperture = primaryStar.temperture;
+            age = primaryStar.age;
+
+            // Recalculate luminosity
+            luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+
+            DebugLogger.LogFormat("    Twin companion: {0}{1} {2}", type, subType, starclass);
+            DebugLogger.LogFormat("    Mass: {0:F3} solar masses ({1:F1}% of primary)", mass, (1.0f - reductionPercent) * 100);
+            DebugLogger.LogFormat("    Diameter: {0:F4} solar diameters ({1:F1}% of primary)", diameter, (1.0f - reductionPercent) * 100);
+            DebugLogger.LogFormat("    Temperature: {0} K", temperture);
+            DebugLogger.LogFormat("    Luminosity: {0:F6}", luminosity);
+            DebugLogger.LogFormat("    Age: {0:F2} billion years", age);
+        }
+
+        // Helper method to determine star type from dice roll (extracted from CreateStar)
+        private void DetermineStarTypeFromRoll(int starTypeNum, Random dice)
+        {
+            if (starTypeNum <= 2)
+            {
+                int unusualTypeNum = Starhelper.diceRoll(6, 2, dice);
+                if (unusualTypeNum <= 3)
+                {
+                    int unusualTypeReroll = Starhelper.diceRoll(6, 2, dice) + 1;
+                    if (unusualTypeReroll <= 6)
+                    { type = "M"; colour = "Orange Red"; }
+                    else if (unusualTypeReroll >= 7 && unusualTypeReroll <= 8)
+                    { type = "K"; colour = "Light Orange"; }
+                    else if (unusualTypeReroll >= 9 && unusualTypeReroll <= 11)
+                    { type = "G"; colour = "Yellow"; }
+                    else if (unusualTypeReroll >= 12)
+                    {
+                        int hotTypeNum = Starhelper.diceRoll(6, 2, dice);
+                        if (hotTypeNum <= 11)
+                        { type = "B"; colour = "Blue White"; }
+                        else
+                        { type = "O"; colour = "Blue"; }
+                    }
+                    starclass = "VI";
+                }
+                else if (unusualTypeNum == 4)
+                {
+                    int unusualTypeReroll = Starhelper.diceRoll(6, 2, dice);
+                    if (unusualTypeReroll >= 3 && unusualTypeReroll <= 6)
+                        unusualTypeReroll = unusualTypeReroll + 5;
+                    if (unusualTypeReroll <= 6)
+                    { type = "M"; colour = "Orange Red"; }
+                    else if (unusualTypeReroll >= 7 && unusualTypeReroll <= 8)
+                    { type = "K"; colour = "Light Orange"; }
+                    else if (unusualTypeReroll >= 9 && unusualTypeReroll <= 10)
+                    { type = "G"; colour = "Yellow"; }
+                    else if (unusualTypeReroll == 11)
+                    { type = "F"; colour = "Yellow White"; }
+                    else if (unusualTypeReroll >= 12)
+                    {
+                        int hotTypeNum = Starhelper.diceRoll(6, 2, dice);
+                        if (hotTypeNum <= 9)
+                        { type = "A"; colour = "White"; }
+                        else
+                        { type = "B"; colour = "Blue White"; }
+                    }
+                    starclass = "IV";
+                }
+                else if (unusualTypeNum >= 5 && unusualTypeNum <= 7)
+                    type = "BD";
+                else if (unusualTypeNum >= 8 && unusualTypeNum <= 10)
+                    type = "D";
+                else if (unusualTypeNum == 11)
+                {
+                    starclass = "III";
+                }
+                else
+                {
+                    int giantClassReroll = Starhelper.diceRoll(6, 2, dice);
+                    if (giantClassReroll >= 2 && giantClassReroll <= 8)
+                        starclass = "III";
+                    if (giantClassReroll >= 9 && giantClassReroll <= 10)
+                        starclass = "II";
+                    if (giantClassReroll == 11)
+                        starclass = "Ib";
+                    else
+                        starclass = "Ia";
+                }
+                if (starclass == "III" || starclass == "II" || starclass == "Ib" || starclass == "Ia")
+                {
+                    int giantTypeReroll = Starhelper.diceRoll(6, 2, dice);
+                    if (giantTypeReroll <= 6)
+                    { type = "M"; colour = "Orange Red"; }
+                    else if (giantTypeReroll >= 7 && giantTypeReroll <= 8)
+                    { type = "K"; colour = "Light Orange"; }
+                    else if (giantTypeReroll >= 9 && giantTypeReroll <= 10)
+                    { type = "G"; colour = "Yellow"; }
+                    else if (giantTypeReroll == 11)
+                    { type = "F"; colour = "Yellow White"; }
+                    else if (giantTypeReroll >= 12)
+                    {
+                        int hotTypeNum = Starhelper.diceRoll(6, 2, dice);
+                        if (hotTypeNum <= 9)
+                        { type = "A"; colour = "White"; }
+                        else if (hotTypeNum >= 10 && hotTypeNum <= 11)
+                        { type = "B"; colour = "Blue White"; }
+                        else
+                        { type = "O"; colour = "Blue"; }
+                    }
+                }
+            }
+            else if (starTypeNum >= 3 && starTypeNum <= 6)
+            {
+                type = "M";
+                colour = "Orange Red";
+                starclass = "V";
+            }
+            else if (starTypeNum >= 7 && starTypeNum <= 8)
+            {
+                type = "K";
+                colour = "Light Orange";
+                starclass = "V";
+            }
+            else if (starTypeNum >= 9 && starTypeNum <= 10)
+            {
+                type = "G";
+                colour = "Yellow";
+                starclass = "V";
+            }
+            else if (starTypeNum == 11)
+            {
+                type = "F";
+                colour = "Yellow White";
+                starclass = "V";
+            }
+            else if (starTypeNum >= 12)
+            {
+                int hotTypeNum = Starhelper.diceRoll(6, 2, dice);
+                if (hotTypeNum <= 9)
+                {
+                    type = "A";
+                    colour = "White";
+                    starclass = "V";
+                }
+                else if (hotTypeNum == 10 || hotTypeNum == 11)
+                {
+                    type = "B";
+                    colour = "Blue White";
+                    starclass = "V";
+                }
+                else
+                {
+                    type = "O";
+                    colour = "Blue";
+                    starclass = "V";
+                }
             }
         }
     }
