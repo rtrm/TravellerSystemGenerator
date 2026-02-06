@@ -36,16 +36,29 @@ namespace TravellerSystemGenerator
 
             Star? star = primaryObject.celestrialObject as Star;
 
+            // Print console output header
+            Console.WriteLine();
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+            Console.WriteLine("              TRAVELLER STAR SYSTEM GENERATION                 ");
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+            Console.WriteLine();
+
             DebugLogger.LogSection("SYSTEM SUMMARY");
             if (star != null)
                 PrintStar(star, 0, primaryObject, dice);
 
             if (primaryObject.celestrialObjectOrbits.Count > 0)
             {
+                Console.WriteLine();
+                Console.WriteLine($"System contains {primaryObject.celestrialObjectOrbits.Count} companion star(s)");
+                Console.WriteLine();
                 DebugLogger.Log($"Total companion stars found: {primaryObject.celestrialObjectOrbits.Count}");
             }
             else
             {
+                Console.WriteLine();
+                Console.WriteLine("Single star system (no companions)");
+                Console.WriteLine();
                 DebugLogger.Log("No companion stars in this system");
             }
 
@@ -57,6 +70,10 @@ namespace TravellerSystemGenerator
                     PrintStar(starObj, Cobj.orbit, Cobj, dice);
                 }
             }
+
+            // Print console output footer
+            Console.WriteLine();
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
 
 
             //Console.WriteLine("Primary = " + GetProperty(primaryObject.celestrialObject, "type") + GetProperty(primaryObject.celestrialObject, "subType") + " " + GetProperty(primaryObject.celestrialObject, "starclass"));
@@ -96,39 +113,57 @@ namespace TravellerSystemGenerator
         {
             if (star.starOrbitType == Starhelper.starOrbitType.Primary)
             {
-                Console.WriteLine(star.starOrbitType.ToString() + " Star");
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                Console.WriteLine("PRIMARY STAR");
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
                 DebugLogger.Log("");
                 DebugLogger.LogFormat("{0} STAR:", star.starOrbitType.ToString().ToUpper());
             }
             else
             {
-                Console.WriteLine("Orbit " + " " + orbit + " (" + Cobj.orbitAU + "AU) - " + star.starOrbitType.ToString() + " Star");
-                Console.WriteLine("Orbit Eccentricity = " + Cobj.orbitEccentricity.ToString());
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                Console.WriteLine($"{star.starOrbitType.ToString().ToUpper()} COMPANION STAR");
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                Console.WriteLine($"Orbital Position:    {orbit:F2} ({Cobj.orbitAU:F2} AU)");
+                Console.WriteLine($"Eccentricity:        {Cobj.orbitEccentricity:F3}");
+
                 DebugLogger.Log("");
                 DebugLogger.LogFormat("{0} STAR:", star.starOrbitType.ToString().ToUpper());
                 DebugLogger.LogFormat("  Orbit: {0:F2} ({1:F2} AU)", orbit, Cobj.orbitAU);
                 DebugLogger.LogFormat("  Eccentricity: {0:F3}", Cobj.orbitEccentricity);
+
                 if (Cobj.orbitEccentricity > 0)
                 {
-                    Console.WriteLine("Orbit Max seperation = " + Cobj.orbitMaxSep.ToString());
-                    Console.WriteLine("Orbit Min seperation = " + Cobj.orbitMinSep.ToString());
+                    Console.WriteLine($"Max Separation:      {Cobj.orbitMaxSep:F2} AU");
+                    Console.WriteLine($"Min Separation:      {Cobj.orbitMinSep:F2} AU");
                     DebugLogger.LogFormat("  Max Separation: {0:F2} AU", Cobj.orbitMaxSep);
                     DebugLogger.LogFormat("  Min Separation: {0:F2} AU", Cobj.orbitMinSep);
                 }
-            }
-            Console.WriteLine(star.type + star.subType + " " + star.starclass);
-            DebugLogger.LogFormat("  Classification: {0}{1} {2}", star.type, star.subType, star.starclass);
-            if (star.type != "BD" && star.type != "D")
-            {
-                Console.WriteLine("Colour = " + star.colour);
-                DebugLogger.LogFormat("  Colour: {0}", star.colour);
+                Console.WriteLine();
             }
 
-            Console.WriteLine("Mass = " + star.mass);
-            Console.WriteLine("Temperture = " + star.temperture);
-            Console.WriteLine("Diameter = " + star.diameter);
-            Console.WriteLine("Luminosity = " + star.luminosity);
-            Console.WriteLine("Age = " + star.age);
+            // Star classification
+            Console.WriteLine($"Classification:      {star.type}{star.subType} {star.starclass}");
+            DebugLogger.LogFormat("  Classification: {0}{1} {2}", star.type, star.subType, star.starclass);
+
+            if (star.type != "BD" && star.type != "D")
+            {
+                Console.WriteLine($"Colour:              {star.colour}");
+                DebugLogger.LogFormat("  Colour: {0}", star.colour);
+            }
+            else
+            {
+                string typeName = star.type == "BD" ? "Brown Dwarf" : "White Dwarf";
+                Console.WriteLine($"Type:                {typeName}");
+            }
+
+            // Physical properties
+            Console.WriteLine($"Mass:                {star.mass:F3} solar masses");
+            Console.WriteLine($"Temperature:         {star.temperture:N0} K");
+            Console.WriteLine($"Diameter:            {star.diameter:F4} solar diameters");
+            Console.WriteLine($"Luminosity:          {star.luminosity:F6}");
+            Console.WriteLine($"Age:                 {star.age:F2} billion years");
+
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
             DebugLogger.LogFormat("  Temperature: {0} K", star.temperture);
             DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", star.diameter);
