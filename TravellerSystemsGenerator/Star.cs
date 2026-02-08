@@ -212,7 +212,7 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
                 if (type == "BD")
                 {
-                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} AU", MinAllowableOrbit);
+                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
                 }
                 else
                 {
@@ -450,7 +450,7 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Luminosity: {0:F6}", luminosity);
                 if (type == "BD")
                 {
-                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} AU", MinAllowableOrbit);
+                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
                 }
                 else
                 {
@@ -584,7 +584,7 @@ namespace TravellerSystemGenerator
 
                 DebugLogger.LogFormat("  Looking up minimum allowable orbit from table for {0}{1} {2}", type, subType, starclass);
                 DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
-                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} AU", MinAllowableOrbit);
+                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
             }
             else if (sType == "M" && sSubtype == "9")
             {
@@ -595,7 +595,7 @@ namespace TravellerSystemGenerator
 
                 DebugLogger.LogFormat("  Looking up minimum allowable orbit from table for {0}{1} {2}", type, subType, starclass);
                 DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
-                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} AU", MinAllowableOrbit);
+                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
             }
             else
             {
@@ -619,8 +619,8 @@ namespace TravellerSystemGenerator
                 lowerMinOrbit = starMinOrbit[GetClassIndex(starclass), lowerSubtypeIndex];
                 upperMinOrbit = starMinOrbit[GetClassIndex(starclass), upperSubtypeIndex];
 
-                DebugLogger.LogFormat("    Lower bracket min orbit: {0:F2} AU", lowerMinOrbit);
-                DebugLogger.LogFormat("    Upper bracket min orbit: {0:F2} AU", upperMinOrbit);
+                DebugLogger.LogFormat("    Lower bracket min orbit: {0:F2} (orbit number)", lowerMinOrbit);
+                DebugLogger.LogFormat("    Upper bracket min orbit: {0:F2} (orbit number)", upperMinOrbit);
 
                 int per = Convert.ToInt32(sSubtype);
 
@@ -633,18 +633,18 @@ namespace TravellerSystemGenerator
                 else if (lowerMinOrbit == 0)
                 {
                     MinAllowableOrbit = upperMinOrbit;
-                    DebugLogger.LogFormat("    Lower bracket undefined (-) - using upper bracket value: {0:F2} AU", MinAllowableOrbit);
+                    DebugLogger.LogFormat("    Lower bracket undefined (-) - using upper bracket value: {0:F2} (orbit number)", MinAllowableOrbit);
                 }
                 else if (upperMinOrbit == 0)
                 {
                     MinAllowableOrbit = lowerMinOrbit;
-                    DebugLogger.LogFormat("    Upper bracket undefined (-) - using lower bracket value: {0:F2} AU", MinAllowableOrbit);
+                    DebugLogger.LogFormat("    Upper bracket undefined (-) - using lower bracket value: {0:F2} (orbit number)", MinAllowableOrbit);
                 }
                 else
                 {
                     // Both values exist, interpolate normally
                     MinAllowableOrbit = Extrapolate(lowerMinOrbit, upperMinOrbit, per);
-                    DebugLogger.LogFormat("    Interpolated minimum allowable orbit: {0:F2} AU (factor: {1}/10)", MinAllowableOrbit, per);
+                    DebugLogger.LogFormat("    Interpolated minimum allowable orbit: {0:F2} (orbit number, factor: {1}/10)", MinAllowableOrbit, per);
                 }
             }
         }
@@ -817,7 +817,7 @@ namespace TravellerSystemGenerator
                 mass = 0.06f;
                 diameter = 0.08f;
                 luminosity = 0.000066f;
-                MinAllowableOrbit = 0.005f;
+                MinAllowableOrbit = 0.05f;  // Orbit number, not AU
             }
             else if (starType == "D")
             {
@@ -1035,7 +1035,7 @@ namespace TravellerSystemGenerator
             temperture = primaryStar.temperture;
             age = primaryStar.age;
             MinAllowableOrbit = primaryStar.MinAllowableOrbit;
-            DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} AU (same as primary)", MinAllowableOrbit);
+            DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} (orbit number, same as primary)", MinAllowableOrbit);
 
             // Recalculate luminosity based on new diameter
             float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);

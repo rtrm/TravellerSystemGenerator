@@ -221,7 +221,7 @@ namespace TravellerSystemGenerator
             // Minimum allowable orbit (except for Companion orbit stars)
             if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
             {
-                Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F2} AU");
+                Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F2}");
             }
 
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
@@ -233,7 +233,7 @@ namespace TravellerSystemGenerator
             // Minimum allowable orbit (except for Companion orbit stars)
             if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
             {
-                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F2} AU", star.MinAllowableOrbit);
+                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F2} (orbit number)", star.MinAllowableOrbit);
             }
         }
 
