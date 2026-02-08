@@ -218,11 +218,23 @@ namespace TravellerSystemGenerator
             Console.WriteLine($"Luminosity:          {star.luminosity:F6}");
             Console.WriteLine($"Age:                 {star.age:F2} billion years");
 
+            // Minimum allowable orbit (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
+            {
+                Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F2} AU");
+            }
+
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
             DebugLogger.LogFormat("  Temperature: {0} K", star.temperture);
             DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", star.diameter);
             DebugLogger.LogFormat("  Luminosity: {0:F6}", star.luminosity);
             DebugLogger.LogFormat("  Age: {0:F2} billion years", star.age);
+
+            // Minimum allowable orbit (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
+            {
+                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F2} AU", star.MinAllowableOrbit);
+            }
         }
 
         private string GetProperty(Object? obj, string prop)

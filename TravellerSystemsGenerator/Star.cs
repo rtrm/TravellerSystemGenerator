@@ -20,6 +20,7 @@ namespace TravellerSystemGenerator
         public float diameter { get; set; }
         public float luminosity { get; set; }
         public float age { get; set; }
+        public float MinAllowableOrbit { get; set; }
         public Starhelper.starOrbitType starOrbitType { get; set; }
         public List<CelestrialObject> orbits { get; set; } = new List<CelestrialObject>();
 
@@ -50,6 +51,24 @@ namespace TravellerSystemGenerator
                 { 0, 0, 8, 5, 4, 3, 3, 2, 3, 4, 6, 0, 0, 0, 0 },
                 { 20, 12, 7, 3.5F, 2.2F, 2, 1.7F, 1.5F, 1.1F, 0.95F, 0.9F, 0.8F, 0.7F, 0.2F, 0.1F },
                 { 0.18F, 0.18F, 0.2F, 0.5F, 0, 0, 0, 0, 0.8F, 0.7F, 0.6F, 0.5F, 0.4F, 0.1F, 0.08F }
+            };
+
+        private float[,] starMinOrbit =
+            {
+                // Ia:   O0,    O5,    B0,    B5,    A0,    A5,    F0,    F5,    G0,    G5,    K0,    K5,    M0,    M5,    M9
+                { 0.63F, 0.55F, 0.5F, 1.67F, 3.34F, 4.17F, 4.42F, 5F, 5.21F, 5.34F, 5.59F, 6.17F, 6.8F, 7.2F, 7.8F },
+                // Ib:
+                { 0.6F, 0.5F, 0.35F, 0.63F, 1.4F, 2.17F, 2.5F, 3.25F, 3.59F, 3.84F, 4.17F, 4.84F, 5.42F, 6.17F, 6.59F },
+                // II:
+                { 0.55F, 0.45F, 0.3F, 0.35F, 0.75F, 1.17F, 1.33F, 1.87F, 2.24F, 2.67F, 3.17F, 4F, 4.59F, 5.3F, 5.92F },
+                // III:
+                { 0.53F, 0.38F, 0.25F, 0.15F, 0.13F, 0.13F, 0.13F, 0.13F, 0.25F, 0.38F, 0.5F, 1F, 1.68F, 3F, 4.34F },
+                // IV:
+                { 0, 0, 0.2F, 0.13F, 0.1F, 0.07F, 0.07F, 0.06F, 0.07F, 0.1F, 0.15F, 0, 0, 0, 0 },
+                // V:
+                { 0.5F, 0.3F, 0.18F, 0.09F, 0.06F, 0.05F, 0.04F, 0.03F, 0.03F, 0.02F, 0.02F, 0.02F, 0.02F, 0.01F, 0.01F },
+                // VI:
+                { 0.01F, 0.01F, 0.01F, 0.01F, 0, 0, 0, 0, 0.02F, 0.02F, 0.02F, 0.01F, 0.01F, 0.01F, 0.01F }
             };
         public Star(Random dice)
         {
@@ -179,6 +198,8 @@ namespace TravellerSystemGenerator
 
                 StarVariance(dice);
                 DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
+
+                GetMinAllowableOrbit(type, subType);
             }
             else
             {
@@ -189,10 +210,27 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Mass: {0:F3} solar masses", mass);
                 DebugLogger.LogFormat("  Temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
+
+                // D and BD stars don't have minimum allowable orbits
+                MinAllowableOrbit = 0;
+                DebugLogger.Log("  D/BD star - no minimum allowable orbit");
             }
 
-            luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
-            DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
+            // Calculate luminosity using Stefan-Boltzmann law: L = D^2 * (T/T_sol)^4
+            float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);
+            float tempRatio = (float)(temperture / solTemperture);
+            float tempRatioFourth = (float)Math.Pow(tempRatio, 4.00F);
+            luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 3);
+
+            DebugLogger.Log("  Calculating luminosity using Stefan-Boltzmann law:");
+            DebugLogger.LogFormat("    Formula: L = D^2 × (T/T_sol)^4");
+            DebugLogger.LogFormat("    Diameter (D): {0:F4} solar diameters", diameter);
+            DebugLogger.LogFormat("    D^2: {0:F6}", diameterSquared);
+            DebugLogger.LogFormat("    Temperature (T): {0} K", temperture);
+            DebugLogger.LogFormat("    Solar temp (T_sol): {0} K", solTemperture);
+            DebugLogger.LogFormat("    T/T_sol: {0:F6}", tempRatio);
+            DebugLogger.LogFormat("    (T/T_sol)^4: {0:F6}", tempRatioFourth);
+            DebugLogger.LogFormat("    Calculated luminosity: {0:F6} solar luminosities", luminosity);
 
             while (age < 0.1F)
             {
@@ -375,8 +413,23 @@ namespace TravellerSystemGenerator
                 StarVariance(dice);
                 DebugLogger.LogFormat("  Mass after variance: {0:F3} solar masses", mass);
 
-                luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
-                DebugLogger.LogFormat("  Calculated luminosity: {0:F6}", luminosity);
+                GetMinAllowableOrbit(type, subType);
+
+                // Calculate luminosity using Stefan-Boltzmann law: L = D^2 * (T/T_sol)^4
+                float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);
+                float tempRatio = (float)(temperture / solTemperture);
+                float tempRatioFourth = (float)Math.Pow(tempRatio, 4.00F);
+                luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 3);
+
+                DebugLogger.Log("  Calculating luminosity using Stefan-Boltzmann law:");
+                DebugLogger.LogFormat("    Formula: L = D^2 × (T/T_sol)^4");
+                DebugLogger.LogFormat("    Diameter (D): {0:F4} solar diameters", diameter);
+                DebugLogger.LogFormat("    D^2: {0:F6}", diameterSquared);
+                DebugLogger.LogFormat("    Temperature (T): {0} K", temperture);
+                DebugLogger.LogFormat("    Solar temp (T_sol): {0} K", solTemperture);
+                DebugLogger.LogFormat("    T/T_sol: {0:F6}", tempRatio);
+                DebugLogger.LogFormat("    (T/T_sol)^4: {0:F6}", tempRatioFourth);
+                DebugLogger.LogFormat("    Calculated luminosity: {0:F6} solar luminosities", luminosity);
             }
             else
             {
@@ -391,6 +444,10 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
                 DebugLogger.LogFormat("  Luminosity: {0:F6}", luminosity);
+
+                // D and BD stars don't have minimum allowable orbits
+                MinAllowableOrbit = 0;
+                DebugLogger.Log("  D/BD star - no minimum allowable orbit");
             }
 
             while (age < 0.1F) { 
@@ -416,15 +473,29 @@ namespace TravellerSystemGenerator
 
             if (sSubtype == "0" || sSubtype == "5")
             {
-                mass = starMass[GetClassIndex(starclass), GetTypeIndex(type, subType)];
-                diameter = starDiameter[GetClassIndex(starclass), GetTypeIndex(type, subType)];
-                temperture = starTemperture[GetTypeIndex(type, subType)];
+                int classIndex = GetClassIndex(starclass);
+                int typeIndex = GetTypeIndex(type, subType);
+
+                mass = starMass[classIndex, typeIndex];
+                diameter = starDiameter[classIndex, typeIndex];
+                temperture = starTemperture[typeIndex];
+
+                DebugLogger.LogFormat("  Looking up values from tables for {0}{1} {2}", type, subType, starclass);
+                DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
+                DebugLogger.LogFormat("    Retrieved diameter: {0:F4} solar diameters", diameter);
             }
             else if (sType == "M" && sSubtype == "9")
             {
-                mass = starMass[GetClassIndex(starclass), GetTypeIndex(type, subType)];
-                diameter = starDiameter[GetClassIndex(starclass), GetTypeIndex(type, subType)];
-                temperture = starTemperture[GetTypeIndex(type, subType)];
+                int classIndex = GetClassIndex(starclass);
+                int typeIndex = GetTypeIndex(type, subType);
+
+                mass = starMass[classIndex, typeIndex];
+                diameter = starDiameter[classIndex, typeIndex];
+                temperture = starTemperture[typeIndex];
+
+                DebugLogger.LogFormat("  Looking up values from tables for {0}{1} {2}", type, subType, starclass);
+                DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
+                DebugLogger.LogFormat("    Retrieved diameter: {0:F4} solar diameters", diameter);
             }
             else
             {
@@ -441,6 +512,10 @@ namespace TravellerSystemGenerator
                     adjustedSubtype = 0;
                 else
                     adjustedSubtype = 5;
+
+                DebugLogger.LogFormat("  Interpolating values for {0}{1} {2}", type, sSubtype, starclass);
+                DebugLogger.LogFormat("    Subtype {0} is between {1}{2} and next bracket", sSubtype, type, adjustedSubtype);
+
                 lowerSubtypeIndex = GetTypeIndex(sType, adjustedSubtype.ToString());
                 upperSubtypeIndex = lowerSubtypeIndex + 1;
 
@@ -450,12 +525,17 @@ namespace TravellerSystemGenerator
                 upperMass = starMass[GetClassIndex(starclass), upperSubtypeIndex];
                 upperTemperture = starTemperture[upperSubtypeIndex];
                 upperDiameter = starDiameter[GetClassIndex(starclass), upperSubtypeIndex];
+
+                DebugLogger.LogFormat("    Lower bracket diameter: {0:F4}", lowerDiameter);
+                DebugLogger.LogFormat("    Upper bracket diameter: {0:F4}", upperDiameter);
+
                 int per = Convert.ToInt32(sSubtype);
                 if (lowerMass <= upperMass)
                 {
                     mass = Extrapolate(lowerMass, upperMass, per);
                     temperture = Extrapolate(lowerTemperture, upperTemperture, per);
                     diameter = Extrapolate(lowerDiameter, upperDiameter, per);
+                    DebugLogger.LogFormat("    Interpolated diameter: {0:F4} solar diameters (factor: {1}/10)", diameter, per);
                 }
                 else
                 {
@@ -463,9 +543,10 @@ namespace TravellerSystemGenerator
                     temperture = Extrapolate(upperTemperture, lowerTemperture, per);
                     temperture = Extrapolate(upperTemperture, lowerTemperture, per);
                     diameter = Extrapolate(upperDiameter, lowerDiameter, per);
+                    DebugLogger.LogFormat("    Interpolated diameter: {0:F4} solar diameters (factor: {1}/10, inverted)", diameter, per);
                 }
 
-                
+
 
             }
         }
@@ -474,6 +555,90 @@ namespace TravellerSystemGenerator
         {
             float per = (float)factor / 10;
             return lnumber + (per * (unumber - lnumber));
+        }
+
+        private void GetMinAllowableOrbit(string sType, string sSubtype)
+        {
+            // Companion orbit companions don't have minimum allowable orbits
+            if (starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                MinAllowableOrbit = 0;
+                DebugLogger.Log("  Companion orbit star - no minimum allowable orbit");
+                return;
+            }
+
+            if (sSubtype == "0" || sSubtype == "5")
+            {
+                int classIndex = GetClassIndex(starclass);
+                int typeIndex = GetTypeIndex(type, subType);
+
+                MinAllowableOrbit = starMinOrbit[classIndex, typeIndex];
+
+                DebugLogger.LogFormat("  Looking up minimum allowable orbit from table for {0}{1} {2}", type, subType, starclass);
+                DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
+                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} AU", MinAllowableOrbit);
+            }
+            else if (sType == "M" && sSubtype == "9")
+            {
+                int classIndex = GetClassIndex(starclass);
+                int typeIndex = GetTypeIndex(type, subType);
+
+                MinAllowableOrbit = starMinOrbit[classIndex, typeIndex];
+
+                DebugLogger.LogFormat("  Looking up minimum allowable orbit from table for {0}{1} {2}", type, subType, starclass);
+                DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
+                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} AU", MinAllowableOrbit);
+            }
+            else
+            {
+                int adjustedSubtype;
+                int lowerSubtypeIndex;
+                int upperSubtypeIndex;
+                float lowerMinOrbit;
+                float upperMinOrbit;
+
+                if (Convert.ToInt32(sSubtype) < 5)
+                    adjustedSubtype = 0;
+                else
+                    adjustedSubtype = 5;
+
+                DebugLogger.LogFormat("  Interpolating minimum allowable orbit for {0}{1} {2}", type, sSubtype, starclass);
+                DebugLogger.LogFormat("    Subtype {0} is between {1}{2} and next bracket", sSubtype, type, adjustedSubtype);
+
+                lowerSubtypeIndex = GetTypeIndex(sType, adjustedSubtype.ToString());
+                upperSubtypeIndex = lowerSubtypeIndex + 1;
+
+                lowerMinOrbit = starMinOrbit[GetClassIndex(starclass), lowerSubtypeIndex];
+                upperMinOrbit = starMinOrbit[GetClassIndex(starclass), upperSubtypeIndex];
+
+                DebugLogger.LogFormat("    Lower bracket min orbit: {0:F2} AU", lowerMinOrbit);
+                DebugLogger.LogFormat("    Upper bracket min orbit: {0:F2} AU", upperMinOrbit);
+
+                int per = Convert.ToInt32(sSubtype);
+
+                // Handle cases where values are 0 (represented as "-" in the table)
+                if (lowerMinOrbit == 0 && upperMinOrbit == 0)
+                {
+                    MinAllowableOrbit = 0;
+                    DebugLogger.Log("    Both brackets are undefined (-) - no minimum allowable orbit");
+                }
+                else if (lowerMinOrbit == 0)
+                {
+                    MinAllowableOrbit = upperMinOrbit;
+                    DebugLogger.LogFormat("    Lower bracket undefined (-) - using upper bracket value: {0:F2} AU", MinAllowableOrbit);
+                }
+                else if (upperMinOrbit == 0)
+                {
+                    MinAllowableOrbit = lowerMinOrbit;
+                    DebugLogger.LogFormat("    Upper bracket undefined (-) - using lower bracket value: {0:F2} AU", MinAllowableOrbit);
+                }
+                else
+                {
+                    // Both values exist, interpolate normally
+                    MinAllowableOrbit = Extrapolate(lowerMinOrbit, upperMinOrbit, per);
+                    DebugLogger.LogFormat("    Interpolated minimum allowable orbit: {0:F2} AU (factor: {1}/10)", MinAllowableOrbit, per);
+                }
+            }
         }
 
         private void StarVariance(Random dice)
@@ -859,15 +1024,27 @@ namespace TravellerSystemGenerator
             diameter = primaryStar.diameter * (1.0f - diameterReductionPercent);
             temperture = primaryStar.temperture;
             age = primaryStar.age;
+            MinAllowableOrbit = primaryStar.MinAllowableOrbit;
+            DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} AU (same as primary)", MinAllowableOrbit);
 
             // Recalculate luminosity based on new diameter
-            luminosity = (float)Math.Round((Math.Pow((float)diameter, 2.00F)) * (float)(Math.Pow((float)(temperture / solTemperture), 4.00F)), 3);
+            float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);
+            float tempRatio = (float)(temperture / solTemperture);
+            float tempRatioFourth = (float)Math.Pow(tempRatio, 4.00F);
+            luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 3);
 
             DebugLogger.LogFormat("    Twin companion: {0}{1} {2}", type, subType, starclass);
             DebugLogger.LogFormat("    Mass: {0:F3} solar masses ({1:F1}% of primary)", mass, (1.0f - massReductionPercent) * 100);
             DebugLogger.LogFormat("    Diameter: {0:F4} solar diameters ({1:F1}% of primary)", diameter, (1.0f - diameterReductionPercent) * 100);
             DebugLogger.LogFormat("    Temperature: {0} K", temperture);
-            DebugLogger.LogFormat("    Luminosity: {0:F6}", luminosity);
+
+            DebugLogger.Log("    Recalculating luminosity for twin companion:");
+            DebugLogger.LogFormat("      Formula: L = D^2 × (T/T_sol)^4");
+            DebugLogger.LogFormat("      Primary diameter: {0:F4}, Twin diameter: {1:F4}", primaryStar.diameter, diameter);
+            DebugLogger.LogFormat("      D^2: {0:F6}", diameterSquared);
+            DebugLogger.LogFormat("      (T/T_sol)^4: {0:F6}", tempRatioFourth);
+            DebugLogger.LogFormat("      Luminosity: {0:F6} solar luminosities", luminosity);
+
             DebugLogger.LogFormat("    Age: {0:F2} billion years", age);
         }
 
