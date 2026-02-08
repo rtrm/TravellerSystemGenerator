@@ -37,6 +37,11 @@ namespace TravellerSystemGenerator
             // Calculate orbital periods for all companion stars
             CalculateAllOrbitalPeriods();
 
+            // Determine non-stellar objects
+            GasGiantCount = DetermineGasGiants(dice);
+            PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
+            TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+
             Star? star = primaryObject.celestrialObject as Star;
 
             // Print console output header
@@ -94,6 +99,21 @@ namespace TravellerSystemGenerator
                     }
                 }
             }
+
+            // Print non-stellar objects summary
+            Console.WriteLine();
+            Console.WriteLine("─────────────────────────────────────────────────────────────");
+            Console.WriteLine("NON-STELLAR OBJECTS");
+            Console.WriteLine("─────────────────────────────────────────────────────────────");
+            Console.WriteLine($"Gas Giants:          {GasGiantCount}");
+            Console.WriteLine($"Planetoid Belts:     {PlanetoidBeltCount}");
+            Console.WriteLine($"Terrestrial Planets: {TerrestrialPlanetCount}");
+
+            DebugLogger.Log("");
+            DebugLogger.Log("NON-STELLAR OBJECTS SUMMARY:");
+            DebugLogger.LogFormat("  Gas Giants: {0}", GasGiantCount);
+            DebugLogger.LogFormat("  Planetoid Belts: {0}", PlanetoidBeltCount);
+            DebugLogger.LogFormat("  Terrestrial Planets: {0}", TerrestrialPlanetCount);
 
             // Print console output footer
             Console.WriteLine();
@@ -640,8 +660,273 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private int CountStarsInSystem()
+        {
+            int count = 1; // Primary star
+            count += primaryObject.celestrialObjectOrbits.Count;
+
+            // Count sub-companions
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                count += obj.celestrialObjectOrbits.Count;
+            }
+
+            return count;
+        }
+
+        private int CountDStarsInSystem()
+        {
+            int count = 0;
+
+            // Check primary
+            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "D")
+            {
+                count++;
+            }
+
+            // Check companions
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star star && star.type == "D")
+                {
+                    count++;
+                }
+
+                // Check sub-companions
+                foreach (var subObj in obj.celestrialObjectOrbits)
+                {
+                    if (subObj.celestrialObject is Star subStar && subStar.type == "D")
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        private bool IsSingleClassVStar()
+        {
+            // Must have exactly 1 star (no companions)
+            if (primaryObject.celestrialObjectOrbits.Count > 0)
+                return false;
+
+            // Primary must be Class V
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                return primaryStar.starclass == "V";
+            }
+
+            return false;
+        }
+
+        private bool IsPrimaryBDOrD()
+        {
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                return primaryStar.type == "BD" || primaryStar.type == "D";
+            }
+            return false;
+        }
+
+        private int DetermineGasGiants(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("DETERMINING GAS GIANTS");
+
+            // Check if gas giants are present (2-9 on 2d6)
+            int presenceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, presenceRoll, "Gas giant presence check");
+
+            if (presenceRoll >= 10)
+            {
+                DebugLogger.Log("  No gas giants in system (rolled 10+)");
+                return 0;
+            }
+
+            DebugLogger.Log("  Gas giants present - determining count");
+
+            // Roll for count
+            int countRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, countRoll, "Gas giant count (base)");
+
+            int modifiers = 0;
+
+            // Single Class V star: +1
+            if (IsSingleClassVStar())
+            {
+                modifiers += 1;
+                DebugLogger.Log("  System has single Class V star: +1");
+            }
+
+            // Primary is BD or D: -2
+            if (IsPrimaryBDOrD())
+            {
+                modifiers -= 2;
+                DebugLogger.Log("  Primary is BD or D: -2");
+            }
+
+            // Each D star: -1
+            int dStarCount = CountDStarsInSystem();
+            if (dStarCount > 0)
+            {
+                modifiers -= dStarCount;
+                DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+            }
+
+            // 4 or more stars: -1
+            int totalStars = CountStarsInSystem();
+            if (totalStars >= 4)
+            {
+                modifiers -= 1;
+                DebugLogger.LogFormat("  {0} stars in system (4+): -1", totalStars);
+            }
+
+            int finalRoll = countRoll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", countRoll, modifiers, finalRoll);
+            }
+
+            // Determine count from table
+            int gasGiantCount;
+            if (finalRoll <= 4) gasGiantCount = 1;
+            else if (finalRoll <= 6) gasGiantCount = 2;
+            else if (finalRoll <= 8) gasGiantCount = 3;
+            else if (finalRoll <= 11) gasGiantCount = 4;
+            else if (finalRoll == 12) gasGiantCount = 5;
+            else gasGiantCount = 6;
+
+            DebugLogger.LogFormat("  Result: {0} gas giant(s)", gasGiantCount);
+            return gasGiantCount;
+        }
+
+        private int DeterminePlanetoidBelts(Random dice, int gasGiantCount)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("DETERMINING PLANETOID BELTS");
+
+            // Check if planetoid belts are present (8+ on 2d6)
+            int presenceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, presenceRoll, "Planetoid belt presence check");
+
+            if (presenceRoll < 8)
+            {
+                DebugLogger.Log("  No planetoid belts in system (need 8+)");
+                return 0;
+            }
+
+            DebugLogger.Log("  Planetoid belts present - determining count");
+
+            // Roll for count
+            int countRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, countRoll, "Planetoid belt count (base)");
+
+            int modifiers = 0;
+
+            // At least 1 gas giant: +1
+            if (gasGiantCount >= 1)
+            {
+                modifiers += 1;
+                DebugLogger.Log("  System has gas giant(s): +1");
+            }
+
+            // Primary is D: +1
+            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "D")
+            {
+                modifiers += 1;
+                DebugLogger.Log("  Primary is D: +1");
+            }
+
+            // Each D star: +1
+            int dStarCount = CountDStarsInSystem();
+            if (dStarCount > 0)
+            {
+                modifiers += dStarCount;
+                DebugLogger.LogFormat("  {0} D star(s) in system: +{1}", dStarCount, dStarCount);
+            }
+
+            // 2 or more stars: +1
+            int totalStars = CountStarsInSystem();
+            if (totalStars >= 2)
+            {
+                modifiers += 1;
+                DebugLogger.LogFormat("  {0} stars in system (2+): +1", totalStars);
+            }
+
+            int finalRoll = countRoll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + {1} = {2}", countRoll, modifiers, finalRoll);
+            }
+
+            // Determine count from table
+            int beltCount;
+            if (finalRoll <= 6) beltCount = 1;
+            else if (finalRoll <= 11) beltCount = 2;
+            else beltCount = 3;
+
+            DebugLogger.LogFormat("  Result: {0} planetoid belt(s)", beltCount);
+            return beltCount;
+        }
+
+        private int DetermineTerrestrialPlanets(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("DETERMINING TERRESTRIAL PLANETS");
+
+            // Roll 2d6 - 2
+            int baseRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+            DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", baseRoll);
+
+            int modifiers = 0;
+
+            // Each D star: -1
+            int dStarCount = CountDStarsInSystem();
+            if (dStarCount > 0)
+            {
+                modifiers -= dStarCount;
+                DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+            }
+
+            int originalTotal = baseRoll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", baseRoll, modifiers, originalTotal);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Total: {0}", originalTotal);
+            }
+
+            int finalCount;
+
+            // Adjust based on original total
+            if (originalTotal < 3)
+            {
+                DebugLogger.Log("  Total < 3, regenerating with 1d3 + 2");
+                int regenRoll = Starhelper.diceRoll(3, 1, dice);
+                finalCount = regenRoll + 2;
+                DebugLogger.LogFormat("  Regenerated: 1d3 + 2 = {0} + 2 = {1}", regenRoll, finalCount);
+            }
+            else
+            {
+                DebugLogger.Log("  Total >= 3, adding 1d3 - 1");
+                int additionalRoll = Starhelper.diceRoll(3, 1, dice) - 1;
+                finalCount = originalTotal + additionalRoll;
+                DebugLogger.LogFormat("  Final: {0} + (1d3 - 1) = {0} + {1} = {2}", originalTotal, additionalRoll, finalCount);
+            }
+
+            DebugLogger.LogFormat("  Result: {0} terrestrial planet(s)", finalCount);
+            return finalCount;
+        }
+
         public Star? primary { get; set; }
         public CelestrialObject primaryObject { get; set; } = null!;
+
+        public int GasGiantCount { get; private set; }
+        public int PlanetoidBeltCount { get; private set; }
+        public int TerrestrialPlanetCount { get; private set; }
 
         public static Dictionary<int, float> orbitValues = new Dictionary<int, float>();
     }
