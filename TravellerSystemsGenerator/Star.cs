@@ -210,14 +210,7 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Mass: {0:F3} solar masses", mass);
                 DebugLogger.LogFormat("  Temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
-                if (type == "BD")
-                {
-                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
-                }
-                else
-                {
-                    DebugLogger.Log("  D star - no minimum allowable orbit");
-                }
+                DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
             }
 
             // Calculate luminosity using Stefan-Boltzmann law: L = D^2 * (T/T_sol)^4
@@ -448,17 +441,10 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
                 DebugLogger.LogFormat("  Luminosity: {0:F6}", luminosity);
-                if (type == "BD")
-                {
-                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
-                }
-                else
-                {
-                    DebugLogger.Log("  D star - no minimum allowable orbit");
-                }
+                DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
             }
 
-            while (age < 0.1F) { 
+            while (age < 0.1F) {
             if (mass <= 0.9)
                 {
                     age = (float)Math.Round(((((float)Starhelper.diceRoll(6, 1, dice)) * 2) + (float)Starhelper.diceRoll(3, 1, dice) - 1) + ((float)Starhelper.diceRoll(3, 1, dice) / 10), 2);
@@ -817,7 +803,7 @@ namespace TravellerSystemGenerator
                 mass = 0.06f;
                 diameter = 0.08f;
                 luminosity = 0.000066f;
-                MinAllowableOrbit = 0.001f;  // Orbit number
+                MinAllowableOrbit = 0.005f;  // Orbit number
             }
             else if (starType == "D")
             {
@@ -827,7 +813,7 @@ namespace TravellerSystemGenerator
                 mass = 0.6f;
                 diameter = 0.017f;
                 luminosity = 0.001f;
-                MinAllowableOrbit = 0;
+                MinAllowableOrbit = 0.001f;  // Orbit number
             }
         }
 
