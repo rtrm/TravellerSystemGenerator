@@ -746,52 +746,105 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("");
             DebugLogger.LogSection("DETERMINING GAS GIANTS");
 
-            // Check if gas giants are present (2-9 on 2d6)
+            bool isPrimaryBD = false;
+            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "BD")
+            {
+                isPrimaryBD = true;
+            }
+
+            // Check if gas giants are present
             int presenceRoll = Starhelper.diceRoll(6, 2, dice);
             DebugLogger.LogDiceRoll(2, presenceRoll, "Gas giant presence check");
 
-            if (presenceRoll >= 10)
+            if (isPrimaryBD)
             {
-                DebugLogger.Log("  No gas giants in system (rolled 10+)");
-                return 0;
+                // BD primary: present on 2-7, not present on 8+
+                if (presenceRoll >= 8)
+                {
+                    DebugLogger.Log("  No gas giants in system (BD primary, rolled 8+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Gas giants present (BD primary system) - determining count");
+            }
+            else
+            {
+                // Normal: present on 2-9, not present on 10+
+                if (presenceRoll >= 10)
+                {
+                    DebugLogger.Log("  No gas giants in system (rolled 10+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Gas giants present - determining count");
             }
 
-            DebugLogger.Log("  Gas giants present - determining count");
-
             // Roll for count
-            int countRoll = Starhelper.diceRoll(6, 2, dice);
-            DebugLogger.LogDiceRoll(2, countRoll, "Gas giant count (base)");
+            int countRoll;
+            if (isPrimaryBD)
+            {
+                // BD primary: roll 2d6-2
+                countRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", countRoll);
+            }
+            else
+            {
+                // Normal: roll 2d6
+                countRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, countRoll, "Gas giant count (base)");
+            }
 
             int modifiers = 0;
 
-            // Single Class V star: +1
-            if (IsSingleClassVStar())
+            if (isPrimaryBD)
             {
-                modifiers += 1;
-                DebugLogger.Log("  System has single Class V star: +1");
-            }
+                // BD primary: only D star and 4+ star modifiers apply
+                // Each D star: -1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers -= dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                }
 
-            // Primary is BD or D: -2
-            if (IsPrimaryBDOrD())
-            {
-                modifiers -= 2;
-                DebugLogger.Log("  Primary is BD or D: -2");
+                // 4 or more stars: -1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 4)
+                {
+                    modifiers -= 1;
+                    DebugLogger.LogFormat("  {0} stars in system (4+): -1", totalStars);
+                }
             }
-
-            // Each D star: -1
-            int dStarCount = CountDStarsInSystem();
-            if (dStarCount > 0)
+            else
             {
-                modifiers -= dStarCount;
-                DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
-            }
+                // Normal modifiers
+                // Single Class V star: +1
+                if (IsSingleClassVStar())
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  System has single Class V star: +1");
+                }
 
-            // 4 or more stars: -1
-            int totalStars = CountStarsInSystem();
-            if (totalStars >= 4)
-            {
-                modifiers -= 1;
-                DebugLogger.LogFormat("  {0} stars in system (4+): -1", totalStars);
+                // Primary is BD or D: -2
+                if (IsPrimaryBDOrD())
+                {
+                    modifiers -= 2;
+                    DebugLogger.Log("  Primary is BD or D: -2");
+                }
+
+                // Each D star: -1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers -= dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                }
+
+                // 4 or more stars: -1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 4)
+                {
+                    modifiers -= 1;
+                    DebugLogger.LogFormat("  {0} stars in system (4+): -1", totalStars);
+                }
             }
 
             int finalRoll = countRoll + modifiers;
@@ -800,9 +853,10 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", countRoll, modifiers, finalRoll);
             }
 
-            // Determine count from table
+            // Determine count from table (ensure minimum of 0)
             int gasGiantCount;
-            if (finalRoll <= 4) gasGiantCount = 1;
+            if (finalRoll <= 0) gasGiantCount = 0;
+            else if (finalRoll <= 4) gasGiantCount = 1;
             else if (finalRoll <= 6) gasGiantCount = 2;
             else if (finalRoll <= 8) gasGiantCount = 3;
             else if (finalRoll <= 11) gasGiantCount = 4;

@@ -210,10 +210,14 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Mass: {0:F3} solar masses", mass);
                 DebugLogger.LogFormat("  Temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
-
-                // D and BD stars don't have minimum allowable orbits
-                MinAllowableOrbit = 0;
-                DebugLogger.Log("  D/BD star - no minimum allowable orbit");
+                if (type == "BD")
+                {
+                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} AU", MinAllowableOrbit);
+                }
+                else
+                {
+                    DebugLogger.Log("  D star - no minimum allowable orbit");
+                }
             }
 
             // Calculate luminosity using Stefan-Boltzmann law: L = D^2 * (T/T_sol)^4
@@ -444,10 +448,14 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Temperature: {0} K", temperture);
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
                 DebugLogger.LogFormat("  Luminosity: {0:F6}", luminosity);
-
-                // D and BD stars don't have minimum allowable orbits
-                MinAllowableOrbit = 0;
-                DebugLogger.Log("  D/BD star - no minimum allowable orbit");
+                if (type == "BD")
+                {
+                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} AU", MinAllowableOrbit);
+                }
+                else
+                {
+                    DebugLogger.Log("  D star - no minimum allowable orbit");
+                }
             }
 
             while (age < 0.1F) { 
@@ -809,6 +817,7 @@ namespace TravellerSystemGenerator
                 mass = 0.06f;
                 diameter = 0.08f;
                 luminosity = 0.000066f;
+                MinAllowableOrbit = 0.005f;
             }
             else if (starType == "D")
             {
@@ -818,6 +827,7 @@ namespace TravellerSystemGenerator
                 mass = 0.6f;
                 diameter = 0.017f;
                 luminosity = 0.001f;
+                MinAllowableOrbit = 0;
             }
         }
 
