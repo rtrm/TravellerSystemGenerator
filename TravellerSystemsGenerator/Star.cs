@@ -212,7 +212,7 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", diameter);
                 if (type == "BD")
                 {
-                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
+                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
                 }
                 else
                 {
@@ -450,7 +450,7 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Luminosity: {0:F6}", luminosity);
                 if (type == "BD")
                 {
-                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
+                    DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
                 }
                 else
                 {
@@ -584,7 +584,7 @@ namespace TravellerSystemGenerator
 
                 DebugLogger.LogFormat("  Looking up minimum allowable orbit from table for {0}{1} {2}", type, subType, starclass);
                 DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
-                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
+                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
             }
             else if (sType == "M" && sSubtype == "9")
             {
@@ -595,7 +595,7 @@ namespace TravellerSystemGenerator
 
                 DebugLogger.LogFormat("  Looking up minimum allowable orbit from table for {0}{1} {2}", type, subType, starclass);
                 DebugLogger.LogFormat("    Table indices: Class={0}, Type={1}", classIndex, typeIndex);
-                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F2} (orbit number)", MinAllowableOrbit);
+                DebugLogger.LogFormat("    Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
             }
             else
             {
@@ -817,7 +817,7 @@ namespace TravellerSystemGenerator
                 mass = 0.06f;
                 diameter = 0.08f;
                 luminosity = 0.000066f;
-                MinAllowableOrbit = 0.05f;  // Orbit number, not AU
+                MinAllowableOrbit = 0.001f;  // Orbit number
             }
             else if (starType == "D")
             {

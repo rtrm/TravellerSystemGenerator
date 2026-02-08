@@ -38,9 +38,25 @@ namespace TravellerSystemGenerator
             CalculateAllOrbitalPeriods();
 
             // Determine non-stellar objects
-            GasGiantCount = DetermineGasGiants(dice);
-            PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
-            TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+            // D primary systems must first check if they have a planetary system at all
+            bool hasPlanetarySystem = true;
+            if (primaryObject.celestrialObject is Star pStar && pStar.type == "D")
+            {
+                hasPlanetarySystem = DetermineDPlanetarySystem(dice);
+            }
+
+            if (hasPlanetarySystem)
+            {
+                GasGiantCount = DetermineGasGiants(dice);
+                PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
+                TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+            }
+            else
+            {
+                GasGiantCount = 0;
+                PlanetoidBeltCount = 0;
+                TerrestrialPlanetCount = 0;
+            }
 
             Star? star = primaryObject.celestrialObject as Star;
 
@@ -221,7 +237,7 @@ namespace TravellerSystemGenerator
             // Minimum allowable orbit (except for Companion orbit stars)
             if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
             {
-                Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F2}");
+                Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F3}");
             }
 
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
@@ -233,7 +249,7 @@ namespace TravellerSystemGenerator
             // Minimum allowable orbit (except for Companion orbit stars)
             if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
             {
-                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F2} (orbit number)", star.MinAllowableOrbit);
+                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3} (orbit number)", star.MinAllowableOrbit);
             }
         }
 
@@ -741,15 +757,54 @@ namespace TravellerSystemGenerator
             return false;
         }
 
+        private bool DetermineDPlanetarySystem(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("D PRIMARY - PLANETARY SYSTEM CHECK");
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, roll, "Planetary system presence check");
+
+            int modifiers = 0;
+
+            // -2 if the system includes more than one white dwarf
+            int dStarCount = CountDStarsInSystem();
+            if (dStarCount > 1)
+            {
+                modifiers -= 2;
+                DebugLogger.LogFormat("  {0} D stars in system (more than one): -2", dStarCount);
+            }
+
+            int finalRoll = roll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", roll, modifiers, finalRoll);
+            }
+
+            if (finalRoll >= 8)
+            {
+                DebugLogger.Log("  D primary has a planetary system (rolled 8+)");
+                return true;
+            }
+            else
+            {
+                DebugLogger.Log("  D primary does NOT have a planetary system (rolled less than 8)");
+                DebugLogger.Log("  Gas Giants: 0, Planetoid Belts: 0, Terrestrial Planets: 0");
+                return false;
+            }
+        }
+
         private int DetermineGasGiants(Random dice)
         {
             DebugLogger.Log("");
             DebugLogger.LogSection("DETERMINING GAS GIANTS");
 
             bool isPrimaryBD = false;
-            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "BD")
+            bool isPrimaryD = false;
+            if (primaryObject.celestrialObject is Star primaryStar)
             {
-                isPrimaryBD = true;
+                if (primaryStar.type == "BD") isPrimaryBD = true;
+                if (primaryStar.type == "D") isPrimaryD = true;
             }
 
             // Check if gas giants are present
@@ -766,6 +821,16 @@ namespace TravellerSystemGenerator
                 }
                 DebugLogger.Log("  Gas giants present (BD primary system) - determining count");
             }
+            else if (isPrimaryD)
+            {
+                // D primary: present on 2-5, not present on 6+
+                if (presenceRoll >= 6)
+                {
+                    DebugLogger.Log("  No gas giants in system (D primary, rolled 6+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Gas giants present (D primary system) - determining count");
+            }
             else
             {
                 // Normal: present on 2-9, not present on 10+
@@ -779,9 +844,9 @@ namespace TravellerSystemGenerator
 
             // Roll for count
             int countRoll;
-            if (isPrimaryBD)
+            if (isPrimaryBD || isPrimaryD)
             {
-                // BD primary: roll 2d6-2
+                // BD/D primary: roll 2d6-2
                 countRoll = Starhelper.diceRoll(6, 2, dice) - 2;
                 DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", countRoll);
             }
@@ -794,9 +859,9 @@ namespace TravellerSystemGenerator
 
             int modifiers = 0;
 
-            if (isPrimaryBD)
+            if (isPrimaryBD || isPrimaryD)
             {
-                // BD primary: only D star and 4+ star modifiers apply
+                // BD/D primary: only D star and 4+ star modifiers apply
                 // Each D star: -1
                 int dStarCount = CountDStarsInSystem();
                 if (dStarCount > 0)
@@ -872,52 +937,107 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("");
             DebugLogger.LogSection("DETERMINING PLANETOID BELTS");
 
-            // Check if planetoid belts are present (8+ on 2d6)
+            bool isPrimaryD = primaryObject.celestrialObject is Star pStar && pStar.type == "D";
+
+            // Check if planetoid belts are present
             int presenceRoll = Starhelper.diceRoll(6, 2, dice);
             DebugLogger.LogDiceRoll(2, presenceRoll, "Planetoid belt presence check");
 
-            if (presenceRoll < 8)
+            if (isPrimaryD)
             {
-                DebugLogger.Log("  No planetoid belts in system (need 8+)");
-                return 0;
+                // D primary: present on 6+
+                if (presenceRoll < 6)
+                {
+                    DebugLogger.Log("  No planetoid belts in system (D primary, need 6+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Planetoid belts present (D primary system) - determining count");
+            }
+            else
+            {
+                // Normal: present on 8+
+                if (presenceRoll < 8)
+                {
+                    DebugLogger.Log("  No planetoid belts in system (need 8+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Planetoid belts present - determining count");
             }
 
-            DebugLogger.Log("  Planetoid belts present - determining count");
-
             // Roll for count
-            int countRoll = Starhelper.diceRoll(6, 2, dice);
-            DebugLogger.LogDiceRoll(2, countRoll, "Planetoid belt count (base)");
+            int countRoll;
+            if (isPrimaryD)
+            {
+                // D primary: roll 2d6+1
+                countRoll = Starhelper.diceRoll(6, 2, dice) + 1;
+                DebugLogger.LogFormat("Base roll: 2d6 + 1 = {0}", countRoll);
+            }
+            else
+            {
+                countRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, countRoll, "Planetoid belt count (base)");
+            }
 
             int modifiers = 0;
 
-            // At least 1 gas giant: +1
-            if (gasGiantCount >= 1)
+            if (isPrimaryD)
             {
-                modifiers += 1;
-                DebugLogger.Log("  System has gas giant(s): +1");
-            }
+                // D primary modifiers
+                // At least 1 gas giant: +1
+                if (gasGiantCount >= 1)
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  System has gas giant(s): +1");
+                }
 
-            // Primary is D: +1
-            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "D")
-            {
-                modifiers += 1;
-                DebugLogger.Log("  Primary is D: +1");
-            }
+                // Each D star (including primary): +1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers += dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system (including primary): +{1}", dStarCount, dStarCount);
+                }
 
-            // Each D star: +1
-            int dStarCount = CountDStarsInSystem();
-            if (dStarCount > 0)
-            {
-                modifiers += dStarCount;
-                DebugLogger.LogFormat("  {0} D star(s) in system: +{1}", dStarCount, dStarCount);
+                // 2 or more stars: +1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 2)
+                {
+                    modifiers += 1;
+                    DebugLogger.LogFormat("  {0} stars in system (2+): +1", totalStars);
+                }
             }
-
-            // 2 or more stars: +1
-            int totalStars = CountStarsInSystem();
-            if (totalStars >= 2)
+            else
             {
-                modifiers += 1;
-                DebugLogger.LogFormat("  {0} stars in system (2+): +1", totalStars);
+                // Normal modifiers
+                // At least 1 gas giant: +1
+                if (gasGiantCount >= 1)
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  System has gas giant(s): +1");
+                }
+
+                // Primary is D: +1
+                if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "D")
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  Primary is D: +1");
+                }
+
+                // Each D star: +1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers += dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: +{1}", dStarCount, dStarCount);
+                }
+
+                // 2 or more stars: +1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 2)
+                {
+                    modifiers += 1;
+                    DebugLogger.LogFormat("  {0} stars in system (2+): +1", totalStars);
+                }
             }
 
             int finalRoll = countRoll + modifiers;
@@ -941,18 +1061,44 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("");
             DebugLogger.LogSection("DETERMINING TERRESTRIAL PLANETS");
 
-            // Roll 2d6 - 2
-            int baseRoll = Starhelper.diceRoll(6, 2, dice) - 2;
-            DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", baseRoll);
+            bool isPrimaryD = primaryObject.celestrialObject is Star pStar && pStar.type == "D";
+
+            int baseRoll;
+            if (isPrimaryD)
+            {
+                // D primary: roll d6 - 2
+                baseRoll = Starhelper.diceRoll(6, 1, dice) - 2;
+                DebugLogger.LogFormat("Base roll: d6 - 2 = {0} (D primary)", baseRoll);
+            }
+            else
+            {
+                // Normal: roll 2d6 - 2
+                baseRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", baseRoll);
+            }
 
             int modifiers = 0;
 
-            // Each D star: -1
-            int dStarCount = CountDStarsInSystem();
-            if (dStarCount > 0)
+            if (isPrimaryD)
             {
-                modifiers -= dStarCount;
-                DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                // D primary: -1 for each additional D star (not counting the primary)
+                int dStarCount = CountDStarsInSystem();
+                int additionalDStars = dStarCount - 1; // Exclude the primary
+                if (additionalDStars > 0)
+                {
+                    modifiers -= additionalDStars;
+                    DebugLogger.LogFormat("  {0} additional D star(s) in system: -{1}", additionalDStars, additionalDStars);
+                }
+            }
+            else
+            {
+                // Normal: each D star -1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers -= dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                }
             }
 
             int originalTotal = baseRoll + modifiers;
