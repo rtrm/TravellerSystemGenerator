@@ -224,7 +224,7 @@ namespace TravellerSystemGenerator
                 float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);
                 float tempRatio = (float)(temperture / solTemperture);
                 float tempRatioFourth = (float)Math.Pow(tempRatio, 4.00F);
-                luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 3);
+                luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 6);
 
                 DebugLogger.Log("  Calculating luminosity using Stefan-Boltzmann law:");
                 DebugLogger.LogFormat("    Formula: L = D^2 × (T/T_sol)^4");
