@@ -1173,6 +1173,12 @@ namespace TravellerSystemGenerator
                     float minUnavailable = companionOrbit - rangeOffset;
                     float maxUnavailable = companionOrbit + rangeOffset;
 
+                    // Clamp minimum to 0 (orbits can't be negative)
+                    if (minUnavailable < 0)
+                    {
+                        minUnavailable = 0;
+                    }
+
                     star.UnavailableOrbitRanges.Add((minUnavailable, maxUnavailable));
 
                     DebugLogger.LogFormat("  {0} companion at orbit {1:F2} (ecc {2:F3})",
