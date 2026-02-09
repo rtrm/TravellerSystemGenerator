@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(dotnet build:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(./TravellerSystemsGenerator.exe:*)",
+      "Bash(for i in 1000 2000 3000 4000 5000)",
+      "Bash(do echo \"=== Testing seed $i ===\")",
+      "Bash(done)"
     ]
   }
 }

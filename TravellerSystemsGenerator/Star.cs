@@ -216,21 +216,28 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Minimum allowable orbit: {0:F3} (orbit number)", MinAllowableOrbit);
             }
 
-            // Calculate luminosity using Stefan-Boltzmann law: L = D^2 * (T/T_sol)^4
-            float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);
-            float tempRatio = (float)(temperture / solTemperture);
-            float tempRatioFourth = (float)Math.Pow(tempRatio, 4.00F);
-            luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 3);
+            // Calculate luminosity using Stefan-Boltzmann law (except for D and BD which have fixed values)
+            if (type != "D" && type != "BD")
+            {
+                float diameterSquared = (float)Math.Pow((float)diameter, 2.00F);
+                float tempRatio = (float)(temperture / solTemperture);
+                float tempRatioFourth = (float)Math.Pow(tempRatio, 4.00F);
+                luminosity = (float)Math.Round(diameterSquared * tempRatioFourth, 3);
 
-            DebugLogger.Log("  Calculating luminosity using Stefan-Boltzmann law:");
-            DebugLogger.LogFormat("    Formula: L = D^2 × (T/T_sol)^4");
-            DebugLogger.LogFormat("    Diameter (D): {0:F4} solar diameters", diameter);
-            DebugLogger.LogFormat("    D^2: {0:F6}", diameterSquared);
-            DebugLogger.LogFormat("    Temperature (T): {0} K", temperture);
-            DebugLogger.LogFormat("    Solar temp (T_sol): {0} K", solTemperture);
-            DebugLogger.LogFormat("    T/T_sol: {0:F6}", tempRatio);
-            DebugLogger.LogFormat("    (T/T_sol)^4: {0:F6}", tempRatioFourth);
-            DebugLogger.LogFormat("    Calculated luminosity: {0:F6} solar luminosities", luminosity);
+                DebugLogger.Log("  Calculating luminosity using Stefan-Boltzmann law:");
+                DebugLogger.LogFormat("    Formula: L = D^2 × (T/T_sol)^4");
+                DebugLogger.LogFormat("    Diameter (D): {0:F4} solar diameters", diameter);
+                DebugLogger.LogFormat("    D^2: {0:F6}", diameterSquared);
+                DebugLogger.LogFormat("    Temperature (T): {0} K", temperture);
+                DebugLogger.LogFormat("    Solar temp (T_sol): {0} K", solTemperture);
+                DebugLogger.LogFormat("    T/T_sol: {0:F6}", tempRatio);
+                DebugLogger.LogFormat("    (T/T_sol)^4: {0:F6}", tempRatioFourth);
+                DebugLogger.LogFormat("    Calculated luminosity: {0:F6} solar luminosities", luminosity);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Luminosity: {0:F6} solar luminosities (fixed value for {1})", luminosity, type);
+            }
 
             while (age < 0.1F)
             {
@@ -804,8 +811,8 @@ namespace TravellerSystemGenerator
                 colour = "Brown";
                 temperture = 1850;
                 mass = 0.06f;
-                diameter = 0.08f;
-                luminosity = 0.000066f;
+                diameter = 0.09f;
+                luminosity = 0.00002f;
                 MinAllowableOrbit = 0.005f;  // Orbit number
             }
             else if (starType == "D")
