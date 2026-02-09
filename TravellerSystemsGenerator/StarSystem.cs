@@ -1111,6 +1111,16 @@ namespace TravellerSystemGenerator
 
             // Calculate final MaxAllowableOrbit
             float finalMax = baseMax - reductions;
+
+            // Clamp to MinAllowableOrbit if negative (can happen for companions at orbit < 3)
+            if (finalMax < star.MinAllowableOrbit)
+            {
+                DebugLogger.LogFormat("  Calculated MaxAllowableOrbit ({0:F3}) < MinAllowableOrbit ({1:F3})",
+                    finalMax, star.MinAllowableOrbit);
+                finalMax = star.MinAllowableOrbit;
+                DebugLogger.LogFormat("  Clamping MaxAllowableOrbit to MinAllowableOrbit: {0:F3}", finalMax);
+            }
+
             star.MaxAllowableOrbit = finalMax;
 
             if (reductions > 0)
@@ -1505,6 +1515,13 @@ namespace TravellerSystemGenerator
                 DebugLogger.LogFormat("  Multi-star system, no Companion companion, and Total > 0: +1 = {0:F3}", total);
             }
 
+            // Clamp to 0 if negative (star has no usable orbits)
+            if (total < 0)
+            {
+                DebugLogger.LogFormat("  Total Available Orbits is negative ({0:F3}), clamping to 0", total);
+                total = 0;
+            }
+
             star.TotalAvailableOrbits = total;
             DebugLogger.LogFormat("  Final Total Available Orbits: {0:F3}", star.TotalAvailableOrbits);
         }
@@ -1545,25 +1562,59 @@ namespace TravellerSystemGenerator
                 }
             }
 
-            // Check if we only have a primary (with or without Companion companion)
-            if (nonCompanionStars.Count == 1)
+            // Filter to only include stars with TotalAvailableOrbits > 0
+            List<(Star star, CelestrialObject obj)> starsWithOrbits = new List<(Star, CelestrialObject)>();
+            List<(Star star, CelestrialObject obj)> starsWithoutOrbits = new List<(Star, CelestrialObject)>();
+
+            foreach (var (star, obj) in nonCompanionStars)
             {
-                Star primary = nonCompanionStars[0].star;
-                primary.WorldsAssigned = SystemTotalWorlds;
-                DebugLogger.LogFormat("System has only primary star - assigning all {0} worlds to primary", SystemTotalWorlds);
+                if (star.TotalAvailableOrbits > 0)
+                {
+                    starsWithOrbits.Add((star, obj));
+                }
+                else
+                {
+                    starsWithoutOrbits.Add((star, obj));
+                    star.WorldsAssigned = 0;
+                    DebugLogger.LogFormat("{0} star has no available orbits - assigning 0 worlds", star.starOrbitType);
+                }
+            }
+
+            // If no stars have available orbits, all get 0 worlds
+            if (starsWithOrbits.Count == 0)
+            {
+                DebugLogger.Log("No stars have available orbits - no worlds can be assigned");
                 return;
             }
 
-            // Multiple non-Companion companions - need to distribute worlds
-            DebugLogger.LogFormat("System has {0} non-Companion stars - distributing worlds...", nonCompanionStars.Count);
+            // Recalculate SystemTotalAvailableOrbits using only stars with orbits
+            float effectiveSystemTotalAvailableOrbits = 0;
+            foreach (var (star, obj) in starsWithOrbits)
+            {
+                effectiveSystemTotalAvailableOrbits += star.TotalAvailableOrbits;
+            }
+            DebugLogger.LogFormat("Effective System Total Available Orbits (excluding stars with 0): {0:F2}", effectiveSystemTotalAvailableOrbits);
 
-            // Find outermost non-Companion companion
+            // Check if we only have one star with available orbits
+            if (starsWithOrbits.Count == 1)
+            {
+                Star onlyStar = starsWithOrbits[0].star;
+                onlyStar.WorldsAssigned = SystemTotalWorlds;
+                DebugLogger.LogFormat("Only one star has available orbits - assigning all {0} worlds to {1} star",
+                    SystemTotalWorlds, onlyStar.starOrbitType);
+                return;
+            }
+
+            // Multiple stars with available orbits - need to distribute worlds
+            DebugLogger.LogFormat("System has {0} stars with available orbits - distributing worlds...", starsWithOrbits.Count);
+
+            // Find outermost star with available orbits
             // Order: Primary, Close, Near, Far
             Star? outermostStar = null;
             Starhelper.starOrbitType outermostType = Starhelper.starOrbitType.Primary;
 
             // Check in reverse order to find outermost
-            foreach (var (star, obj) in nonCompanionStars)
+            foreach (var (star, obj) in starsWithOrbits)
             {
                 if (star.starOrbitType == Starhelper.starOrbitType.Far)
                 {
@@ -1574,7 +1625,7 @@ namespace TravellerSystemGenerator
             }
             if (outermostStar == null)
             {
-                foreach (var (star, obj) in nonCompanionStars)
+                foreach (var (star, obj) in starsWithOrbits)
                 {
                     if (star.starOrbitType == Starhelper.starOrbitType.Near)
                     {
@@ -1586,7 +1637,7 @@ namespace TravellerSystemGenerator
             }
             if (outermostStar == null)
             {
-                foreach (var (star, obj) in nonCompanionStars)
+                foreach (var (star, obj) in starsWithOrbits)
                 {
                     if (star.starOrbitType == Starhelper.starOrbitType.Close)
                     {
@@ -1599,13 +1650,13 @@ namespace TravellerSystemGenerator
             if (outermostStar == null)
             {
                 // Must be only primary (shouldn't happen because we checked count == 1 above)
-                outermostStar = nonCompanionStars[0].star;
+                outermostStar = starsWithOrbits[0].star;
                 outermostType = Starhelper.starOrbitType.Primary;
             }
 
-            DebugLogger.LogFormat("Outermost non-Companion companion: {0}", outermostType);
+            DebugLogger.LogFormat("Outermost star with available orbits: {0}", outermostType);
 
-            // Assign worlds to each star
+            // Assign worlds to each star with available orbits
             int totalAssigned = 0;
 
             // Process in order: Primary, Close, Near, Far
@@ -1619,7 +1670,7 @@ namespace TravellerSystemGenerator
 
             foreach (var orbitType in order)
             {
-                Star? star = nonCompanionStars.FirstOrDefault(s => s.star.starOrbitType == orbitType).star;
+                Star? star = starsWithOrbits.FirstOrDefault(s => s.star.starOrbitType == orbitType).star;
                 if (star == null) continue;
 
                 if (star == outermostStar)
@@ -1630,8 +1681,8 @@ namespace TravellerSystemGenerator
                 }
                 else
                 {
-                    // Calculate proportional allocation
-                    float proportion = (SystemTotalWorlds * star.TotalAvailableOrbits) / SystemTotalAvailableOrbits;
+                    // Calculate proportional allocation using effective system total
+                    float proportion = (SystemTotalWorlds * star.TotalAvailableOrbits) / effectiveSystemTotalAvailableOrbits;
 
                     if (orbitType == Starhelper.starOrbitType.Primary)
                     {
@@ -1639,7 +1690,7 @@ namespace TravellerSystemGenerator
                         star.WorldsAssigned = (int)Math.Ceiling(proportion);
                         DebugLogger.LogFormat("{0} star: ({1} × {2:F3}) / {3:F2} = {4:F3}, rounded UP to {5} worlds",
                             orbitType, SystemTotalWorlds, star.TotalAvailableOrbits,
-                            SystemTotalAvailableOrbits, proportion, star.WorldsAssigned);
+                            effectiveSystemTotalAvailableOrbits, proportion, star.WorldsAssigned);
                     }
                     else
                     {
@@ -1647,7 +1698,7 @@ namespace TravellerSystemGenerator
                         star.WorldsAssigned = (int)Math.Floor(proportion);
                         DebugLogger.LogFormat("{0} star: ({1} × {2:F3}) / {3:F2} = {4:F3}, rounded DOWN to {5} worlds",
                             orbitType, SystemTotalWorlds, star.TotalAvailableOrbits,
-                            SystemTotalAvailableOrbits, proportion, star.WorldsAssigned);
+                            effectiveSystemTotalAvailableOrbits, proportion, star.WorldsAssigned);
                     }
 
                     totalAssigned += star.WorldsAssigned;
