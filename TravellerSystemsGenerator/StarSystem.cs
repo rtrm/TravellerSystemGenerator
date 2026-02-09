@@ -299,7 +299,7 @@ namespace TravellerSystemGenerator
             }
 
             // Habitable zone (except for Companion orbit stars)
-            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.HZCO > 0)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion)
             {
                 float hzMin = Math.Max(0, star.HZCO - 1);  // Clamp to 0
                 float hzMax = star.HZCO + 1;
