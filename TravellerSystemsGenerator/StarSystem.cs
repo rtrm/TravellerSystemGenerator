@@ -1485,12 +1485,24 @@ namespace TravellerSystemGenerator
                     star.MaxAllowableOrbit - star.MinAllowableOrbit, totalUnavailable, total);
             }
 
-            // If star doesn't have Companion companion and Total > 0, add 1
+            // Check if this is a multi-star system (has non-Companion companions)
+            bool hasNonCompanionCompanions = false;
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    hasNonCompanionCompanions = true;
+                    break;
+                }
+            }
+
+            // If multi-star system and star doesn't have Companion companion and Total > 0, add 1
             bool hasCompanionCompanion = HasCompanionOrbitCompanion(starObj);
-            if (!hasCompanionCompanion && total > 0)
+            if (hasNonCompanionCompanions && !hasCompanionCompanion && total > 0)
             {
                 total += 1;
-                DebugLogger.LogFormat("  No Companion companion and Total > 0: +1 = {0:F3}", total);
+                DebugLogger.LogFormat("  Multi-star system, no Companion companion, and Total > 0: +1 = {0:F3}", total);
             }
 
             star.TotalAvailableOrbits = total;
