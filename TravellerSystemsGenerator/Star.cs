@@ -21,6 +21,8 @@ namespace TravellerSystemGenerator
         public float luminosity { get; set; }
         public float age { get; set; }
         public float MinAllowableOrbit { get; set; }
+        public float MaxAllowableOrbit { get; set; }
+        public List<(float min, float max)> UnavailableOrbitRanges { get; set; } = new List<(float, float)>();
         public Starhelper.starOrbitType starOrbitType { get; set; }
         public List<CelestrialObject> orbits { get; set; } = new List<CelestrialObject>();
 

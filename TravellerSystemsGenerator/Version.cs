@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 0;
-        public const int Minor = 9;
-        public const int Build = 6;
+        public const int Minor = 10;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -34,5 +34,6 @@ namespace TravellerSystemGenerator
         // 0.7.x - Orbital period calculations (years/days/hours based on distance)
         // 0.8.x - Non-stellar object counts (gas giants, planetoid belts, terrestrial planets)
         // 0.9.x - Minimum allowable orbit calculations for stars
+        // 0.10.x - Orbital availability calculations (max orbits, unavailable ranges)
     }
 }

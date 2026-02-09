@@ -37,6 +37,9 @@ namespace TravellerSystemGenerator
             // Calculate orbital periods for all companion stars
             CalculateAllOrbitalPeriods();
 
+            // Calculate orbital availability (min/max allowable orbits and unavailable ranges)
+            CalculateOrbitalAvailability();
+
             // Determine non-stellar objects
             // D primary systems must first check if they have a planetary system at all
             bool hasPlanetarySystem = true;
@@ -238,6 +241,22 @@ namespace TravellerSystemGenerator
             if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
             {
                 Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F3}");
+            }
+
+            // Maximum allowable orbit (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MaxAllowableOrbit > 0)
+            {
+                Console.WriteLine($"Max Allowable Orbit: {star.MaxAllowableOrbit:F3}");
+            }
+
+            // Unavailable orbit ranges
+            if (star.UnavailableOrbitRanges.Count > 0)
+            {
+                Console.WriteLine("Unavailable Orbits:");
+                foreach (var range in star.UnavailableOrbitRanges)
+                {
+                    Console.WriteLine($"  {range.min:F2} to {range.max:F2}");
+                }
             }
 
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
@@ -755,6 +774,436 @@ namespace TravellerSystemGenerator
                 return primaryStar.type == "BD" || primaryStar.type == "D";
             }
             return false;
+        }
+
+        private CelestrialObject? FindCompanionByOrbitType(Starhelper.starOrbitType orbitType)
+        {
+            // Search primaryObject.celestrialObjectOrbits for companion with matching orbit type
+            // Used in MaxAllowableOrbit calculations
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star star && star.starOrbitType == orbitType)
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        private bool HasCompanionOrbitCompanion(CelestrialObject companionObj)
+        {
+            // Check if this companion has any Companion orbit sub-companions
+            foreach (var subObj in companionObj.celestrialObjectOrbits)
+            {
+                if (subObj.celestrialObject is Star subStar &&
+                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private CelestrialObject? GetCompanionOrbitCompanion(CelestrialObject companionObj)
+        {
+            // Get the first Companion orbit sub-companion of this companion
+            foreach (var subObj in companionObj.celestrialObjectOrbits)
+            {
+                if (subObj.celestrialObject is Star subStar &&
+                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                {
+                    return subObj;
+                }
+            }
+            return null;
+        }
+
+        private void AdjustMinAllowableOrbitsForCompanions()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ADJUSTING MIN ALLOWABLE ORBITS FOR COMPANION COMPANIONS");
+
+            bool anyAdjustments = false;
+
+            // Check if primary star has a Companion orbit companion
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (HasCompanionOrbitCompanion(primaryObject))
+                {
+                    CelestrialObject? subCompanion = GetCompanionOrbitCompanion(primaryObject);
+                    if (subCompanion != null)
+                    {
+                        anyAdjustments = true;
+                        float oldMin = primaryStar.MinAllowableOrbit;
+                        float companionEcc = subCompanion.orbitEccentricity;
+
+                        DebugLogger.LogFormat("Primary star has Companion orbit companion (eccentricity {0:F3})", companionEcc);
+                        DebugLogger.LogFormat("  Original MinAllowableOrbit: {0:F3}", oldMin);
+
+                        if (oldMin <= 0.2f)
+                        {
+                            primaryStar.MinAllowableOrbit = 0.5f + companionEcc;
+                            DebugLogger.LogFormat("  MinAllowableOrbit <= 0.2, setting to: 0.5 + {0:F3} = {1:F3}",
+                                companionEcc, primaryStar.MinAllowableOrbit);
+                        }
+                        else
+                        {
+                            primaryStar.MinAllowableOrbit = oldMin + 0.5f + companionEcc;
+                            DebugLogger.LogFormat("  MinAllowableOrbit > 0.2, setting to: {0:F3} + 0.5 + {1:F3} = {2:F3}",
+                                oldMin, companionEcc, primaryStar.MinAllowableOrbit);
+                        }
+                    }
+                }
+            }
+
+            // Check each Close/Near/Far companion
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    // Check if this companion has a Companion orbit companion
+                    if (HasCompanionOrbitCompanion(companion))
+                    {
+                        CelestrialObject? subCompanion = GetCompanionOrbitCompanion(companion);
+                        if (subCompanion != null)
+                        {
+                            anyAdjustments = true;
+                            float oldMin = companionStar.MinAllowableOrbit;
+                            float companionEcc = subCompanion.orbitEccentricity;
+
+                            DebugLogger.LogFormat("{0} companion has Companion orbit companion (eccentricity {1:F3})",
+                                companionStar.starOrbitType, companionEcc);
+                            DebugLogger.LogFormat("  Original MinAllowableOrbit: {0:F3}", oldMin);
+
+                            if (oldMin <= 0.2f)
+                            {
+                                companionStar.MinAllowableOrbit = 0.5f + companionEcc;
+                                DebugLogger.LogFormat("  MinAllowableOrbit <= 0.2, setting to: 0.5 + {0:F3} = {1:F3}",
+                                    companionEcc, companionStar.MinAllowableOrbit);
+                            }
+                            else
+                            {
+                                companionStar.MinAllowableOrbit = oldMin + 0.5f + companionEcc;
+                                DebugLogger.LogFormat("  MinAllowableOrbit > 0.2, setting to: {0:F3} + 0.5 + {1:F3} = {2:F3}",
+                                    oldMin, companionEcc, companionStar.MinAllowableOrbit);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!anyAdjustments)
+            {
+                DebugLogger.Log("No stars with Companion orbit companions found - no adjustments needed");
+            }
+        }
+
+        private void CalculateAllMaxAllowableOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING MAX ALLOWABLE ORBITS");
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                primaryStar.MaxAllowableOrbit = 20f;
+                DebugLogger.Log("Primary star MaxAllowableOrbit: 20.000");
+            }
+
+            // Companions
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    CalculateMaxAllowableOrbitForStar(companionStar, companion);
+
+                    // Sub-companions (Companion orbit companions)
+                    foreach (var subCompanion in companion.celestrialObjectOrbits)
+                    {
+                        if (subCompanion.celestrialObject is Star subStar)
+                        {
+                            CalculateMaxAllowableOrbitForStar(subStar, subCompanion);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CalculateMaxAllowableOrbitForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating MaxAllowableOrbit for {0} star...", star.starOrbitType);
+
+            // Companion orbit companions don't have MaxAllowableOrbit
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                star.MaxAllowableOrbit = 0;
+                DebugLogger.Log("  Companion orbit star - no MaxAllowableOrbit");
+                return;
+            }
+
+            // Base calculation: orbit - 3
+            float baseMax = starObj.orbit - 3;
+            DebugLogger.LogFormat("  Base calculation: {0:F3} - 3 = {1:F3}", starObj.orbit, baseMax);
+
+            int reductions = 0;
+
+            // Get all Close/Near/Far companions
+            CelestrialObject? closeCompanion = FindCompanionByOrbitType(Starhelper.starOrbitType.Close);
+            CelestrialObject? nearCompanion = FindCompanionByOrbitType(Starhelper.starOrbitType.Near);
+            CelestrialObject? farCompanion = FindCompanionByOrbitType(Starhelper.starOrbitType.Far);
+
+            // Apply reductions based on orbit type and other companions
+            if (star.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Reduction: Near companion exists
+                if (nearCompanion != null)
+                {
+                    reductions += 1;
+                    DebugLogger.Log("  -1 (Near companion exists)");
+                }
+
+                // Reductions: Eccentricity > 0.2
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.2)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.2)", nearCompanion.orbitEccentricity);
+                }
+
+                // Reductions: Eccentricity > 0.5
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.5)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.5)", nearCompanion.orbitEccentricity);
+                }
+            }
+            else if (star.starOrbitType == Starhelper.starOrbitType.Near)
+            {
+                // Reduction: Close or Far companion exists
+                if (closeCompanion != null || farCompanion != null)
+                {
+                    reductions += 1;
+                    DebugLogger.Log("  -1 (Close or Far companion exists)");
+                }
+
+                // Reductions: Eccentricity > 0.2
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.2)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.2)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.2)", farCompanion.orbitEccentricity);
+                }
+
+                // Reductions: Eccentricity > 0.5
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.5)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.5)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.5)", farCompanion.orbitEccentricity);
+                }
+            }
+            else if (star.starOrbitType == Starhelper.starOrbitType.Far)
+            {
+                // Reduction: Near companion exists
+                if (nearCompanion != null)
+                {
+                    reductions += 1;
+                    DebugLogger.Log("  -1 (Near companion exists)");
+                }
+
+                // Reductions: Eccentricity > 0.2
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.2)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.2)", farCompanion.orbitEccentricity);
+                }
+
+                // Reductions: Eccentricity > 0.5
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.5)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.5)", farCompanion.orbitEccentricity);
+                }
+            }
+
+            // Calculate final MaxAllowableOrbit
+            float finalMax = baseMax - reductions;
+            star.MaxAllowableOrbit = finalMax;
+
+            if (reductions > 0)
+            {
+                DebugLogger.LogFormat("  Final MaxAllowableOrbit: {0:F3} - {1} = {2:F3}", baseMax, reductions, finalMax);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Final MaxAllowableOrbit: {0:F3}", finalMax);
+            }
+        }
+
+        private void CalculateAllUnavailableOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING UNAVAILABLE ORBITS");
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateUnavailableOrbitsForStar(primaryStar, primaryObject);
+            }
+
+            // Companions (but NOT Companion orbit companions)
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        CalculateUnavailableOrbitsForStar(companionStar, companion);
+                    }
+                }
+            }
+        }
+
+        private void CalculateUnavailableOrbitsForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating unavailable orbits for {0} star...", star.starOrbitType);
+
+            // Companion orbit stars don't have unavailable orbits
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                DebugLogger.Log("  Companion orbit star - no unavailable orbits");
+                return;
+            }
+
+            star.UnavailableOrbitRanges.Clear();
+
+            // Get all Close/Near/Far companions from primary
+            List<CelestrialObject> companionsToCheck = new List<CelestrialObject>();
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star s &&
+                    s.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    companionsToCheck.Add(obj);
+                }
+            }
+
+            // Check each other companion
+            foreach (var otherCompanion in companionsToCheck)
+            {
+                // Don't compare with self
+                if (otherCompanion == starObj)
+                {
+                    continue;
+                }
+
+                if (otherCompanion.celestrialObject is Star otherStar)
+                {
+                    float companionOrbit = otherCompanion.orbit;
+                    float companionEccentricity = otherCompanion.orbitEccentricity;
+
+                    // Base range: ±1
+                    float rangeOffset = 1f;
+
+                    // If eccentricity > 0.2: expand to ±2
+                    if (companionEccentricity > 0.2f)
+                    {
+                        rangeOffset = 2f;
+                        DebugLogger.LogFormat("  {0} companion (ecc {1:F3} > 0.2): expanding range to ±2",
+                            otherStar.starOrbitType, companionEccentricity);
+                    }
+
+                    // If Close or Near companion with eccentricity > 0.5: expand to ±3
+                    if ((otherStar.starOrbitType == Starhelper.starOrbitType.Close ||
+                         otherStar.starOrbitType == Starhelper.starOrbitType.Near) &&
+                        companionEccentricity > 0.5f)
+                    {
+                        rangeOffset = 3f;
+                        DebugLogger.LogFormat("  {0} companion (ecc {1:F3} > 0.5): expanding range to ±3",
+                            otherStar.starOrbitType, companionEccentricity);
+                    }
+
+                    float minUnavailable = companionOrbit - rangeOffset;
+                    float maxUnavailable = companionOrbit + rangeOffset;
+
+                    star.UnavailableOrbitRanges.Add((minUnavailable, maxUnavailable));
+
+                    DebugLogger.LogFormat("  {0} companion at orbit {1:F2} (ecc {2:F3})",
+                        otherStar.starOrbitType, companionOrbit, companionEccentricity);
+                    DebugLogger.LogFormat("    Makes orbits {0:F2} to {1:F2} unavailable",
+                        minUnavailable, maxUnavailable);
+                }
+            }
+
+            if (star.UnavailableOrbitRanges.Count == 0)
+            {
+                DebugLogger.Log("  No unavailable orbits for this star");
+            }
+        }
+
+        private void CalculateOrbitalAvailability()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ORBITAL AVAILABILITY CALCULATIONS");
+
+            // Step 1: Adjust MinAllowableOrbit for stars with Companion companions
+            AdjustMinAllowableOrbitsForCompanions();
+
+            // Step 2: Calculate MaxAllowableOrbit for all stars
+            CalculateAllMaxAllowableOrbits();
+
+            // Step 3: Calculate unavailable orbits for all stars (except Companion orbit stars)
+            CalculateAllUnavailableOrbits();
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Orbital availability calculations complete");
         }
 
         private bool DetermineDPlanetarySystem(Random dice)
