@@ -1478,14 +1478,28 @@ namespace TravellerSystemGenerator
             DebugLogger.LogFormat("  Base calculation: {0:F3} - {1:F3} = {2:F3}",
                 star.MaxAllowableOrbit, star.MinAllowableOrbit, total);
 
-            // Subtract unavailable orbit ranges
+            // Subtract unavailable orbit ranges (only the portions that overlap with available range)
             float totalUnavailable = 0;
             foreach (var range in star.UnavailableOrbitRanges)
             {
-                float rangeSize = range.max - range.min;
-                totalUnavailable += rangeSize;
-                DebugLogger.LogFormat("  Unavailable range {0:F2} to {1:F2}: -{2:F2}",
-                    range.min, range.max, rangeSize);
+                // Calculate overlap between unavailable range and [MinAllowableOrbit, MaxAllowableOrbit]
+                float overlapMin = Math.Max(range.min, star.MinAllowableOrbit);
+                float overlapMax = Math.Min(range.max, star.MaxAllowableOrbit);
+
+                if (overlapMax > overlapMin)
+                {
+                    // There is an overlap
+                    float overlapSize = overlapMax - overlapMin;
+                    totalUnavailable += overlapSize;
+                    DebugLogger.LogFormat("  Unavailable range {0:F2} to {1:F2} overlaps {2:F2} to {3:F2}: -{4:F2}",
+                        range.min, range.max, overlapMin, overlapMax, overlapSize);
+                }
+                else
+                {
+                    // No overlap - range is outside Min/Max allowable orbits
+                    DebugLogger.LogFormat("  Unavailable range {0:F2} to {1:F2} is outside allowable range ({2:F3} to {3:F3}): no effect",
+                        range.min, range.max, star.MinAllowableOrbit, star.MaxAllowableOrbit);
+                }
             }
 
             if (totalUnavailable > 0)
