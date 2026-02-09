@@ -6,7 +6,13 @@
       "Bash(./TravellerSystemsGenerator.exe:*)",
       "Bash(for i in 1000 2000 3000 4000 5000)",
       "Bash(do echo \"=== Testing seed $i ===\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(for:*)",
+      "Bash(do echo \"=== Run $i ===\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd total available orbits and world assignment calculations \\(v0.12.0\\)\n\nThis update implements calculations for distributing worlds to stars based on\navailable orbital space:\n\nFeatures:\n- Calculate Total Available Orbits for each star \\(Max - Min - Unavailable + bonus\\)\n- Calculate System Total Available Orbits \\(sum of all stars\\)\n- Calculate System Total Worlds \\(Gas Giants + Planetoid Belts + Terrestrial Planets\\)\n- Assign worlds to each star proportionally based on available orbits\n- Primary stars get rounded up allocation\n- Outermost companion gets remaining worlds\n- Comprehensive debug logging of all calculations\n\nChanges:\n- Star.cs: Added TotalAvailableOrbits and WorldsAssigned properties\n- StarSystem.cs: Added calculation methods and orchestration\n- StarSystem.cs: Updated console output to display new values\n- Version.cs: Updated to v0.12.0\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
