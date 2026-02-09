@@ -67,6 +67,9 @@ namespace TravellerSystemGenerator
             // Calculate total available orbits and assign worlds to stars
             CalculateOrbitsAndWorlds();
 
+            // Calculate System Baseline Numbers for primary star
+            CalculateAllSystemBaselineNumbers();
+
             Star? star = primaryObject.celestrialObject as Star;
 
             // Print console output header
@@ -280,6 +283,19 @@ namespace TravellerSystemGenerator
             if (star.starOrbitType != Starhelper.starOrbitType.Companion)
             {
                 Console.WriteLine($"Worlds Assigned:     {star.WorldsAssigned}");
+            }
+
+            // System Baseline Number and zone allocations (Primary star only)
+            if (star.starOrbitType == Starhelper.starOrbitType.Primary && star.WorldsAssigned > 0)
+            {
+                Console.WriteLine($"System Baseline #:   {star.SystemBaselineNumber}");
+
+                // Show inner/outer zone breakdown if applicable (Scenario A)
+                if (star.InnerZoneWorldCount > 0 || star.OuterZoneWorldCount > 0)
+                {
+                    Console.WriteLine($"  Inner Zone Worlds: {star.InnerZoneWorldCount}");
+                    Console.WriteLine($"  Outer Zone Worlds: {star.OuterZoneWorldCount}");
+                }
             }
 
             // Habitable zone (except for Companion orbit stars)
@@ -1734,6 +1750,258 @@ namespace TravellerSystemGenerator
 
             // Assign worlds to stars
             AssignWorldsToStars();
+        }
+
+        private void CalculateAllSystemBaselineNumbers()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING SYSTEM BASELINE NUMBERS");
+
+            // Calculate for Primary star only (companions don't get baseline numbers)
+            if (primaryObject.celestrialObject is Star primaryStar &&
+                primaryStar.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                CalculateSystemBaselineNumberForStar(primaryStar, primaryObject);
+            }
+        }
+
+        private bool IsHZCOInUnavailableOrbits(Star star)
+        {
+            // Check if HZCO lies within any unavailable orbit range
+            foreach (var range in star.UnavailableOrbitRanges)
+            {
+                if (star.HZCO >= range.min && star.HZCO <= range.max)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void CalculateSystemBaselineNumberForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating System Baseline Number for {0} star...", star.starOrbitType);
+
+            // Check if star has any worlds assigned
+            if (star.WorldsAssigned <= 0)
+            {
+                star.SystemBaselineNumber = 0;
+                star.InnerZoneWorldCount = 0;
+                star.OuterZoneWorldCount = 0;
+                DebugLogger.Log("  Star has no worlds assigned - System Baseline Number = 0");
+                return;
+            }
+
+            // Check if HZCO lies within unavailable orbits
+            bool hzcoInUnavailable = IsHZCOInUnavailableOrbits(star);
+
+            if (hzcoInUnavailable)
+            {
+                DebugLogger.LogFormat("  HZCO ({0:F3}) lies within unavailable orbits", star.HZCO);
+                CalculateBaselineNumberScenarioA(star, starObj);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  HZCO ({0:F3}) does NOT lie within unavailable orbits", star.HZCO);
+                CalculateBaselineNumberScenarioB(star, starObj);
+            }
+        }
+
+        private void CalculateBaselineNumberScenarioA(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("  Scenario A: HZCO in unavailable orbits");
+
+            // Find the unavailable range that contains HZCO
+            (float min, float max)? containingRange = null;
+            foreach (var range in star.UnavailableOrbitRanges)
+            {
+                if (star.HZCO >= range.min && star.HZCO <= range.max)
+                {
+                    containingRange = range;
+                    break;
+                }
+            }
+
+            if (containingRange == null)
+            {
+                // Shouldn't happen, but handle gracefully
+                star.SystemBaselineNumber = 0;
+                star.InnerZoneWorldCount = 0;
+                star.OuterZoneWorldCount = star.WorldsAssigned;
+                DebugLogger.Log("  ERROR: Could not find unavailable range containing HZCO");
+                return;
+            }
+
+            float unavailableStart = containingRange.Value.min;
+            float unavailableEnd = containingRange.Value.max;
+
+            DebugLogger.LogFormat("  HZCO is in unavailable range {0:F2} to {1:F2}", unavailableStart, unavailableEnd);
+
+            // Check if there are available orbits between MinAllowableOrbit and the unavailable range
+            if (star.MinAllowableOrbit >= unavailableStart)
+            {
+                // No available orbits closer to primary than HZCO
+                star.SystemBaselineNumber = 0;
+                star.InnerZoneWorldCount = 0;
+                star.OuterZoneWorldCount = star.WorldsAssigned;
+                DebugLogger.LogFormat("  MinAllowableOrbit ({0:F3}) >= unavailable range start ({1:F2})",
+                    star.MinAllowableOrbit, unavailableStart);
+                DebugLogger.Log("  No available orbits closer to primary than HZCO");
+                DebugLogger.Log("  System Baseline Number = 0");
+                DebugLogger.LogFormat("  All {0} worlds assigned to outer zone", star.WorldsAssigned);
+                return;
+            }
+
+            // There ARE available orbits in the inner region (MinAllowableOrbit to unavailableStart)
+            float innerRegionSize = unavailableStart - star.MinAllowableOrbit;
+            DebugLogger.LogFormat("  Inner region available: {0:F3} to {1:F2} (size: {2:F2})",
+                star.MinAllowableOrbit, unavailableStart, innerRegionSize);
+
+            // Calculate maximum worlds that can fit in inner region
+            int maxInnerWorlds = (int)Math.Floor(innerRegionSize / 0.01f);
+            DebugLogger.LogFormat("  Maximum worlds that can fit in inner region: ({0:F2} / 0.01) = {1}",
+                innerRegionSize, maxInnerWorlds);
+
+            // Cap at System Total Worlds
+            maxInnerWorlds = Math.Min(maxInnerWorlds, star.WorldsAssigned);
+            DebugLogger.LogFormat("  Capped at worlds assigned to this star: {0}", maxInnerWorlds);
+
+            // Randomly determine how many worlds to place in inner region (0 to maxInnerWorlds)
+            Random dice = new Random();
+            int innerWorldCount = 0;
+            if (maxInnerWorlds > 0)
+            {
+                innerWorldCount = Starhelper.diceRoll(maxInnerWorlds + 1, 1, dice) - 1; // Roll 1 to (max+1), subtract 1 to get 0 to max
+                DebugLogger.LogFormat("  Random roll for inner worlds: {0} (range 0 to {1})", innerWorldCount, maxInnerWorlds);
+            }
+            else
+            {
+                DebugLogger.Log("  No room for worlds in inner region (maxInnerWorlds = 0)");
+            }
+
+            star.InnerZoneWorldCount = innerWorldCount;
+            star.OuterZoneWorldCount = star.WorldsAssigned - innerWorldCount;
+            star.SystemBaselineNumber = 1 + innerWorldCount;
+
+            DebugLogger.LogFormat("  Inner zone worlds: {0}", star.InnerZoneWorldCount);
+            DebugLogger.LogFormat("  Outer zone worlds: {0}", star.OuterZoneWorldCount);
+            DebugLogger.LogFormat("  System Baseline Number = 1 + {0} = {1}", innerWorldCount, star.SystemBaselineNumber);
+        }
+
+        private void CalculateBaselineNumberScenarioB(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("  Scenario B: HZCO not in unavailable orbits");
+
+            // All worlds are in a single zone (not split between inner/outer)
+            star.InnerZoneWorldCount = 0;
+            star.OuterZoneWorldCount = 0;
+
+            // Roll 2D6
+            Random dice = new Random();
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, baseRoll, "System Baseline Number base roll");
+
+            int modifiers = 0;
+
+            // Primary has a Companion companion: +2
+            if (HasCompanionOrbitCompanion(starObj))
+            {
+                modifiers += 2;
+                DebugLogger.Log("  +2 (Primary has Companion companion)");
+            }
+
+            // Primary star class modifiers
+            if (star.starclass == "Ia" || star.starclass == "Ib" || star.starclass == "II")
+            {
+                modifiers += 3;
+                DebugLogger.LogFormat("  +3 (Primary is class {0})", star.starclass);
+            }
+            else if (star.starclass == "III")
+            {
+                modifiers += 2;
+                DebugLogger.Log("  +2 (Primary is class III)");
+            }
+            else if (star.starclass == "IV")
+            {
+                modifiers += 1;
+                DebugLogger.Log("  +1 (Primary is class IV)");
+            }
+            else if (star.starclass == "VI")
+            {
+                modifiers -= 1;
+                DebugLogger.Log("  -1 (Primary is class VI)");
+            }
+
+            // Primary is white dwarf: -2
+            if (star.type == "D")
+            {
+                modifiers -= 2;
+                DebugLogger.Log("  -2 (Primary is white dwarf)");
+            }
+
+            // Worlds Assigned modifiers
+            if (star.WorldsAssigned < 6)
+            {
+                modifiers -= 4;
+                DebugLogger.LogFormat("  -4 (Worlds Assigned {0} < 6)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 6 && star.WorldsAssigned <= 9)
+            {
+                modifiers -= 3;
+                DebugLogger.LogFormat("  -3 (Worlds Assigned {0} is 6-9)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 10 && star.WorldsAssigned <= 12)
+            {
+                modifiers -= 2;
+                DebugLogger.LogFormat("  -2 (Worlds Assigned {0} is 10-12)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 13 && star.WorldsAssigned <= 15)
+            {
+                modifiers -= 1;
+                DebugLogger.LogFormat("  -1 (Worlds Assigned {0} is 13-15)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 18 && star.WorldsAssigned <= 20)
+            {
+                modifiers += 1;
+                DebugLogger.LogFormat("  +1 (Worlds Assigned {0} is 18-20)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned > 20)
+            {
+                modifiers += 2;
+                DebugLogger.LogFormat("  +2 (Worlds Assigned {0} > 20)", star.WorldsAssigned);
+            }
+
+            // For each Close/Near/Far companion: -1
+            int companionCount = 0;
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    companionCount++;
+                }
+            }
+
+            if (companionCount > 0)
+            {
+                modifiers -= companionCount;
+                DebugLogger.LogFormat("  -{0} ({1} Close/Near/Far companion(s))", companionCount, companionCount);
+            }
+
+            int finalRoll = baseRoll + modifiers;
+            star.SystemBaselineNumber = finalRoll;
+
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Final roll: {0} + ({1}) = {2}", baseRoll, modifiers, finalRoll);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Final roll: {0}", finalRoll);
+            }
+
+            DebugLogger.LogFormat("  System Baseline Number = {0}", star.SystemBaselineNumber);
         }
 
         private bool DetermineDPlanetarySystem(Random dice)

@@ -26,6 +26,9 @@ namespace TravellerSystemGenerator
         public float HZCO { get; set; }  // Habitable Zone Center Orbit
         public float TotalAvailableOrbits { get; set; }
         public int WorldsAssigned { get; set; }
+        public int SystemBaselineNumber { get; set; }
+        public int InnerZoneWorldCount { get; set; }
+        public int OuterZoneWorldCount { get; set; }
         public Starhelper.starOrbitType starOrbitType { get; set; }
         public List<CelestrialObject> orbits { get; set; } = new List<CelestrialObject>();
 
