@@ -40,6 +40,9 @@ namespace TravellerSystemGenerator
             // Calculate orbital availability (min/max allowable orbits and unavailable ranges)
             CalculateOrbitalAvailability();
 
+            // Calculate habitable zone center orbits for all non-Companion stars
+            CalculateAllHZCO();
+
             // Determine non-stellar objects
             // D primary systems must first check if they have a planetary system at all
             bool hasPlanetarySystem = true;
@@ -257,6 +260,15 @@ namespace TravellerSystemGenerator
                 {
                     Console.WriteLine($"  {range.min:F2} to {range.max:F2}");
                 }
+            }
+
+            // Habitable zone (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.HZCO > 0)
+            {
+                float hzMin = Math.Max(0, star.HZCO - 1);  // Clamp to 0
+                float hzMax = star.HZCO + 1;
+                Console.WriteLine($"Habitable Zone Center: {star.HZCO:F3}");
+                Console.WriteLine($"Habitable Zone:      {hzMin:F3} to {hzMax:F3}");
             }
 
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
@@ -1215,6 +1227,176 @@ namespace TravellerSystemGenerator
 
             DebugLogger.Log("");
             DebugLogger.Log("Orbital availability calculations complete");
+        }
+
+        private float ConvertAUToOrbitNumber(float au)
+        {
+            // Find the orbit number that corresponds to this AU value
+            // Use Starhelper.orbitValues dictionary to interpolate
+
+            for (int i = 0; i < 20; i++)
+            {
+                float lowerAU = Starhelper.orbitValues[i];
+                float upperAU = Starhelper.orbitValues[i + 1];
+
+                if (au >= lowerAU && au <= upperAU)
+                {
+                    // Interpolate between orbit numbers
+                    float fraction = (au - lowerAU) / (upperAU - lowerAU);
+                    float orbitNumber = i + fraction;
+                    return orbitNumber;
+                }
+            }
+
+            // If AU is beyond orbit 20, return 20
+            if (au > Starhelper.orbitValues[20])
+                return 20f;
+
+            // If AU is less than orbit 0, return 0
+            return 0f;
+        }
+
+        private void CalculateAllHZCO()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING HABITABLE ZONE CENTER ORBITS");
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateHZCOForStar(primaryStar, primaryObject);
+            }
+
+            // Close/Near/Far companions (but NOT Companion orbit companions)
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        CalculateHZCOForStar(companionStar, companion);
+                    }
+                }
+            }
+        }
+
+        private void CalculateHZCOForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating HZCO for {0} star...", star.starOrbitType);
+
+            // Companion orbit stars don't have HZCO
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                star.HZCO = 0;
+                DebugLogger.Log("  Companion orbit star - no HZCO");
+                return;
+            }
+
+            // Step 1: Calculate initial HZCO in AU
+            float totalLuminosity = star.luminosity;
+            DebugLogger.LogFormat("  Star luminosity: {0:F6}", star.luminosity);
+
+            // Add luminosity of any Companion companion
+            foreach (var subObj in starObj.celestrialObjectOrbits)
+            {
+                if (subObj.celestrialObject is Star subStar &&
+                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                {
+                    totalLuminosity += subStar.luminosity;
+                    DebugLogger.LogFormat("  + Companion companion luminosity: {0:F6}", subStar.luminosity);
+                }
+            }
+
+            float hzcoAU = (float)Math.Sqrt(totalLuminosity);
+            DebugLogger.LogFormat("  Initial HZCO (AU): sqrt({0:F6}) = {1:F6}", totalLuminosity, hzcoAU);
+
+            // Step 2: Convert to orbit number
+            float initialHZCO = ConvertAUToOrbitNumber(hzcoAU);
+            DebugLogger.LogFormat("  Initial HZCO (orbit): {0:F3}", initialHZCO);
+
+            // Step 3: For PRIMARY only, check if we need to recalculate
+            if (star.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                // Check if any Close/Near/Far companions have orbits < initial HZCO
+                bool needsRecalculation = false;
+                List<CelestrialObject> starsToInclude = new List<CelestrialObject>();
+
+                foreach (var companion in primaryObject.celestrialObjectOrbits)
+                {
+                    if (companion.celestrialObject is Star companionStar &&
+                        companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        if (companion.orbit < initialHZCO)
+                        {
+                            needsRecalculation = true;
+                            starsToInclude.Add(companion);
+                            DebugLogger.LogFormat("  {0} companion at orbit {1:F2} < initial HZCO {2:F3}",
+                                companionStar.starOrbitType, companion.orbit, initialHZCO);
+                        }
+                    }
+                }
+
+                if (needsRecalculation)
+                {
+                    DebugLogger.Log("  Recalculating HZCO to include inner companions...");
+
+                    // Recalculate with all stars in orbits < initial HZCO
+                    totalLuminosity = star.luminosity;
+                    DebugLogger.LogFormat("  Primary luminosity: {0:F6}", star.luminosity);
+
+                    // Add primary's Companion companion
+                    foreach (var subObj in starObj.celestrialObjectOrbits)
+                    {
+                        if (subObj.celestrialObject is Star subStar &&
+                            subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                        {
+                            totalLuminosity += subStar.luminosity;
+                            DebugLogger.LogFormat("  + Primary's Companion companion luminosity: {0:F6}", subStar.luminosity);
+                        }
+                    }
+
+                    // Add inner companions and their Companion companions
+                    foreach (var innerComp in starsToInclude)
+                    {
+                        if (innerComp.celestrialObject is Star innerStar)
+                        {
+                            totalLuminosity += innerStar.luminosity;
+                            DebugLogger.LogFormat("  + {0} companion luminosity: {1:F6}",
+                                innerStar.starOrbitType, innerStar.luminosity);
+
+                            // Add any Companion companions of this inner companion
+                            foreach (var subObj in innerComp.celestrialObjectOrbits)
+                            {
+                                if (subObj.celestrialObject is Star subStar &&
+                                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                                {
+                                    totalLuminosity += subStar.luminosity;
+                                    DebugLogger.LogFormat("  + {0} companion's Companion companion luminosity: {1:F6}",
+                                        innerStar.starOrbitType, subStar.luminosity);
+                                }
+                            }
+                        }
+                    }
+
+                    hzcoAU = (float)Math.Sqrt(totalLuminosity);
+                    DebugLogger.LogFormat("  Recalculated HZCO (AU): sqrt({0:F6}) = {1:F6}", totalLuminosity, hzcoAU);
+
+                    star.HZCO = ConvertAUToOrbitNumber(hzcoAU);
+                    DebugLogger.LogFormat("  Final HZCO (orbit): {0:F3}", star.HZCO);
+                }
+                else
+                {
+                    star.HZCO = initialHZCO;
+                    DebugLogger.Log("  No companions in inner orbits - using initial HZCO");
+                }
+            }
+            else
+            {
+                // Not primary - use initial HZCO
+                star.HZCO = initialHZCO;
+                DebugLogger.LogFormat("  Final HZCO (orbit): {0:F3}", star.HZCO);
+            }
         }
 
         private bool DetermineDPlanetarySystem(Random dice)

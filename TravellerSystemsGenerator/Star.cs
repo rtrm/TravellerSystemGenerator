@@ -23,6 +23,7 @@ namespace TravellerSystemGenerator
         public float MinAllowableOrbit { get; set; }
         public float MaxAllowableOrbit { get; set; }
         public List<(float min, float max)> UnavailableOrbitRanges { get; set; } = new List<(float, float)>();
+        public float HZCO { get; set; }  // Habitable Zone Center Orbit
         public Starhelper.starOrbitType starOrbitType { get; set; }
         public List<CelestrialObject> orbits { get; set; } = new List<CelestrialObject>();
 
