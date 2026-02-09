@@ -480,10 +480,15 @@ namespace TravellerSystemGenerator
         private float FractionalOrbit (float orbitNum, Random dice, Starhelper.starOrbitType orbitType)
         {
             float fractionalOrbit = 0;
+
+            // Close companions: if 1d6-1 = 0, orbit is exactly 0.5
+            if (orbitType == Starhelper.starOrbitType.Close && orbitNum <= 0)
+            {
+                return 0.5F;
+            }
+
             int roll = Starhelper.diceRoll(10, 1, dice);
             roll++; //so roll is 1-10
-            if (orbitType == Starhelper.starOrbitType.Close && orbitNum <= 0)
-                orbitNum = 0.5F;
 
             if (orbitNum != 0)
             {
