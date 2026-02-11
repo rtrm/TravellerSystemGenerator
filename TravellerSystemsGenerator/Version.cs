@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 0;
-        public const int Minor = 17;
+        public const int Minor = 18;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -42,5 +42,6 @@ namespace TravellerSystemGenerator
         // 0.15.x - Orbit placement for celestial objects
         // 0.16.x - Anomalous orbits (Random, Eccentric, Inclined, Retrograde, Trojan)
         // 0.17.x - World placement (Gas Giants, Planetoid Belts, Terrestrial Planets, Empty Orbits)
+        // 0.18.x - Star designations (A, B, C for primary/secondary/tertiary, a/b for companions)
     }
 }

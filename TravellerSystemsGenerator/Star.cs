@@ -35,6 +35,7 @@ namespace TravellerSystemGenerator
         public int EmptyOrbits { get; set; }
         public float SystemSpread { get; set; }
         public Starhelper.starOrbitType starOrbitType { get; set; }
+        public string Designation { get; set; } = "";
         public List<CelestrialObject> orbits { get; set; } = new List<CelestrialObject>();
 
         //public float eccentricity { get; set; }

@@ -34,6 +34,9 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("Checking for additional companion stars...");
             GenerateAdditionalStars(primaryObject, dice);
 
+            // Assign star designations
+            AssignStarDesignations();
+
             // Calculate orbital periods for all companion stars
             CalculateAllOrbitalPeriods();
 
@@ -912,21 +915,21 @@ namespace TravellerSystemGenerator
             if (star.starOrbitType == Starhelper.starOrbitType.Primary)
             {
                 Console.WriteLine("─────────────────────────────────────────────────────────────");
-                Console.WriteLine("PRIMARY STAR");
+                Console.WriteLine($"PRIMARY STAR ({star.Designation})");
                 Console.WriteLine("─────────────────────────────────────────────────────────────");
                 DebugLogger.Log("");
-                DebugLogger.LogFormat("{0} STAR:", star.starOrbitType.ToString().ToUpper());
+                DebugLogger.LogFormat("{0} STAR ({1}):", star.starOrbitType.ToString().ToUpper(), star.Designation);
             }
             else
             {
                 Console.WriteLine("─────────────────────────────────────────────────────────────");
-                Console.WriteLine($"{star.starOrbitType.ToString().ToUpper()} COMPANION STAR");
+                Console.WriteLine($"{star.starOrbitType.ToString().ToUpper()} COMPANION STAR ({star.Designation})");
                 Console.WriteLine("─────────────────────────────────────────────────────────────");
                 Console.WriteLine($"Orbital Position:    {orbit:F2} ({Cobj.orbitAU:F2} AU)");
                 Console.WriteLine($"Eccentricity:        {Cobj.orbitEccentricity:F3}");
 
                 DebugLogger.Log("");
-                DebugLogger.LogFormat("{0} STAR:", star.starOrbitType.ToString().ToUpper());
+                DebugLogger.LogFormat("{0} STAR ({1}):", star.starOrbitType.ToString().ToUpper(), star.Designation);
                 DebugLogger.LogFormat("  Orbit: {0:F2} ({1:F2} AU)", orbit, Cobj.orbitAU);
                 DebugLogger.LogFormat("  Eccentricity: {0:F3}", Cobj.orbitEccentricity);
 
@@ -1777,6 +1780,95 @@ namespace TravellerSystemGenerator
 
             // For other types, exact match
             return cb.Type == targetType;
+        }
+
+        private void AssignStarDesignations()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ASSIGNING STAR DESIGNATIONS");
+
+            // Primary star is always A (or Aa if it has a companion)
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                // Check if primary has a companion
+                bool hasCompanion = primaryObject.celestrialObjectOrbits
+                    .Any(obj => obj.celestrialObject is Star s && s.starOrbitType == Starhelper.starOrbitType.Companion);
+
+                if (hasCompanion)
+                {
+                    primaryStar.Designation = "Aa";
+                    DebugLogger.Log($"Primary star: Aa (has companion)");
+                }
+                else
+                {
+                    primaryStar.Designation = "A";
+                    DebugLogger.Log($"Primary star: A");
+                }
+            }
+
+            // Assign designations to Close, Near, Far stars (B, C, D, etc.)
+            char currentLetter = 'B';
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType == Starhelper.starOrbitType.Close ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Near ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Far)
+                    {
+                        // Check if this star has a companion
+                        bool hasSubCompanion = companionObj.celestrialObjectOrbits
+                            .Any(obj => obj.celestrialObject is Star s && s.starOrbitType == Starhelper.starOrbitType.Companion);
+
+                        if (hasSubCompanion)
+                        {
+                            companionStar.Designation = $"{currentLetter}a";
+                            DebugLogger.Log($"{companionStar.starOrbitType} star: {currentLetter}a (has companion)");
+                        }
+                        else
+                        {
+                            companionStar.Designation = $"{currentLetter}";
+                            DebugLogger.Log($"{companionStar.starOrbitType} star: {currentLetter}");
+                        }
+
+                        currentLetter++;
+                    }
+                    else if (companionStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                    {
+                        // Primary's companion is Ab
+                        companionStar.Designation = "Ab";
+                        DebugLogger.Log($"Primary's companion: Ab");
+                    }
+                }
+            }
+
+            // Assign designations to sub-companions (companions of Close/Near/Far stars)
+            currentLetter = 'B';
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType == Starhelper.starOrbitType.Close ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Near ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Far)
+                    {
+                        // Check for sub-companions
+                        foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                        {
+                            if (subCompanionObj.celestrialObject is Star subCompanionStar &&
+                                subCompanionStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                subCompanionStar.Designation = $"{currentLetter}b";
+                                DebugLogger.Log($"{companionStar.Designation}'s companion: {currentLetter}b");
+                            }
+                        }
+
+                        currentLetter++;
+                    }
+                }
+            }
+
+            DebugLogger.Log("Star designation assignment complete");
         }
 
         private void CalculateAllOrbitalPeriods()
