@@ -94,6 +94,9 @@ namespace TravellerSystemGenerator
             // Place worlds in orbits
             PlaceWorlds(dice);
 
+            // Assign world designations
+            AssignWorldDesignations();
+
             Star? star = primaryObject.celestrialObject as Star;
 
             // Print console output header
@@ -1085,26 +1088,42 @@ namespace TravellerSystemGenerator
 
                     if (orbitObj.celestrialObject is CelestialBody cb)
                     {
+                        // Skip Empty Orbits in output
+                        if (cb is EmptyOrbit)
+                            continue;
+
                         // Build world type label
                         string worldLabel = GetWorldTypeLabel(cb);
 
                         // Build orbital properties string
                         string orbitalProps = BuildOrbitalPropertiesString(orbitObj);
 
+                        // Build designation prefix
+                        string designationPrefix = string.IsNullOrEmpty(cb.Designation) ? "" : $"{cb.Designation}\t";
+
                         // Handle Trojan special formatting
                         if (IsTrojanPrimary(orbitObj, nextOrbit))
                         {
-                            Console.WriteLine($"  {orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
+                            Console.WriteLine($"  {designationPrefix}{orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
                             if (nextOrbit != null)
                             {
                                 string trojanLabel = GetTrojanCompanionLabel(nextOrbit);
                                 string trojanPos = GetTrojanPosition(nextOrbit);
-                                Console.WriteLine($"                              {trojanLabel} (Trojan {trojanPos})");
+
+                                // Get trojan designation if it has one
+                                if (nextOrbit.celestrialObject is CelestialBody trojanCb && !string.IsNullOrEmpty(trojanCb.Designation))
+                                {
+                                    Console.WriteLine($"  {trojanCb.Designation}\t                      {trojanLabel} (Trojan {trojanPos})");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"                              {trojanLabel} (Trojan {trojanPos})");
+                                }
                             }
                         }
                         else if (!IsTrojanCompanion(orbitObj))
                         {
-                            Console.WriteLine($"  {orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
+                            Console.WriteLine($"  {designationPrefix}{orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
                         }
                     }
                 }
@@ -1869,6 +1888,193 @@ namespace TravellerSystemGenerator
             }
 
             DebugLogger.Log("Star designation assignment complete");
+        }
+
+        private void AssignWorldDesignations()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ASSIGNING WORLD DESIGNATIONS");
+
+            // Check if single star system
+            bool isSingleStar = !primaryObject.celestrialObjectOrbits.Any(obj => obj.celestrialObject is Star);
+
+            // Get all companion stars sorted by orbit
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            // Assign designations to primary's worlds
+            AssignWorldDesignationsForStar(primaryObject, isSingleStar, companionStars);
+
+            // Assign designations to each companion star's worlds
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    AssignWorldDesignationsForStar(companionObj, false, new List<CelestrialObject>());
+                }
+            }
+
+            DebugLogger.Log("World designation assignment complete");
+        }
+
+        private void AssignWorldDesignationsForStar(CelestrialObject starCobj, bool isSingleStar, List<CelestrialObject> companionStars)
+        {
+            if (!(starCobj.celestrialObject is Star parentStar))
+                return;
+
+            DebugLogger.LogFormat("Assigning designations for {0} star's worlds", parentStar.Designation);
+
+            // Get all celestial bodies (not stars) sorted by orbit
+            var celestialBodies = starCobj.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is CelestialBody)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            string currentStarDesignation = "";
+            int planetCounter = 1;
+            int beltCounter = 1;
+
+            foreach (var bodyObj in celestialBodies)
+            {
+                if (!(bodyObj.celestrialObject is CelestialBody body))
+                    continue;
+
+                // Skip Empty Orbits
+                if (body is EmptyOrbit)
+                    continue;
+
+                // Determine which stars this world is orbiting
+                string starDesignation = DetermineStarDesignation(bodyObj, parentStar, companionStars, isSingleStar);
+
+                // Reset counters if star designation changed
+                if (starDesignation != currentStarDesignation)
+                {
+                    currentStarDesignation = starDesignation;
+                    planetCounter = 1;
+                    beltCounter = 1;
+                    DebugLogger.LogFormat("  Star designation changed to: {0}", starDesignation);
+                }
+
+                // Assign designation based on body type
+                if (body is PlanetoidBelt)
+                {
+                    string romanNumeral = ToRomanNumeral(beltCounter);
+                    body.Designation = isSingleStar && string.IsNullOrEmpty(starDesignation)
+                        ? $"P{romanNumeral}"
+                        : $"{starDesignation} P{romanNumeral}";
+                    DebugLogger.LogFormat("    Belt at orbit {0:F3}: {1}", bodyObj.orbit, body.Designation);
+                    beltCounter++;
+                }
+                else // Gas Giant or Terrestrial Planet
+                {
+                    string romanNumeral = ToRomanNumeral(planetCounter);
+                    body.Designation = isSingleStar && string.IsNullOrEmpty(starDesignation)
+                        ? romanNumeral
+                        : $"{starDesignation} {romanNumeral}";
+                    DebugLogger.LogFormat("    World at orbit {0:F3}: {1}", bodyObj.orbit, body.Designation);
+                    planetCounter++;
+                }
+            }
+        }
+
+        private string DetermineStarDesignation(CelestrialObject worldObj, Star parentStar, List<CelestrialObject> companionStars, bool isSingleStar)
+        {
+            // If single star system and no companions beyond this world, return empty string
+            if (isSingleStar)
+            {
+                return "";
+            }
+
+            // If this world belongs to a secondary star (not primary), just return the star's designation
+            if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
+            {
+                return parentStar.Designation;
+            }
+
+            // For primary star worlds, determine which stars are encompassed
+            List<string> orbitedStars = new List<string>();
+
+            // Check if primary has a companion (Aa/Ab case)
+            bool primaryHasCompanion = false;
+            if (primaryObject.celestrialObject is Star primaryStarCheck)
+            {
+                primaryHasCompanion = primaryStarCheck.Designation.EndsWith("a");
+            }
+
+            if (primaryHasCompanion)
+            {
+                orbitedStars.Add("Aab");
+            }
+            else
+            {
+                orbitedStars.Add("A");
+            }
+
+            // Check which companion stars have orbits less than this world's orbit
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    if (companionObj.orbit < worldObj.orbit)
+                    {
+                        // This world orbits beyond this companion star
+                        if (companionStar.Designation.EndsWith("a"))
+                        {
+                            // Companion has its own companion, use "Xab" notation
+                            string baseLetter = companionStar.Designation.TrimEnd('a');
+                            orbitedStars.Add($"{baseLetter}ab");
+                        }
+                        else
+                        {
+                            orbitedStars.Add(companionStar.Designation);
+                        }
+                    }
+                }
+            }
+
+            // Collapse the designation (e.g., Aab + B = AB, Aab + Bab = AB, etc.)
+            return CollapseStarDesignation(orbitedStars);
+        }
+
+        private string CollapseStarDesignation(List<string> orbitedStars)
+        {
+            if (orbitedStars.Count == 0)
+                return "";
+
+            if (orbitedStars.Count == 1)
+                return orbitedStars[0];
+
+            // Extract base letters and combine them
+            // "Aab" -> "A", "Bab" -> "B", etc.
+            List<char> baseLetters = new List<char>();
+            foreach (var designation in orbitedStars)
+            {
+                char baseLetter = designation[0]; // First character is always the base letter
+                if (!baseLetters.Contains(baseLetter))
+                {
+                    baseLetters.Add(baseLetter);
+                }
+            }
+
+            return string.Join("", baseLetters);
+        }
+
+        private string ToRomanNumeral(int number)
+        {
+            if (number < 1) return "";
+            if (number >= 4000) return number.ToString();
+
+            string[] thousands = { "", "M", "MM", "MMM" };
+            string[] hundreds = { "", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM" };
+            string[] tens = { "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC" };
+            string[] ones = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" };
+
+            return thousands[number / 1000] +
+                   hundreds[(number % 1000) / 100] +
+                   tens[(number % 100) / 10] +
+                   ones[number % 10];
         }
 
         private void CalculateAllOrbitalPeriods()

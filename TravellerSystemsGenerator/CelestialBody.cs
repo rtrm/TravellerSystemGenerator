@@ -5,6 +5,7 @@ namespace TravellerSystemGenerator
     internal abstract class CelestialBody
     {
         public CelestialBodyType Type { get; set; }
+        public string Designation { get; set; } = "";
 
         protected CelestialBody(CelestialBodyType type)
         {
