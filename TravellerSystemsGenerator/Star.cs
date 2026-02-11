@@ -29,6 +29,11 @@ namespace TravellerSystemGenerator
         public int SystemBaselineNumber { get; set; }
         public int InnerZoneWorldCount { get; set; }
         public int OuterZoneWorldCount { get; set; }
+        public float BaselineOrbit { get; set; }
+        public int InsideBaseline { get; set; }
+        public int OutsideBaseline { get; set; }
+        public int EmptyOrbits { get; set; }
+        public float SystemSpread { get; set; }
         public Starhelper.starOrbitType starOrbitType { get; set; }
         public List<CelestrialObject> orbits { get; set; } = new List<CelestrialObject>();
 

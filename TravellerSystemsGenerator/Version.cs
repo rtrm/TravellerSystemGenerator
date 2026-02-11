@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 0;
-        public const int Minor = 13;
+        public const int Minor = 17;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -38,5 +38,9 @@ namespace TravellerSystemGenerator
         // 0.11.x - Habitable zone center orbit calculations
         // 0.12.x - Total available orbits and world assignment calculations
         // 0.13.x - System Baseline Number calculation and world zone placement
+        // 0.14.x - Baseline orbit calculations for primary star
+        // 0.15.x - Orbit placement for celestial objects
+        // 0.16.x - Anomalous orbits (Random, Eccentric, Inclined, Retrograde, Trojan)
+        // 0.17.x - World placement (Gas Giants, Planetoid Belts, Terrestrial Planets, Empty Orbits)
     }
 }

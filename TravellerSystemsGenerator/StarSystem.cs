@@ -70,6 +70,27 @@ namespace TravellerSystemGenerator
             // Calculate System Baseline Numbers for primary star
             CalculateAllSystemBaselineNumbers();
 
+            // Calculate Baseline Orbits for primary star
+            CalculateAllBaselineOrbits();
+
+            // Calculate empty orbits and distribute to stars
+            CalculateEmptyOrbits(dice);
+
+            // Calculate system spread for orbit placement
+            CalculateSystemSpread();
+
+            // Place orbits around primary star
+            PlacePrimaryStarOrbits(dice);
+
+            // Place orbits around companion stars
+            PlaceCompanionStarOrbits(dice);
+
+            // Generate anomalous orbits
+            GenerateAnomalousOrbits(dice);
+
+            // Place worlds in orbits
+            PlaceWorlds(dice);
+
             Star? star = primaryObject.celestrialObject as Star;
 
             // Print console output header
@@ -84,12 +105,13 @@ namespace TravellerSystemGenerator
             if (star != null)
                 PrintStar(star, 0, primaryObject, dice);
 
-            if (primaryObject.celestrialObjectOrbits.Count > 0)
+            int companionStarCount = primaryObject.celestrialObjectOrbits.Count(o => o.celestrialObject is Star);
+            if (companionStarCount > 0)
             {
                 Console.WriteLine();
-                Console.WriteLine($"System contains {primaryObject.celestrialObjectOrbits.Count} companion star(s)");
+                Console.WriteLine($"System contains {companionStarCount} companion star(s)");
                 Console.WriteLine();
-                DebugLogger.Log($"Total companion stars found: {primaryObject.celestrialObjectOrbits.Count}");
+                DebugLogger.Log($"Total companion stars found: {companionStarCount}");
             }
             else
             {
@@ -181,10 +203,709 @@ namespace TravellerSystemGenerator
             //    Console.WriteLine("Close orbit star orbit = " + secOrbit.GetValue(primaryObject.celestrialObjectOrbits[0], null).ToString());
             //}
 
-            
+
         }
 
-        
+        private void GenerateAnomalousOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("GENERATING ANOMALOUS ORBITS");
+
+            // Roll 2d6 for number of anomalous orbits
+            int anomalousRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, anomalousRoll, "Number of anomalous orbits");
+
+            int anomalousCount = 0;
+            if (anomalousRoll <= 9)
+            {
+                anomalousCount = 0;
+            }
+            else if (anomalousRoll == 10)
+            {
+                anomalousCount = 1;
+            }
+            else if (anomalousRoll == 11)
+            {
+                anomalousCount = 2;
+            }
+            else // 12+
+            {
+                anomalousCount = 3;
+            }
+
+            DebugLogger.LogFormat("Anomalous orbits to generate: {0}", anomalousCount);
+
+            if (anomalousCount == 0)
+            {
+                DebugLogger.Log("No anomalous orbits for this system");
+                return;
+            }
+
+            // Get all non-Companion orbit stars for orbit placement
+            List<(Star star, CelestrialObject cobj)> availableStars = new List<(Star, CelestrialObject)>();
+
+            // Add primary
+            if (primaryObject.celestrialObject is Star primaryStar &&
+                primaryStar.starOrbitType != Starhelper.starOrbitType.Companion)
+            {
+                availableStars.Add((primaryStar, primaryObject));
+            }
+
+            // Add Close/Near/Far companions
+            foreach (var companionCobj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionCobj.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    availableStars.Add((companionStar, companionCobj));
+                }
+            }
+
+            if (availableStars.Count == 0)
+            {
+                DebugLogger.Log("No eligible stars for anomalous orbit placement");
+                return;
+            }
+
+            DebugLogger.LogFormat("Found {0} eligible star(s) for anomalous orbits", availableStars.Count);
+
+            // Generate each anomalous orbit
+            for (int i = 0; i < anomalousCount; i++)
+            {
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("--- Anomalous Orbit {0}/{1} ---", i + 1, anomalousCount);
+
+                // Roll for anomalous orbit type
+                int typeRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, typeRoll, "Anomalous orbit type");
+
+                CelestialBodyType anomalousType;
+                bool isTrojan = false;
+
+                if (typeRoll <= 7)
+                {
+                    anomalousType = CelestialBodyType.Random;
+                    DebugLogger.Log("Type: Random");
+                }
+                else if (typeRoll == 8)
+                {
+                    anomalousType = CelestialBodyType.Eccentric;
+                    DebugLogger.Log("Type: Eccentric");
+                }
+                else if (typeRoll == 9)
+                {
+                    anomalousType = CelestialBodyType.Inclined;
+                    DebugLogger.Log("Type: Inclined");
+                }
+                else if (typeRoll >= 10 && typeRoll <= 11)
+                {
+                    anomalousType = CelestialBodyType.Retrograde;
+                    DebugLogger.Log("Type: Retrograde");
+                }
+                else // 12
+                {
+                    anomalousType = CelestialBodyType.Trojan;
+                    isTrojan = true;
+                    DebugLogger.Log("Type: Trojan");
+                }
+
+                // Handle Trojan type
+                if (isTrojan)
+                {
+                    const int MAX_TROJAN_REROLLS = 5;
+                    int trojanRerollCount = 0;
+                    bool trojanPlaced = false;
+
+                    while (!trojanPlaced && trojanRerollCount <= MAX_TROJAN_REROLLS)
+                    {
+                        // Get all celestial body orbits from all eligible stars
+                        List<(CelestrialObject cobj, Star star)> allCelestialBodies = new List<(CelestrialObject, Star)>();
+
+                        foreach (var (star, starCobj) in availableStars)
+                        {
+                            var celestialBodies = starCobj.celestrialObjectOrbits
+                                .Where(o => o.celestrialObject is CelestialBody)
+                                .ToList();
+
+                            foreach (var body in celestialBodies)
+                            {
+                                allCelestialBodies.Add((body, star));
+                            }
+                        }
+
+                        DebugLogger.LogFormat("  Found {0} total celestial bodies for potential Trojan placement",
+                            allCelestialBodies.Count);
+
+                        // Check if we have gas giants or terrestrial planets
+                        if ((GasGiantCount + TerrestrialPlanetCount) > 0 && allCelestialBodies.Count > 0)
+                        {
+                            // Randomly select a celestial body
+                            int selectedIndex = dice.Next(allCelestialBodies.Count);
+                            var (selectedCobj, selectedStar) = allCelestialBodies[selectedIndex];
+
+                            // Change its type to Trojan
+                            if (selectedCobj.celestrialObject is CelestialBody celestialBody)
+                            {
+                                celestialBody.Type = CelestialBodyType.Trojan;
+                                DebugLogger.LogFormat("  ✓ Trojan placed at orbit {0:F4} around {1} star",
+                                    selectedCobj.orbit, selectedStar.starOrbitType);
+                                trojanPlaced = true;
+
+                                // Increment world counts for anomalous orbit
+                                if (TerrestrialPlanetCount < 13)
+                                {
+                                    TerrestrialPlanetCount++;
+                                    DebugLogger.LogFormat("  Terrestrial Planets increased to {0}", TerrestrialPlanetCount);
+                                }
+                                else
+                                {
+                                    PlanetoidBeltCount++;
+                                    DebugLogger.LogFormat("  Terrestrial Planets at cap (13), Planetoid Belts increased to {0}", PlanetoidBeltCount);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // No planets available - re-roll type
+                            trojanRerollCount++;
+
+                            if (trojanRerollCount > MAX_TROJAN_REROLLS)
+                            {
+                                DebugLogger.LogFormat("  ✗ No Gas Giants or Terrestrial Planets available for Trojan after {0} re-rolls",
+                                    MAX_TROJAN_REROLLS);
+                                DebugLogger.Log("  Skipping this anomalous orbit");
+                                break;
+                            }
+
+                            DebugLogger.LogFormat("  No Gas Giants or Terrestrial Planets available for Trojan (re-roll {0}/{1})",
+                                trojanRerollCount, MAX_TROJAN_REROLLS);
+
+                            // Re-roll type
+                            typeRoll = Starhelper.diceRoll(6, 2, dice);
+                            DebugLogger.LogDiceRoll(2, typeRoll, "Re-rolled anomalous orbit type");
+
+                            if (typeRoll <= 7)
+                            {
+                                anomalousType = CelestialBodyType.Random;
+                                DebugLogger.Log("  New type: Random");
+                                isTrojan = false;
+                            }
+                            else if (typeRoll == 8)
+                            {
+                                anomalousType = CelestialBodyType.Eccentric;
+                                DebugLogger.Log("  New type: Eccentric");
+                                isTrojan = false;
+                            }
+                            else if (typeRoll == 9)
+                            {
+                                anomalousType = CelestialBodyType.Inclined;
+                                DebugLogger.Log("  New type: Inclined");
+                                isTrojan = false;
+                            }
+                            else if (typeRoll >= 10 && typeRoll <= 11)
+                            {
+                                anomalousType = CelestialBodyType.Retrograde;
+                                DebugLogger.Log("  New type: Retrograde");
+                                isTrojan = false;
+                            }
+                            else // 12 - rolled Trojan again
+                            {
+                                DebugLogger.Log("  Rolled Trojan again");
+                                // Continue loop to re-roll again
+                            }
+                        }
+                    }
+
+                    // If we successfully placed Trojan, continue to next anomalous orbit
+                    if (trojanPlaced)
+                    {
+                        continue;
+                    }
+
+                    // If we exhausted re-rolls and still have Trojan, skip this anomalous orbit entirely
+                    if (isTrojan && trojanRerollCount > MAX_TROJAN_REROLLS)
+                    {
+                        continue;
+                    }
+                }
+
+                // Handle Random, Eccentric, Inclined, Retrograde types
+                // These all use the random allocation function
+
+                // Randomly select a star
+                int starIndex = dice.Next(availableStars.Count);
+                var (targetStar, targetStarCobj) = availableStars[starIndex];
+
+                DebugLogger.LogFormat("  Selected {0} star for placement", targetStar.starOrbitType);
+
+                // Select a random valid orbit
+                float selectedOrbit = SelectRandomAvailableOrbit(targetStar, targetStarCobj, dice);
+
+                if (selectedOrbit < 0)
+                {
+                    DebugLogger.LogFormat("  ✗ Could not find valid orbit for {0} anomalous orbit - skipping", anomalousType);
+                    continue;
+                }
+
+                // Add celestial body with anomalous type
+                targetStarCobj.AddCelestialBody(selectedOrbit, dice);
+
+                // Get the just-added celestial body and set its type
+                var lastAddedCobj = targetStarCobj.celestrialObjectOrbits[targetStarCobj.celestrialObjectOrbits.Count - 1];
+                if (lastAddedCobj.celestrialObject is CelestialBody newBody)
+                {
+                    newBody.Type = anomalousType;
+                    float orbitAU = lastAddedCobj.orbitAU;
+                    DebugLogger.LogFormat("  ✓ {0} anomalous orbit placed at {1:F4} ({2:F2} AU) around {3} star",
+                        anomalousType, selectedOrbit, orbitAU, targetStar.starOrbitType);
+
+                    // Increment world counts for anomalous orbit
+                    if (TerrestrialPlanetCount < 13)
+                    {
+                        TerrestrialPlanetCount++;
+                        DebugLogger.LogFormat("  Terrestrial Planets increased to {0}", TerrestrialPlanetCount);
+                    }
+                    else
+                    {
+                        PlanetoidBeltCount++;
+                        DebugLogger.LogFormat("  Terrestrial Planets at cap (13), Planetoid Belts increased to {0}", PlanetoidBeltCount);
+                    }
+                }
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Anomalous orbit generation complete");
+        }
+
+        private void PlaceWorlds(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Starting world placement...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+
+            // Step 1: Place Empty orbits
+            PlaceEmptyOrbits(dice);
+
+            // Step 2: Place Gas Giants
+            PlaceGasGiants(dice);
+
+            // Step 3: Place Planetoid Belts
+            PlacePlanetoidBelts(dice);
+
+            // Step 4: Handle Trojan orbits
+            HandleTrojanOrbits(dice);
+
+            // Step 5: Place Terrestrial Planets
+            PlaceTerrestrialPlanets(dice);
+
+            DebugLogger.Log("");
+            DebugLogger.Log("World placement complete");
+        }
+
+        private void PlaceEmptyOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Empty orbits...");
+
+            // Get all stars with EmptyOrbits > 0
+            List<Star> starsNeedingEmpty = new List<Star>();
+
+            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.EmptyOrbits > 0)
+            {
+                starsNeedingEmpty.Add(primaryStar);
+            }
+
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar && companionStar.EmptyOrbits > 0)
+                {
+                    starsNeedingEmpty.Add(companionStar);
+
+                    // Check sub-companions
+                    foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subCompanionObj.celestrialObject is Star subStar && subStar.EmptyOrbits > 0)
+                        {
+                            starsNeedingEmpty.Add(subStar);
+                        }
+                    }
+                }
+            }
+
+            // For each star, select one orbit and make it Empty
+            foreach (var star in starsNeedingEmpty)
+            {
+                DebugLogger.LogFormat("  Processing star with {0} Empty orbits needed", star.EmptyOrbits);
+
+                // Get all Filled celestial bodies for this star
+                List<CelestrialObject> filledOrbits = new List<CelestrialObject>();
+
+                CelestrialObject? starCobj = FindCelestrialObjectForStar(star);
+                if (starCobj != null)
+                {
+                    foreach (var cobj in starCobj.celestrialObjectOrbits)
+                    {
+                        if (cobj.celestrialObject is CelestialBody cb && cb.Type == CelestialBodyType.Filled)
+                        {
+                            filledOrbits.Add(cobj);
+                        }
+                    }
+                }
+
+                if (filledOrbits.Count == 0)
+                {
+                    DebugLogger.Log("    WARNING: No Filled orbits available for Empty orbit placement");
+                    continue;
+                }
+
+                // Filter out anomalous orbits if possible
+                List<CelestrialObject> candidateOrbits = filledOrbits.Where(c =>
+                {
+                    if (c.celestrialObject is CelestialBody cb)
+                    {
+                        return cb.Type == CelestialBodyType.Filled; // Only non-anomalous
+                    }
+                    return false;
+                }).ToList();
+
+                // If filtering removed all candidates, use all filled orbits
+                if (candidateOrbits.Count == 0)
+                {
+                    candidateOrbits = filledOrbits;
+                }
+
+                // Filter out innermost and outermost if at least 3 orbits exist
+                if (candidateOrbits.Count >= 3)
+                {
+                    float minOrbit = candidateOrbits.Min(c => c.orbit);
+                    float maxOrbit = candidateOrbits.Max(c => c.orbit);
+                    candidateOrbits = candidateOrbits.Where(c => c.orbit != minOrbit && c.orbit != maxOrbit).ToList();
+                }
+
+                // If we still have no candidates, use all filled orbits
+                if (candidateOrbits.Count == 0)
+                {
+                    candidateOrbits = filledOrbits;
+                }
+
+                // Randomly select one orbit
+                int selectedIndex = Starhelper.diceRoll(candidateOrbits.Count, 1, dice) - 1;
+                CelestrialObject selectedOrbit = candidateOrbits[selectedIndex];
+
+                // Replace with EmptyOrbit
+                selectedOrbit.celestrialObject = new EmptyOrbit();
+                DebugLogger.LogFormat("    Placed Empty orbit at {0:F3}", selectedOrbit.orbit);
+            }
+
+            DebugLogger.Log("  Empty orbit placement complete");
+        }
+
+        private CelestrialObject? FindCelestrialObjectForStar(Star star)
+        {
+            if (primaryObject.celestrialObject == star)
+            {
+                return primaryObject;
+            }
+
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject == star)
+                {
+                    return companionObj;
+                }
+
+                foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                {
+                    if (subCompanionObj.celestrialObject == star)
+                    {
+                        return subCompanionObj;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private void PlaceGasGiants(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Placing {0} Gas Giants...", GasGiantCount);
+
+            // Get all Filled bodies (available for placement)
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            if (emptyOrbits.Count < GasGiantCount)
+            {
+                DebugLogger.LogFormat("  WARNING: Not enough Empty orbits ({0}) for Gas Giants ({1})", emptyOrbits.Count, GasGiantCount);
+            }
+
+            // Randomly select GasGiantCount orbits
+            int planetsToPlace = Math.Min(GasGiantCount, emptyOrbits.Count);
+            for (int i = 0; i < planetsToPlace; i++)
+            {
+                int selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
+                var (cobj, parentStar) = emptyOrbits[selectedIndex];
+                emptyOrbits.RemoveAt(selectedIndex);
+
+                // Create Gas Giant
+                GasGiant gasGiant = new GasGiant();
+
+                // Check for anomalous orbit type
+                if (cobj.celestrialObject is CelestialBody cb)
+                {
+                    if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                        cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde ||
+                        cb.Type == CelestialBodyType.Trojan)
+                    {
+                        gasGiant.Type = cb.Type; // Preserve anomalous type
+                    }
+                }
+
+                cobj.celestrialObject = gasGiant;
+
+                // Calculate eccentricity with modifiers
+                int modifier = 0;
+                if (gasGiant.Type == CelestialBodyType.Random || gasGiant.Type == CelestialBodyType.Eccentric)
+                {
+                    modifier = 2;
+                }
+
+                // Calculate inclination for Eccentric orbits
+                if (gasGiant.Type == CelestialBodyType.Eccentric)
+                {
+                    int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                    gasGiant.Inclination = ((inclinationRoll + 2) * 10) + 10;
+                    DebugLogger.LogFormat("    Eccentric orbit inclination: {0:F0}°", gasGiant.Inclination);
+                }
+
+                int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+                // Calculate orbital period
+                CalculateOrbitalPeriod(cobj);
+
+                DebugLogger.LogFormat("  Placed Gas Giant at orbit {0:F3} (e:{1:F3}, P:{2})",
+                    cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+            }
+
+            DebugLogger.Log("  Gas Giant placement complete");
+        }
+
+        private void PlacePlanetoidBelts(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Placing {0} Planetoid Belts...", PlanetoidBeltCount);
+
+            // Get all remaining Filled bodies, filter out Retrograde and Trojan
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled)
+                .Where(item =>
+                {
+                    if (item.cobj.celestrialObject is CelestialBody cb)
+                    {
+                        return cb.Type != CelestialBodyType.Retrograde && cb.Type != CelestialBodyType.Trojan;
+                    }
+                    return true;
+                }).ToList();
+
+            if (emptyOrbits.Count < PlanetoidBeltCount)
+            {
+                DebugLogger.LogFormat("  WARNING: Not enough Empty orbits ({0}) for Planetoid Belts ({1})", emptyOrbits.Count, PlanetoidBeltCount);
+            }
+
+            // Randomly select PlanetoidBeltCount orbits
+            int beltsToPlace = Math.Min(PlanetoidBeltCount, emptyOrbits.Count);
+            for (int i = 0; i < beltsToPlace; i++)
+            {
+                int selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
+                var (cobj, parentStar) = emptyOrbits[selectedIndex];
+                emptyOrbits.RemoveAt(selectedIndex);
+
+                // Create Planetoid Belt
+                PlanetoidBelt belt = new PlanetoidBelt();
+
+                // Check for anomalous orbit type (but not Retrograde or Trojan as filtered above)
+                if (cobj.celestrialObject is CelestialBody cb)
+                {
+                    if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                        cb.Type == CelestialBodyType.Inclined)
+                    {
+                        belt.Type = cb.Type; // Preserve anomalous type
+                    }
+                }
+
+                cobj.celestrialObject = belt;
+
+                // Calculate eccentricity with belt=true and modifiers
+                int modifier = 0;
+                if (belt.Type == CelestialBodyType.Random || belt.Type == CelestialBodyType.Eccentric)
+                {
+                    modifier = 2;
+                }
+
+                int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                cobj.OrbitEccentricity(starsOrbited, dice, belt: true, modifier: modifier);
+
+                // Calculate orbital period
+                CalculateOrbitalPeriod(cobj);
+
+                DebugLogger.LogFormat("  Placed Planetoid Belt at orbit {0:F3} (e:{1:F3}, P:{2})",
+                    cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+            }
+
+            DebugLogger.Log("  Planetoid Belt placement complete");
+        }
+
+        private void HandleTrojanOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Handling Trojan orbits...");
+
+            // Get all orbits with Trojan anomalous type
+            var trojanOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Trojan);
+
+            foreach (var (cobj, parentStar) in trojanOrbits)
+            {
+                DebugLogger.LogFormat("  Processing Trojan orbit at {0:F3}", cobj.orbit);
+
+                // Determine primary body type (Gas Giant or Terrestrial Planet)
+                CelestialBody? primaryBody = null;
+                CelestialBody? trojanBody = null;
+
+                // If already placed (Gas Giant), use it as primary
+                if (cobj.celestrialObject is GasGiant)
+                {
+                    primaryBody = (CelestialBody)cobj.celestrialObject;
+                    trojanBody = new TerrestrialPlanet();
+                }
+                else
+                {
+                    // Randomly determine: 50/50 Gas Giant or Terrestrial Planet
+                    bool primaryIsGasGiant = Starhelper.diceRoll(2, 1, dice) == 1;
+                    bool trojanIsGasGiant = Starhelper.diceRoll(2, 1, dice) == 1;
+
+                    // If at least one is Gas Giant, make it the primary
+                    if (primaryIsGasGiant && !trojanIsGasGiant)
+                    {
+                        primaryBody = new GasGiant();
+                        trojanBody = new TerrestrialPlanet();
+                    }
+                    else if (!primaryIsGasGiant && trojanIsGasGiant)
+                    {
+                        primaryBody = new TerrestrialPlanet();
+                        trojanBody = new GasGiant();
+                    }
+                    else if (primaryIsGasGiant && trojanIsGasGiant)
+                    {
+                        primaryBody = new GasGiant();
+                        trojanBody = new GasGiant();
+                    }
+                    else
+                    {
+                        primaryBody = new TerrestrialPlanet();
+                        trojanBody = new TerrestrialPlanet();
+                    }
+
+                    // Set the primary body
+                    cobj.celestrialObject = primaryBody;
+                }
+
+                // Set Trojan position (L4 or L5)
+                string trojanPosition = Starhelper.diceRoll(2, 1, dice) == 1 ? "L4" : "L5";
+                if (trojanBody is GasGiant gg)
+                {
+                    gg.TrojanPosition = trojanPosition;
+                }
+                else if (trojanBody is TerrestrialPlanet tp)
+                {
+                    tp.TrojanPosition = trojanPosition;
+                }
+
+                // Calculate eccentricity for primary (if not already calculated)
+                if (cobj.orbitEccentricity == 0)
+                {
+                    int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                    cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: 0);
+                    CalculateOrbitalPeriod(cobj);
+                }
+
+                // Create second CelestrialObject for Trojan companion
+                CelestrialObject trojanCobj = new CelestrialObject();
+                trojanCobj.orbit = cobj.orbit;
+                trojanCobj.orbitAU = cobj.orbitAU;
+                trojanCobj.orbitEccentricity = cobj.orbitEccentricity;
+                trojanCobj.OrbitalPeriodYears = cobj.OrbitalPeriodYears;
+                trojanCobj.celestrialObject = trojanBody;
+
+                // Add to parent star's orbits
+                CelestrialObject? parentCobj = FindCelestrialObjectForStar(parentStar);
+                if (parentCobj != null)
+                {
+                    parentCobj.celestrialObjectOrbits.Add(trojanCobj);
+
+                    // Re-sort the orbits
+                    parentCobj.celestrialObjectOrbits = parentCobj.celestrialObjectOrbits.OrderBy(o => o.orbit).ToList();
+                }
+
+                DebugLogger.LogFormat("    Created Trojan companion at {0} position", trojanPosition);
+            }
+
+            DebugLogger.Log("  Trojan orbit handling complete");
+        }
+
+        private void PlaceTerrestrialPlanets(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Terrestrial Planets in remaining orbits...");
+
+            // Get all remaining Filled bodies
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            DebugLogger.LogFormat("  Found {0} Empty orbits to fill with Terrestrial Planets", emptyOrbits.Count);
+
+            foreach (var (cobj, parentStar) in emptyOrbits)
+            {
+                // Create Terrestrial Planet
+                TerrestrialPlanet planet = new TerrestrialPlanet();
+
+                // Check for anomalous orbit type
+                if (cobj.celestrialObject is CelestialBody cb)
+                {
+                    if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                        cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde)
+                    {
+                        planet.Type = cb.Type; // Preserve anomalous type
+                    }
+                }
+
+                cobj.celestrialObject = planet;
+
+                // Calculate eccentricity with modifiers
+                int modifier = 0;
+                if (planet.Type == CelestialBodyType.Random || planet.Type == CelestialBodyType.Eccentric)
+                {
+                    modifier = 2;
+                }
+
+                // Calculate inclination for Eccentric orbits
+                if (planet.Type == CelestialBodyType.Eccentric)
+                {
+                    int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                    planet.Inclination = ((inclinationRoll + 2) * 10) + 10;
+                }
+
+                int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+                // Calculate orbital period
+                CalculateOrbitalPeriod(cobj);
+
+                DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (e:{1:F3}, P:{2})",
+                    cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+            }
+
+            DebugLogger.Log("  Terrestrial Planet placement complete");
+        }
 
         private void PrintStar (Star star, float orbit, CelestrialObject Cobj, Random dice)
         {
@@ -296,6 +1017,26 @@ namespace TravellerSystemGenerator
                     Console.WriteLine($"  Inner Zone Worlds: {star.InnerZoneWorldCount}");
                     Console.WriteLine($"  Outer Zone Worlds: {star.OuterZoneWorldCount}");
                 }
+
+                // Baseline orbit information
+                if (star.BaselineOrbit > 0)
+                {
+                    Console.WriteLine($"Baseline Orbit:      {star.BaselineOrbit:F4}");
+                    Console.WriteLine($"  Inside Baseline:   {star.InsideBaseline}");
+                    Console.WriteLine($"  Outside Baseline:  {star.OutsideBaseline}");
+                }
+
+                // Empty orbits (if any)
+                if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.EmptyOrbits > 0)
+                {
+                    Console.WriteLine($"Empty Orbits:        {star.EmptyOrbits}");
+                }
+
+                // System spread (Primary only)
+                if (star.starOrbitType == Starhelper.starOrbitType.Primary && star.SystemSpread > 0)
+                {
+                    Console.WriteLine($"System Spread:       {star.SystemSpread:F4}");
+                }
             }
 
             // Habitable zone (except for Companion orbit stars)
@@ -305,6 +1046,65 @@ namespace TravellerSystemGenerator
                 float hzMax = star.HZCO + 1;
                 Console.WriteLine($"Habitable Zone Center: {star.HZCO:F3}");
                 Console.WriteLine($"Habitable Zone:      {hzMin:F3} to {hzMax:F3}");
+            }
+
+            // Orbits list (if any objects placed) - for all stars
+            var celestialBodies = Cobj.celestrialObjectOrbits
+                .Where(o => o.celestrialObject is CelestialBody)
+                .OrderBy(o => o.orbit)
+                .ToList();
+
+            if (celestialBodies.Count > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Orbits:");
+                for (int i = 0; i < celestialBodies.Count; i++)
+                {
+                    var orbitObj = celestialBodies[i];
+                    CelestrialObject? nextOrbit = i < celestialBodies.Count - 1 ? celestialBodies[i + 1] : null;
+
+                    float mkm = orbitObj.orbitAU * 149.597870700f;
+                    string mkmFormat;
+
+                    // Dynamic precision based on AU distance
+                    if (orbitObj.orbitAU < 0.1f)
+                    {
+                        mkmFormat = $"{mkm:F2}"; // 2 decimal places for very small orbits
+                    }
+                    else if (orbitObj.orbitAU < 1.0f)
+                    {
+                        mkmFormat = $"{mkm:F1}"; // 1 decimal place for small orbits
+                    }
+                    else
+                    {
+                        mkmFormat = $"{mkm:F0}"; // Whole numbers for larger orbits
+                    }
+
+                    if (orbitObj.celestrialObject is CelestialBody cb)
+                    {
+                        // Build world type label
+                        string worldLabel = GetWorldTypeLabel(cb);
+
+                        // Build orbital properties string
+                        string orbitalProps = BuildOrbitalPropertiesString(orbitObj);
+
+                        // Handle Trojan special formatting
+                        if (IsTrojanPrimary(orbitObj, nextOrbit))
+                        {
+                            Console.WriteLine($"  {orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
+                            if (nextOrbit != null)
+                            {
+                                string trojanLabel = GetTrojanCompanionLabel(nextOrbit);
+                                string trojanPos = GetTrojanPosition(nextOrbit);
+                                Console.WriteLine($"                              {trojanLabel} (Trojan {trojanPos})");
+                            }
+                        }
+                        else if (!IsTrojanCompanion(orbitObj))
+                        {
+                            Console.WriteLine($"  {orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
+                        }
+                    }
+                }
             }
 
             DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
@@ -318,6 +1118,83 @@ namespace TravellerSystemGenerator
             {
                 DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3} (orbit number)", star.MinAllowableOrbit);
             }
+        }
+
+        private string GetWorldTypeLabel(CelestialBody? celestialObj)
+        {
+            if (celestialObj == null)
+                return "Unknown";
+
+            return celestialObj switch
+            {
+                GasGiant gg => gg.Type == CelestialBodyType.GasGiant ? "Gas Giant" : $"Gas Giant [{gg.Type}]",
+                TerrestrialPlanet tp => tp.Type == CelestialBodyType.TerrestrialPlanet ? "Terrestrial Planet" : $"Terrestrial Planet [{tp.Type}]",
+                PlanetoidBelt pb => pb.Type == CelestialBodyType.PlanetoidBelt ? "Planetoid Belt" : $"Planetoid Belt [{pb.Type}]",
+                EmptyOrbit _ => "Empty Orbit",
+                CelestialBody cb when cb.Type == CelestialBodyType.Filled => "Filled",
+                CelestialBody cb => $"Filled [{cb.Type}]",
+                _ => "Unknown"
+            };
+        }
+
+        private string BuildOrbitalPropertiesString(CelestrialObject cObj)
+        {
+            List<string> props = new List<string>();
+
+            if (cObj.orbitEccentricity > 0)
+                props.Add($"e:{cObj.orbitEccentricity:F3}");
+
+            if (cObj.celestrialObject is GasGiant gg && gg.Inclination.HasValue)
+                props.Add($"i:{gg.Inclination:F0}°");
+            else if (cObj.celestrialObject is TerrestrialPlanet tp && tp.Inclination.HasValue)
+                props.Add($"i:{tp.Inclination:F0}°");
+
+            if (cObj.OrbitalPeriodYears > 0)
+                props.Add($"P:{FormatOrbitalPeriod(cObj.OrbitalPeriodYears)}");
+
+            return props.Count > 0 ? $" [{string.Join(", ", props)}]" : "";
+        }
+
+        private bool IsTrojanPrimary(CelestrialObject cObj, CelestrialObject? nextObj)
+        {
+            if (nextObj == null)
+                return false;
+
+            // Check if next orbit is at same position and has Trojan position set
+            if (Math.Abs(cObj.orbit - nextObj.orbit) < 0.001f)
+            {
+                if (nextObj.celestrialObject is GasGiant gg && !string.IsNullOrEmpty(gg.TrojanPosition))
+                    return true;
+                if (nextObj.celestrialObject is TerrestrialPlanet tp && !string.IsNullOrEmpty(tp.TrojanPosition))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool IsTrojanCompanion(CelestrialObject cObj)
+        {
+            if (cObj.celestrialObject is GasGiant gg && !string.IsNullOrEmpty(gg.TrojanPosition))
+                return true;
+            if (cObj.celestrialObject is TerrestrialPlanet tp && !string.IsNullOrEmpty(tp.TrojanPosition))
+                return true;
+
+            return false;
+        }
+
+        private string GetTrojanCompanionLabel(CelestrialObject cObj)
+        {
+            return GetWorldTypeLabel(cObj.celestrialObject as CelestialBody);
+        }
+
+        private string GetTrojanPosition(CelestrialObject cObj)
+        {
+            if (cObj.celestrialObject is GasGiant gg && !string.IsNullOrEmpty(gg.TrojanPosition))
+                return gg.TrojanPosition;
+            if (cObj.celestrialObject is TerrestrialPlanet tp && !string.IsNullOrEmpty(tp.TrojanPosition))
+                return tp.TrojanPosition;
+
+            return "??";
         }
 
         private string GetProperty(Object? obj, string prop)
@@ -710,13 +1587,196 @@ namespace TravellerSystemGenerator
                 float m = star.mass;
                 DebugLogger.LogFormat("    Orbiting star mass (m): {0:F3}", m);
 
-                // orbital period = sqrt(orbit^2 / (M + m))
+                // orbital period = sqrt(orbit³ / M) - Kepler's 3rd law
                 float orbitAU = cObj.orbitAU;
-                float period = (float)Math.Sqrt((orbitAU * orbitAU) / (M + m));
+                float period = (float)Math.Sqrt((orbitAU * orbitAU * orbitAU) / M);
 
                 cObj.OrbitalPeriodYears = period;
                 DebugLogger.LogFormat("    Orbital period: {0:F6} years", period);
             }
+            else if (cObj.celestrialObject is CelestialBody)
+            {
+                DebugLogger.Log("  Calculating orbital period for celestial body...");
+
+                // Calculate M (total mass of stars being orbited)
+                float M = CalculateTotalOrbitedMassForPlanet(cObj);
+
+                // orbital period = sqrt(orbit³ / M) - Kepler's 3rd law
+                float orbitAU = cObj.orbitAU;
+                float period = (float)Math.Sqrt((orbitAU * orbitAU * orbitAU) / M);
+
+                cObj.OrbitalPeriodYears = period;
+                DebugLogger.LogFormat("    Orbital period: {0:F6} years", period);
+            }
+        }
+
+        private float CalculateTotalOrbitedMassForPlanet(CelestrialObject planetCobj)
+        {
+            // Find which star this planet belongs to
+            Star? parentStar = FindStarForOrbit(planetCobj);
+
+            if (parentStar == null)
+            {
+                DebugLogger.Log("    WARNING: Could not find parent star for planet");
+                return 1.0f; // Default to 1 solar mass
+            }
+
+            DebugLogger.LogFormat("    Planet orbits {0} star", parentStar.starOrbitType);
+
+            // Calculate total mass based on parent star type
+            float totalMass = 0;
+
+            if (parentStar.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                // Primary star - just its mass
+                totalMass = parentStar.mass;
+                DebugLogger.LogFormat("    Primary star mass: {0:F3}", totalMass);
+            }
+            else if (parentStar.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                // Companion orbits another star - planet orbits just the companion
+                totalMass = parentStar.mass;
+                DebugLogger.LogFormat("    Companion star mass: {0:F3}", totalMass);
+            }
+            else if (parentStar.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Close orbit - planet may orbit primary + close companion together
+                totalMass = parentStar.mass;
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass += ((Star)primaryObject.celestrialObject).mass;
+                }
+                DebugLogger.LogFormat("    Close orbit total mass: {0:F3}", totalMass);
+            }
+            else
+            {
+                // Near/Far orbits - just the star's own mass for now (simplified)
+                totalMass = parentStar.mass;
+                DebugLogger.LogFormat("    {0} star mass: {1:F3}", parentStar.starOrbitType, totalMass);
+            }
+
+            return totalMass;
+        }
+
+        private Star? FindStarForOrbit(CelestrialObject planetCobj)
+        {
+            // Check primary star's orbits
+            if (primaryObject.celestrialObjectOrbits.Contains(planetCobj))
+            {
+                return primaryObject.celestrialObject as Star;
+            }
+
+            // Check companion stars' orbits
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star)
+                {
+                    if (companionObj.celestrialObjectOrbits.Contains(planetCobj))
+                    {
+                        return companionObj.celestrialObject as Star;
+                    }
+
+                    // Check sub-companions
+                    foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subCompanionObj.celestrialObject is Star)
+                        {
+                            if (subCompanionObj.celestrialObjectOrbits.Contains(planetCobj))
+                            {
+                                return subCompanionObj.celestrialObject as Star;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Default to primary if not found
+            return primaryObject.celestrialObject as Star;
+        }
+
+        private int CountStarsOrbitedByPlanet(Star parentStar)
+        {
+            // For most cases, planets orbit just their local star
+            if (parentStar.starOrbitType == Starhelper.starOrbitType.Primary ||
+                parentStar.starOrbitType == Starhelper.starOrbitType.Companion ||
+                parentStar.starOrbitType == Starhelper.starOrbitType.Near ||
+                parentStar.starOrbitType == Starhelper.starOrbitType.Far)
+            {
+                return 1;
+            }
+            else if (parentStar.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Close orbit - may orbit primary + close companion
+                return 2;
+            }
+
+            return 1;
+        }
+
+        private List<(CelestrialObject cobj, Star parentStar)> GetAllCelestialBodiesOfType(CelestialBodyType targetType)
+        {
+            List<(CelestrialObject, Star)> results = new List<(CelestrialObject, Star)>();
+
+            // Check primary star's orbits
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var cobj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (cobj.celestrialObject is CelestialBody cb && MatchesCelestialBodyType(cb, targetType))
+                    {
+                        results.Add((cobj, primaryStar));
+                    }
+                }
+            }
+
+            // Check companion stars' orbits
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var cobj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (cobj.celestrialObject is CelestialBody cb && MatchesCelestialBodyType(cb, targetType))
+                        {
+                            results.Add((cobj, companionStar));
+                        }
+                    }
+
+                    // Check sub-companions
+                    foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subCompanionObj.celestrialObject is Star subCompanionStar)
+                        {
+                            foreach (var cobj in subCompanionObj.celestrialObjectOrbits)
+                            {
+                                if (cobj.celestrialObject is CelestialBody cb && MatchesCelestialBodyType(cb, targetType))
+                                {
+                                    results.Add((cobj, subCompanionStar));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        private bool MatchesCelestialBodyType(CelestialBody cb, CelestialBodyType targetType)
+        {
+            // When looking for Filled, include all anomalous orbit types (they're still placeholders)
+            if (targetType == CelestialBodyType.Filled)
+            {
+                return cb.Type == CelestialBodyType.Filled ||
+                       cb.Type == CelestialBodyType.Random ||
+                       cb.Type == CelestialBodyType.Eccentric ||
+                       cb.Type == CelestialBodyType.Inclined ||
+                       cb.Type == CelestialBodyType.Retrograde ||
+                       cb.Type == CelestialBodyType.Trojan;
+            }
+
+            // For other types, exact match
+            return cb.Type == targetType;
         }
 
         private void CalculateAllOrbitalPeriods()
@@ -739,22 +1799,33 @@ namespace TravellerSystemGenerator
 
         private string FormatOrbitalPeriod(float years)
         {
-            // Convert to days
-            float days = years * 365.25f;
-
-            // If less than 1 day, show in hours
-            if (days < 1.0f)
+            if (years < (1.0f / 8766))  // Less than 1 hour
             {
-                float hours = days * 24;
+                float hours = years * 8766;
                 return $"{hours:F2} hours";
             }
-            // If less than 5 years, show in days
-            else if (years < 5.0f)
+            else if (years < (1.0f / 365.25))  // Less than 1 day
             {
-                return $"{days:F2} days";
+                float hours = years * 8766;
+                return $"{hours:F2} hours";
             }
-            // Otherwise show in years
-            else
+            else if (years < (5.0f / 365.25))  // Less than 5 days
+            {
+                float days = years * 365.25f;
+                float remainderHours = (days - (int)days) * 24;
+                return $"{(int)days} days {remainderHours:F1} hours";
+            }
+            else if (years < 1.0f)  // Less than 1 year
+            {
+                float days = years * 365.25f;
+                return $"{days:F1} days";
+            }
+            else if (years < 5.0f)  // Less than 5 years
+            {
+                float remainderDays = (years - (int)years) * 365.25f;
+                return $"{(int)years} years {remainderDays:F0} days";
+            }
+            else  // 5+ years
             {
                 return $"{years:F2} years";
             }
@@ -2002,6 +3073,795 @@ namespace TravellerSystemGenerator
             }
 
             DebugLogger.LogFormat("  System Baseline Number = {0}", star.SystemBaselineNumber);
+        }
+
+        private void CalculateAllBaselineOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING BASELINE ORBITS");
+
+            // Calculate for Primary star only
+            if (primaryObject.celestrialObject is Star primaryStar &&
+                primaryStar.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                CalculateBaselineOrbitForStar(primaryStar, primaryObject);
+            }
+        }
+
+        private void CalculateBaselineOrbitForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating Baseline Orbit for {0} star...", star.starOrbitType);
+
+            // Check if star has any worlds assigned
+            if (star.WorldsAssigned <= 0)
+            {
+                star.BaselineOrbit = 0;
+                star.InsideBaseline = 0;
+                star.OutsideBaseline = 0;
+                DebugLogger.Log("  Star has no worlds assigned - Baseline Orbit = 0");
+                return;
+            }
+
+            // Log input values
+            DebugLogger.LogFormat("  System Baseline Number: {0}", star.SystemBaselineNumber);
+            DebugLogger.LogFormat("  System Total Worlds: {0}", SystemTotalWorlds);
+            DebugLogger.LogFormat("  Worlds Assigned: {0}", star.WorldsAssigned);
+            DebugLogger.LogFormat("  HZCO: {0:F3}", star.HZCO);
+            DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3}", star.MinAllowableOrbit);
+
+            // Determine scenario
+            if (star.SystemBaselineNumber < 1)
+            {
+                DebugLogger.Log("  Scenario 2: System Baseline Number < 1");
+                CalculateBaselineOrbitScenario2(star, starObj);
+            }
+            else if (star.SystemBaselineNumber > SystemTotalWorlds || star.SystemBaselineNumber > star.WorldsAssigned)
+            {
+                DebugLogger.Log("  Scenario 3: System Baseline Number > System Total Worlds OR > Worlds Assigned");
+                CalculateBaselineOrbitScenario3(star, starObj);
+            }
+            else // star.SystemBaselineNumber >= 1 && <= SystemTotalWorlds && <= WorldsAssigned
+            {
+                DebugLogger.Log("  Scenario 1: System Baseline Number >= 1 AND <= System Total Worlds AND <= Worlds Assigned");
+                CalculateBaselineOrbitScenario1(star, starObj);
+            }
+
+            // Apply post-calculation adjustments
+            ApplyBaselineOrbitAdjustments(star);
+        }
+
+        private void CalculateBaselineOrbitScenario1(Star star, CelestrialObject starObj)
+        {
+            Random dice = new Random();
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
+
+            float variance;
+            if (star.HZCO >= 1)
+            {
+                variance = (diceRoll - 7) / 10f;
+                DebugLogger.LogFormat("  HZCO >= 1: variance = ({0} - 7) / 10 = {1:F3}", diceRoll, variance);
+            }
+            else
+            {
+                variance = (diceRoll - 7) / 100f;
+                DebugLogger.LogFormat("  HZCO < 1: variance = ({0} - 7) / 100 = {1:F4}", diceRoll, variance);
+            }
+
+            star.BaselineOrbit = star.HZCO + variance;
+            DebugLogger.LogFormat("  Baseline Orbit = HZCO + variance = {0:F3} + {1:F4} = {2:F4}",
+                star.HZCO, variance, star.BaselineOrbit);
+
+            // Calculate InsideBaseline and OutsideBaseline
+            star.OutsideBaseline = star.WorldsAssigned - star.SystemBaselineNumber;
+            star.InsideBaseline = star.WorldsAssigned - (star.OutsideBaseline + 1);
+
+            DebugLogger.LogFormat("  OutsideBaseline = Worlds Assigned - System Baseline # = {0} - {1} = {2}",
+                star.WorldsAssigned, star.SystemBaselineNumber, star.OutsideBaseline);
+            DebugLogger.LogFormat("  InsideBaseline = Worlds Assigned - (OutsideBaseline + 1) = {0} - ({1} + 1) = {2}",
+                star.WorldsAssigned, star.OutsideBaseline, star.InsideBaseline);
+        }
+
+        private void CalculateBaselineOrbitScenario2(Star star, CelestrialObject starObj)
+        {
+            Random dice = new Random();
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
+
+            float variance;
+            if (star.MinAllowableOrbit >= 1)
+            {
+                variance = (diceRoll - 2) / 10f;
+                DebugLogger.LogFormat("  Min Allowable Orbit >= 1: variance = ({0} - 2) / 10 = {1:F3}",
+                    diceRoll, variance);
+                star.BaselineOrbit = star.HZCO - star.SystemBaselineNumber + star.WorldsAssigned + variance;
+                DebugLogger.LogFormat("  Baseline Orbit = HZCO - System Baseline # + Worlds Assigned + variance");
+                DebugLogger.LogFormat("  Baseline Orbit = {0:F3} - {1} + {2} + {3:F3} = {4:F4}",
+                    star.HZCO, star.SystemBaselineNumber, star.WorldsAssigned, variance, star.BaselineOrbit);
+            }
+            else
+            {
+                variance = (diceRoll - 2) / 100f;
+                DebugLogger.LogFormat("  Min Allowable Orbit < 1: variance = ({0} - 2) / 100 = {1:F4}",
+                    diceRoll, variance);
+                float systemBaselineComponent = star.SystemBaselineNumber / 10f;
+                star.BaselineOrbit = star.HZCO - systemBaselineComponent + star.WorldsAssigned + variance;
+                DebugLogger.LogFormat("  Baseline Orbit = HZCO - (System Baseline # / 10) + Worlds Assigned + variance");
+                DebugLogger.LogFormat("  Baseline Orbit = {0:F3} - {1:F3} + {2} + {3:F4} = {4:F4}",
+                    star.HZCO, systemBaselineComponent, star.WorldsAssigned, variance, star.BaselineOrbit);
+            }
+
+            star.OutsideBaseline = star.WorldsAssigned - 1;
+            star.InsideBaseline = 0;
+
+            DebugLogger.LogFormat("  OutsideBaseline = Worlds Assigned - 1 = {0} - 1 = {1}",
+                star.WorldsAssigned, star.OutsideBaseline);
+            DebugLogger.Log("  InsideBaseline = 0");
+        }
+
+        private void CalculateBaselineOrbitScenario3(Star star, CelestrialObject starObj)
+        {
+            Random dice = new Random();
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
+
+            float calculatedValue = star.HZCO - star.SystemBaselineNumber + star.WorldsAssigned;
+            DebugLogger.LogFormat("  Calculated value = HZCO - System Baseline # + Worlds Assigned");
+            DebugLogger.LogFormat("  Calculated value = {0:F3} - {1} + {2} = {3:F4}",
+                star.HZCO, star.SystemBaselineNumber, star.WorldsAssigned, calculatedValue);
+
+            float variance = (diceRoll - 7) / 5f;
+            DebugLogger.LogFormat("  Variance = ({0} - 7) / 5 = {1:F3}", diceRoll, variance);
+
+            if (calculatedValue >= 1)
+            {
+                star.BaselineOrbit = calculatedValue + variance;
+                DebugLogger.LogFormat("  Calculated value >= 1: Baseline Orbit = {0:F4} + {1:F3} = {2:F4}",
+                    calculatedValue, variance, star.BaselineOrbit);
+            }
+            else
+            {
+                star.BaselineOrbit = (star.SystemBaselineNumber + star.WorldsAssigned + variance) / 10f;
+                DebugLogger.LogFormat("  Calculated value < 1: Baseline Orbit = (System Baseline # + Worlds Assigned + variance) / 10");
+                DebugLogger.LogFormat("  Baseline Orbit = ({0} + {1} + {2:F3}) / 10 = {3:F4}",
+                    star.SystemBaselineNumber, star.WorldsAssigned, variance, star.BaselineOrbit);
+            }
+
+            star.OutsideBaseline = 0;
+            star.InsideBaseline = star.WorldsAssigned - 1;
+
+            DebugLogger.Log("  OutsideBaseline = 0");
+            DebugLogger.LogFormat("  InsideBaseline = Worlds Assigned - 1 = {0} - 1 = {1}",
+                star.WorldsAssigned, star.InsideBaseline);
+        }
+
+        private void ApplyBaselineOrbitAdjustments(Star star)
+        {
+            DebugLogger.LogFormat("  Baseline Orbit before adjustments: {0:F4}", star.BaselineOrbit);
+
+            if (star.BaselineOrbit < 0)
+            {
+                DebugLogger.Log("  Baseline Orbit < 0, applying adjustment...");
+
+                float adjustedValue = star.HZCO - 0.1f;
+                DebugLogger.LogFormat("  Adjusted value = HZCO - 0.1 = {0:F3} - 0.1 = {1:F4}",
+                    star.HZCO, adjustedValue);
+
+                if (adjustedValue < star.MinAllowableOrbit)
+                {
+                    star.BaselineOrbit = star.MinAllowableOrbit + (star.WorldsAssigned * 0.01f);
+                    DebugLogger.LogFormat("  Adjusted value < Min Allowable Orbit ({0:F3})", star.MinAllowableOrbit);
+                    DebugLogger.LogFormat("  Final Baseline Orbit = Min Allowable Orbit + (Worlds Assigned × 0.01)");
+                    DebugLogger.LogFormat("  Final Baseline Orbit = {0:F3} + ({1} × 0.01) = {2:F4}",
+                        star.MinAllowableOrbit, star.WorldsAssigned, star.BaselineOrbit);
+                }
+                else
+                {
+                    star.BaselineOrbit = adjustedValue;
+                    DebugLogger.LogFormat("  Final Baseline Orbit = {0:F4}", star.BaselineOrbit);
+                }
+            }
+            else
+            {
+                DebugLogger.Log("  No adjustment needed (Baseline Orbit >= 0)");
+            }
+
+            DebugLogger.LogFormat("  FINAL VALUES:");
+            DebugLogger.LogFormat("    Baseline Orbit: {0:F4}", star.BaselineOrbit);
+            DebugLogger.LogFormat("    InsideBaseline: {0}", star.InsideBaseline);
+            DebugLogger.LogFormat("    OutsideBaseline: {0}", star.OutsideBaseline);
+        }
+
+        private void CalculateEmptyOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING EMPTY ORBITS");
+
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "System Total Potential Empty Orbits");
+
+            int systemPotentialEmpty = 0;
+            if (diceRoll <= 9)
+                systemPotentialEmpty = 0;
+            else if (diceRoll == 10)
+                systemPotentialEmpty = 1;
+            else if (diceRoll == 11)
+                systemPotentialEmpty = 2;
+            else if (diceRoll >= 12)
+                systemPotentialEmpty = 3;
+
+            DebugLogger.LogFormat("System Total Potential Empty Orbits: {0}", systemPotentialEmpty);
+
+            if (systemPotentialEmpty <= 0)
+            {
+                DebugLogger.Log("No empty orbits for this system");
+                return;
+            }
+
+            // Distribute to Close/Near/Far companions first
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (systemPotentialEmpty <= 0) break;
+
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion &&
+                        companionStar.WorldsAssigned > 0)
+                    {
+                        companionStar.EmptyOrbits = 1;
+                        companionStar.WorldsAssigned += 1;
+                        systemPotentialEmpty--;
+
+                        DebugLogger.LogFormat("  {0} companion: Added 1 empty orbit (Worlds Assigned now {1})",
+                            companionStar.starOrbitType, companionStar.WorldsAssigned);
+                    }
+                }
+            }
+
+            // Remaining goes to primary
+            if (systemPotentialEmpty > 0 && primaryObject.celestrialObject is Star primaryStar)
+            {
+                primaryStar.EmptyOrbits = systemPotentialEmpty;
+                primaryStar.WorldsAssigned += systemPotentialEmpty;
+
+                DebugLogger.LogFormat("  Primary: Added {0} empty orbit(s) (Worlds Assigned now {1})",
+                    systemPotentialEmpty, primaryStar.WorldsAssigned);
+            }
+        }
+
+        private void CalculateSystemSpread()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING SYSTEM SPREAD");
+
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (primaryStar.WorldsAssigned <= 0)
+                {
+                    primaryStar.SystemSpread = 0;
+                    DebugLogger.Log("Primary has no worlds - System Spread = 0");
+                    return;
+                }
+
+                // Treat System Baseline Number < 1 as 1
+                int effectiveBaselineNumber = primaryStar.SystemBaselineNumber < 1 ? 1 : primaryStar.SystemBaselineNumber;
+
+                if (effectiveBaselineNumber != primaryStar.SystemBaselineNumber)
+                {
+                    DebugLogger.LogFormat("System Baseline # ({0}) < 1, treating as 1 for spread calculation",
+                        primaryStar.SystemBaselineNumber);
+                }
+
+                float spread = (primaryStar.BaselineOrbit - primaryStar.MinAllowableOrbit) /
+                               effectiveBaselineNumber;
+                primaryStar.SystemSpread = spread;
+
+                DebugLogger.LogFormat("System Spread = (Baseline Orbit - Min Allowable Orbit) / System Baseline #");
+                DebugLogger.LogFormat("System Spread = ({0:F4} - {1:F3}) / {2} = {3:F4}",
+                    primaryStar.BaselineOrbit, primaryStar.MinAllowableOrbit,
+                    effectiveBaselineNumber, spread);
+            }
+        }
+
+        private bool IsOrbitInUnavailableRange(float orbit, List<(float min, float max)> ranges, out float rangeWidth)
+        {
+            rangeWidth = 0;
+            foreach (var range in ranges)
+            {
+                if (orbit >= range.min && orbit <= range.max)
+                {
+                    rangeWidth = range.max - range.min;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private float GetSmallestOrbitSeparation(CelestrialObject starCobj, Star star)
+        {
+            const float DEFAULT_SEPARATION = 0.2f;
+
+            // Get all occupied orbit numbers
+            List<float> occupiedOrbits = new List<float>();
+            foreach (var orbit in starCobj.celestrialObjectOrbits)
+            {
+                occupiedOrbits.Add(orbit.orbit);
+            }
+
+            // Need at least 2 orbits to calculate separation
+            if (occupiedOrbits.Count < 2)
+            {
+                return DEFAULT_SEPARATION;
+            }
+
+            // Sort orbits
+            occupiedOrbits.Sort();
+
+            // Find minimum separation in AU
+            float minSeparation = float.MaxValue;
+            for (int i = 0; i < occupiedOrbits.Count - 1; i++)
+            {
+                float orbitAU1 = new CelestrialObject().OrbitAU(occupiedOrbits[i]);
+                float orbitAU2 = new CelestrialObject().OrbitAU(occupiedOrbits[i + 1]);
+                float separation = orbitAU2 - orbitAU1;
+
+                if (separation < minSeparation)
+                {
+                    minSeparation = separation;
+                }
+            }
+
+            return Math.Max(DEFAULT_SEPARATION, minSeparation);
+        }
+
+        private float SelectRandomAvailableOrbit(Star star, CelestrialObject starCobj, Random dice, int maxAttempts = 100)
+        {
+            float minSeparation = GetSmallestOrbitSeparation(starCobj, star);
+
+            DebugLogger.LogFormat("  Attempting to find random orbit (min separation: {0:F2} AU, max attempts: {1})",
+                minSeparation, maxAttempts);
+
+            // Get all occupied orbits for checking
+            List<float> occupiedOrbits = starCobj.celestrialObjectOrbits.Select(o => o.orbit).OrderBy(o => o).ToList();
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                // Generate random orbit between MinAllowableOrbit and MaxAllowableOrbit
+                float minOrbit = star.MinAllowableOrbit;
+                float maxOrbit = star.MaxAllowableOrbit;
+                float candidateOrbit = minOrbit + (float)(dice.NextDouble() * (maxOrbit - minOrbit));
+
+                // Round to 4 decimal places for consistency
+                candidateOrbit = (float)Math.Round(candidateOrbit, 4);
+
+                if (attempt < 5 || attempt % 10 == 0)
+                {
+                    DebugLogger.LogFormat("    Attempt {0}: candidate orbit {1:F4}", attempt + 1, candidateOrbit);
+                }
+
+                // Check if in unavailable range
+                if (IsOrbitInUnavailableRange(candidateOrbit, star.UnavailableOrbitRanges, out float rangeWidth))
+                {
+                    if (attempt < 5 || attempt % 10 == 0)
+                    {
+                        DebugLogger.LogFormat("      Rejected: in unavailable range (width {0:F2})", rangeWidth);
+                    }
+                    continue;
+                }
+
+                // Calculate candidate orbit AU
+                float candidateAU = new CelestrialObject().OrbitAU(candidateOrbit);
+
+                // Check separation from all existing orbits
+                bool separationValid = true;
+                foreach (float existingOrbit in occupiedOrbits)
+                {
+                    float existingAU = new CelestrialObject().OrbitAU(existingOrbit);
+                    float separation = Math.Abs(candidateAU - existingAU);
+
+                    if (separation < minSeparation)
+                    {
+                        if (attempt < 5 || attempt % 10 == 0)
+                        {
+                            DebugLogger.LogFormat("      Rejected: too close to orbit {0:F4} (separation {1:F2} AU < {2:F2} AU)",
+                                existingOrbit, separation, minSeparation);
+                        }
+                        separationValid = false;
+                        break;
+                    }
+                }
+
+                if (!separationValid)
+                {
+                    continue;
+                }
+
+                // Check if this is the furthest orbit - apply 25% rule
+                if (occupiedOrbits.Count > 0)
+                {
+                    float maxOccupiedOrbit = occupiedOrbits.Max();
+
+                    if (candidateOrbit > maxOccupiedOrbit)
+                    {
+                        float maxOccupiedAU = new CelestrialObject().OrbitAU(maxOccupiedOrbit);
+                        float maxAllowedAU = maxOccupiedAU * 1.25f;
+
+                        if (candidateAU > maxAllowedAU)
+                        {
+                            // Adjust candidate to 125% of furthest orbit
+                            float adjustedOrbit = ConvertAUToOrbitNumber(maxAllowedAU);
+
+                            // Check if adjusted orbit is in unavailable range
+                            if (IsOrbitInUnavailableRange(adjustedOrbit, star.UnavailableOrbitRanges, out float adjustedRangeWidth))
+                            {
+                                // Move out 10%
+                                adjustedOrbit = adjustedOrbit * 1.1f;
+                                DebugLogger.LogFormat("      Candidate beyond 125% limit, adjusted to {0:F4} and moved out 10% to {1:F4}",
+                                    ConvertAUToOrbitNumber(maxAllowedAU), adjustedOrbit);
+                            }
+                            else
+                            {
+                                DebugLogger.LogFormat("      Candidate beyond 125% limit ({0:F2} AU > {1:F2} AU), adjusted to {2:F4}",
+                                    candidateAU, maxAllowedAU, adjustedOrbit);
+                            }
+
+                            candidateOrbit = adjustedOrbit;
+                            candidateAU = new CelestrialObject().OrbitAU(candidateOrbit);
+                        }
+                    }
+                }
+
+                // All constraints satisfied
+                DebugLogger.LogFormat("    ✓ Valid orbit found: {0:F4} ({1:F2} AU)", candidateOrbit, candidateAU);
+                return candidateOrbit;
+            }
+
+            DebugLogger.Log("    ✗ No valid orbit found after maximum attempts");
+            return -1;
+        }
+
+        private void ApplyOrbitReduction(List<float> orbits, int skipIndex, float percentage = 0.05f)
+        {
+            for (int i = 0; i < orbits.Count; i++)
+            {
+                if (i != skipIndex)
+                {
+                    orbits[i] = orbits[i] * (1 - percentage);
+                }
+            }
+        }
+
+        private void PlacePrimaryStarOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("PLACING PRIMARY STAR ORBITS");
+
+            if (!(primaryObject.celestrialObject is Star primaryStar))
+            {
+                DebugLogger.Log("No primary star found");
+                return;
+            }
+
+            if (primaryStar.WorldsAssigned <= 0)
+            {
+                DebugLogger.Log("Primary has no worlds assigned - skipping orbit placement");
+                return;
+            }
+
+            List<float> orbits = new List<float>();
+            float spread = primaryStar.SystemSpread;
+
+            // Handle zero or negative spread
+            if (spread <= 0)
+            {
+                DebugLogger.Log("System Spread is 0 or negative - using fallback value of 0.5");
+                spread = 0.5f;
+            }
+
+            DebugLogger.LogFormat("Total objects to place: {0}", primaryStar.WorldsAssigned);
+            DebugLogger.LogFormat("Inside Baseline: {0}", primaryStar.InsideBaseline);
+            DebugLogger.LogFormat("Outside Baseline: {0}", primaryStar.OutsideBaseline);
+            DebugLogger.LogFormat("System Spread: {0:F4}", spread);
+
+            // Phase A: Inside Baseline objects
+            if (primaryStar.InsideBaseline > 0)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("PHASE A: Placing Inside Baseline objects");
+
+                for (int i = 0; i < primaryStar.InsideBaseline; i++)
+                {
+                    float orbit;
+                    int varianceRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+                    float variance = (varianceRoll * spread) / 10f;
+
+                    if (i == 0)
+                    {
+                        orbit = (primaryStar.MinAllowableOrbit + spread) + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"First inside baseline object variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = (Min Allowable + Spread) + variance");
+                        DebugLogger.LogFormat("  Orbit = ({0:F3} + {1:F4}) + {2:F4} = {3:F4}",
+                            primaryStar.MinAllowableOrbit, spread, variance, orbit);
+
+                        // Check for negative orbit
+                        if (orbit < primaryStar.MinAllowableOrbit)
+                        {
+                            orbit = primaryStar.MinAllowableOrbit;
+                            DebugLogger.LogFormat("  Orbit adjusted to Min Allowable: {0:F3}", orbit);
+                        }
+                    }
+                    else
+                    {
+                        float previousOrbit = orbits[orbits.Count - 1];
+                        orbit = previousOrbit + spread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"Inside baseline object {i + 1} variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = Previous + Spread + variance");
+                        DebugLogger.LogFormat("  Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            previousOrbit, spread, variance, orbit);
+                    }
+
+                    orbits.Add(orbit);
+                    DebugLogger.LogFormat("  Placed inside baseline object {0} at orbit {1:F4}", i + 1, orbit);
+                }
+
+                // Check if last orbit + spread exceeds baseline
+                DebugLogger.Log("");
+                DebugLogger.Log("Checking inside baseline spacing...");
+                float lastOrbitPlusSpread = orbits[orbits.Count - 1] + spread;
+                DebugLogger.LogFormat("  Last orbit + Spread = {0:F4} + {1:F4} = {2:F4}",
+                    orbits[orbits.Count - 1], spread, lastOrbitPlusSpread);
+                DebugLogger.LogFormat("  Baseline Orbit = {0:F4}", primaryStar.BaselineOrbit);
+
+                int iterations = 0;
+                while (lastOrbitPlusSpread > primaryStar.BaselineOrbit && iterations < 100)
+                {
+                    DebugLogger.LogFormat("  Last orbit + Spread ({0:F4}) > Baseline ({1:F4}) - applying 5% reduction",
+                        lastOrbitPlusSpread, primaryStar.BaselineOrbit);
+
+                    ApplyOrbitReduction(orbits, 0, 0.05f);
+                    lastOrbitPlusSpread = orbits[orbits.Count - 1] + spread;
+                    iterations++;
+
+                    DebugLogger.LogFormat("    After reduction: last orbit + Spread = {0:F4}", lastOrbitPlusSpread);
+                }
+
+                if (iterations >= 100)
+                {
+                    DebugLogger.Log("  WARNING: Maximum iterations reached for inside baseline adjustment");
+                }
+            }
+
+            // Phase B: Baseline object (always exactly 1)
+            DebugLogger.Log("");
+            DebugLogger.Log("PHASE B: Placing Baseline object");
+            orbits.Add(primaryStar.BaselineOrbit);
+            DebugLogger.LogFormat("  Placed baseline object at orbit {0:F4}", primaryStar.BaselineOrbit);
+
+            // Phase C: Outside Baseline objects
+            if (primaryStar.OutsideBaseline > 0)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("PHASE C: Placing Outside Baseline objects");
+
+                int baselineIndex = orbits.Count - 1;
+
+                for (int i = 0; i < primaryStar.OutsideBaseline; i++)
+                {
+                    float orbit;
+                    int varianceRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+                    float variance = (varianceRoll * spread) / 10f;
+
+                    if (i == 0)
+                    {
+                        orbit = primaryStar.BaselineOrbit + spread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, "First outside baseline object variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = Baseline + Spread + variance");
+                        DebugLogger.LogFormat("  Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            primaryStar.BaselineOrbit, spread, variance, orbit);
+                    }
+                    else
+                    {
+                        float previousOrbit = orbits[orbits.Count - 1];
+                        orbit = previousOrbit + spread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"Outside baseline object {i + 1} variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = Previous + Spread + variance");
+                        DebugLogger.LogFormat("  Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            previousOrbit, spread, variance, orbit);
+                    }
+
+                    // Check for unavailable orbit ranges
+                    if (IsOrbitInUnavailableRange(orbit, primaryStar.UnavailableOrbitRanges, out float rangeWidth))
+                    {
+                        float adjustedOrbit = orbit + rangeWidth;
+                        DebugLogger.LogFormat("  Orbit {0:F4} falls in unavailable range (width {1:F4})",
+                            orbit, rangeWidth);
+                        DebugLogger.LogFormat("  Adjusting to {0:F4}", adjustedOrbit);
+                        orbit = adjustedOrbit;
+                    }
+
+                    orbits.Add(orbit);
+                    DebugLogger.LogFormat("  Placed outside baseline object {0} at orbit {1:F4}", i + 1, orbit);
+                }
+
+                // Check if last orbit exceeds orbit 20
+                DebugLogger.Log("");
+                DebugLogger.Log("Checking outside baseline maximum orbit...");
+                float lastOrbit = orbits[orbits.Count - 1];
+                DebugLogger.LogFormat("  Last orbit = {0:F4}", lastOrbit);
+
+                int iterations = 0;
+                while (lastOrbit > 20 && iterations < 100)
+                {
+                    DebugLogger.LogFormat("  Last orbit ({0:F4}) > 20 - applying 5% reduction", lastOrbit);
+
+                    // Reduce all except baseline
+                    for (int i = baselineIndex + 1; i < orbits.Count; i++)
+                    {
+                        orbits[i] = orbits[i] * 0.95f;
+                    }
+
+                    // Re-check for unavailable ranges
+                    for (int i = baselineIndex + 1; i < orbits.Count; i++)
+                    {
+                        if (IsOrbitInUnavailableRange(orbits[i], primaryStar.UnavailableOrbitRanges, out float rangeWidth))
+                        {
+                            orbits[i] = orbits[i] + rangeWidth;
+                            DebugLogger.LogFormat("    Orbit {0} adjusted for unavailable range to {1:F4}",
+                                i, orbits[i]);
+                        }
+                    }
+
+                    lastOrbit = orbits[orbits.Count - 1];
+                    iterations++;
+
+                    DebugLogger.LogFormat("    After reduction: last orbit = {0:F4}", lastOrbit);
+                }
+
+                if (iterations >= 100)
+                {
+                    DebugLogger.Log("  WARNING: Maximum iterations reached for outside baseline adjustment");
+                }
+            }
+
+            // Add all orbits to the primary star's celestrialObjectOrbits
+            DebugLogger.Log("");
+            DebugLogger.Log("Adding celestial bodies to primary star:");
+            for (int i = 0; i < orbits.Count; i++)
+            {
+                primaryObject.AddCelestialBody(orbits[i], dice);
+                float au = primaryObject.celestrialObjectOrbits[primaryObject.celestrialObjectOrbits.Count - 1].orbitAU;
+                DebugLogger.LogFormat("  Object {0}: Orbit {1:F4} ({2:F2} AU)", i + 1, orbits[i], au);
+            }
+
+            DebugLogger.LogFormat("Total objects placed: {0}", orbits.Count);
+        }
+
+        private void PlaceCompanionStarOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("PLACING COMPANION STAR ORBITS");
+
+            if (!(primaryObject.celestrialObject is Star primaryStar))
+            {
+                DebugLogger.Log("No primary star found");
+                return;
+            }
+
+            float systemSpread = primaryStar.SystemSpread;
+
+            // Handle zero or negative spread
+            if (systemSpread <= 0)
+            {
+                DebugLogger.Log("System Spread is 0 or negative - using fallback value of 0.5");
+                systemSpread = 0.5f;
+            }
+
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (!(companionObj.celestrialObject is Star companionStar))
+                    continue;
+
+                // Only process Close/Near/Far companions
+                if (companionStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                    continue;
+
+                if (companionStar.WorldsAssigned <= 0)
+                {
+                    DebugLogger.LogFormat("{0} companion has no worlds assigned - skipping",
+                        companionStar.starOrbitType);
+                    continue;
+                }
+
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("Placing orbits for {0} companion:", companionStar.starOrbitType);
+                DebugLogger.LogFormat("  Worlds Assigned: {0}", companionStar.WorldsAssigned);
+                DebugLogger.LogFormat("  Using System Spread: {0:F4}", systemSpread);
+                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3}", companionStar.MinAllowableOrbit);
+                DebugLogger.LogFormat("  Max Allowable Orbit: {0:F3}", companionStar.MaxAllowableOrbit);
+
+                List<float> orbits = new List<float>();
+
+                for (int i = 0; i < companionStar.WorldsAssigned; i++)
+                {
+                    float orbit;
+                    int varianceRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+                    float variance = (varianceRoll * systemSpread) / 10f;
+
+                    if (i == 0)
+                    {
+                        orbit = (companionStar.MinAllowableOrbit + systemSpread) + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, "First object variance");
+                        DebugLogger.LogFormat("    Variance: ({0} * {1:F4}) / 10 = {2:F4}",
+                            varianceRoll, systemSpread, variance);
+                        DebugLogger.LogFormat("    Orbit = (Min Allowable + System Spread) + variance");
+                        DebugLogger.LogFormat("    Orbit = ({0:F3} + {1:F4}) + {2:F4} = {3:F4}",
+                            companionStar.MinAllowableOrbit, systemSpread, variance, orbit);
+
+                        // Check for negative orbit
+                        if (orbit < companionStar.MinAllowableOrbit)
+                        {
+                            orbit = companionStar.MinAllowableOrbit;
+                            DebugLogger.LogFormat("    Orbit adjusted to Min Allowable: {0:F3}", orbit);
+                        }
+                    }
+                    else
+                    {
+                        float previousOrbit = orbits[orbits.Count - 1];
+                        orbit = previousOrbit + systemSpread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"Object {i + 1} variance");
+                        DebugLogger.LogFormat("    Variance: ({0} * {1:F4}) / 10 = {2:F4}",
+                            varianceRoll, systemSpread, variance);
+                        DebugLogger.LogFormat("    Orbit = Previous + System Spread + variance");
+                        DebugLogger.LogFormat("    Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            previousOrbit, systemSpread, variance, orbit);
+                    }
+
+                    orbits.Add(orbit);
+                    DebugLogger.LogFormat("    Placed object {0} at orbit {1:F4}", i + 1, orbit);
+                }
+
+                // Check if last orbit exceeds max allowable
+                DebugLogger.Log("");
+                DebugLogger.Log("  Checking maximum orbit constraint...");
+                float lastOrbit = orbits[orbits.Count - 1];
+                DebugLogger.LogFormat("    Last orbit = {0:F4}", lastOrbit);
+                DebugLogger.LogFormat("    Max Allowable = {0:F3}", companionStar.MaxAllowableOrbit);
+
+                int iterations = 0;
+                while (lastOrbit > companionStar.MaxAllowableOrbit && iterations < 100)
+                {
+                    DebugLogger.LogFormat("    Last orbit ({0:F4}) > Max Allowable ({1:F3}) - applying 5% reduction",
+                        lastOrbit, companionStar.MaxAllowableOrbit);
+
+                    ApplyOrbitReduction(orbits, 0, 0.05f);
+                    lastOrbit = orbits[orbits.Count - 1];
+                    iterations++;
+
+                    DebugLogger.LogFormat("      After reduction: last orbit = {0:F4}", lastOrbit);
+                }
+
+                if (iterations >= 100)
+                {
+                    DebugLogger.Log("    WARNING: Maximum iterations reached for companion orbit adjustment");
+                }
+
+                // Add all orbits to the companion star's celestrialObjectOrbits
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("  Adding celestial bodies to {0} companion:", companionStar.starOrbitType);
+                for (int i = 0; i < orbits.Count; i++)
+                {
+                    companionObj.AddCelestialBody(orbits[i], dice);
+                    float au = companionObj.celestrialObjectOrbits[companionObj.celestrialObjectOrbits.Count - 1].orbitAU;
+                    DebugLogger.LogFormat("    Object {0}: Orbit {1:F4} ({2:F2} AU)", i + 1, orbits[i], au);
+                }
+
+                DebugLogger.LogFormat("  Total objects placed: {0}", orbits.Count);
+            }
         }
 
         private bool DetermineDPlanetarySystem(Random dice)

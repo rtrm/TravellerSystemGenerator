@@ -47,7 +47,7 @@ namespace TravellerSystemGenerator
             celestrialObjectOrbits = new List<CelestrialObject>();
         }
 
-        public void OrbitEccentricity(int starsOrbited, Random dice, bool belt = false)
+        public void OrbitEccentricity(int starsOrbited, Random dice, bool belt = false, int modifier = 0)
         {
             int dm = 0;
             if (this.celestrialObject is Star)
@@ -57,7 +57,7 @@ namespace TravellerSystemGenerator
                 dm = dm - 1;
             if(belt == true)
                 dm = dm + 1;
-            int roll1 = Starhelper.diceRoll(6, 2, dice) + dm;
+            int roll1 = Starhelper.diceRoll(6, 2, dice) + dm + modifier;
 
             if(roll1 > 12)
                 roll1 = 12;
@@ -107,18 +107,28 @@ namespace TravellerSystemGenerator
             celestrialObjectOrbits.Add(Cobj);
         }
 
+        public void AddCelestialBody(float orbit, Random dice)
+        {
+            CelestrialObject cobj = new CelestrialObject();
+            cobj.orbit = orbit;
+            cobj.orbitAU = cobj.OrbitAU(orbit);
+
+            Filled body = new Filled();
+            cobj.celestrialObject = body;
+
+            celestrialObjectOrbits.Add(cobj);
+        }
+
         public float OrbitAU(float orbit)
         {
             int wholeOrbitNum = (int)Math.Truncate(orbit);
             float orbitFraction = orbit - (float)Math.Truncate(orbit);
-            int f = (int)Math.Truncate(orbitFraction * 10);
-            return Extrapolate(Starhelper.orbitValues[wholeOrbitNum], Starhelper.orbitValues[wholeOrbitNum + 1], f);
+            return Extrapolate(Starhelper.orbitValues[wholeOrbitNum], Starhelper.orbitValues[wholeOrbitNum + 1], orbitFraction);
         }
 
-        private float Extrapolate(float lnumber, float unumber, int factor)
+        private float Extrapolate(float lnumber, float unumber, float fraction)
         {
-            float per = (float)factor / 10;
-            return lnumber + (per * (unumber - lnumber));
+            return lnumber + (fraction * (unumber - lnumber));
         }
     }
 }
