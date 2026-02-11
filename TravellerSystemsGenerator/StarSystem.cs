@@ -1961,18 +1961,14 @@ namespace TravellerSystemGenerator
                 if (body is PlanetoidBelt)
                 {
                     string romanNumeral = ToRomanNumeral(beltCounter);
-                    body.Designation = isSingleStar && string.IsNullOrEmpty(starDesignation)
-                        ? $"P{romanNumeral}"
-                        : $"{starDesignation} P{romanNumeral}";
+                    body.Designation = $"{starDesignation} P{romanNumeral}";
                     DebugLogger.LogFormat("    Belt at orbit {0:F3}: {1}", bodyObj.orbit, body.Designation);
                     beltCounter++;
                 }
                 else // Gas Giant or Terrestrial Planet
                 {
                     string romanNumeral = ToRomanNumeral(planetCounter);
-                    body.Designation = isSingleStar && string.IsNullOrEmpty(starDesignation)
-                        ? romanNumeral
-                        : $"{starDesignation} {romanNumeral}";
+                    body.Designation = $"{starDesignation} {romanNumeral}";
                     DebugLogger.LogFormat("    World at orbit {0:F3}: {1}", bodyObj.orbit, body.Designation);
                     planetCounter++;
                 }
@@ -1981,12 +1977,6 @@ namespace TravellerSystemGenerator
 
         private string DetermineStarDesignation(CelestrialObject worldObj, Star parentStar, List<CelestrialObject> companionStars, bool isSingleStar)
         {
-            // If single star system and no companions beyond this world, return empty string
-            if (isSingleStar)
-            {
-                return "";
-            }
-
             // If this world belongs to a secondary star (not primary), just return the star's designation
             if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
             {
