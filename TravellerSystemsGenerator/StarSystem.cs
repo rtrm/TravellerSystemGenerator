@@ -404,10 +404,32 @@ namespace TravellerSystemGenerator
             {
                 Console.WriteLine("Companion Star present");
                 DebugLogger.Log("COMPANION STAR DETECTED - Generating orbital position");
-                int baseOrb = Starhelper.diceRoll(6, 1, dice) / 10 + (Starhelper.diceRoll(6, 2, dice) - 7) / 100;
-                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
-                float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
-                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
+
+                // Get the primary star to check its class
+                Star? primaryStar = cObj.celestrialObject as Star;
+                float companionOrbit = 0;
+
+                // Check if primary is Class Ia, Ib, II, or III
+                if (primaryStar != null && (primaryStar.starclass == "Ia" || primaryStar.starclass == "Ib" ||
+                    primaryStar.starclass == "II" || primaryStar.starclass == "III"))
+                {
+                    // For giant stars: orbit = 1d6 * Min Allowable Orbit
+                    int multiplier = Starhelper.diceRoll(6, 1, dice);
+                    companionOrbit = multiplier * primaryStar.MinAllowableOrbit;
+                    DebugLogger.LogFormat("  Primary is Class {0} - Companion orbit: {1}d6 * MAO({2:F2}) = {3:F3}",
+                        primaryStar.starclass, multiplier, primaryStar.MinAllowableOrbit, companionOrbit);
+                }
+                else
+                {
+                    // For non-giant stars: orbit = (1d6 / 10) + ((2d6 - 7) / 100)
+                    float part1 = Starhelper.diceRoll(6, 1, dice) / 10.0f;
+                    float part2 = (Starhelper.diceRoll(6, 2, dice) - 7) / 100.0f;
+                    companionOrbit = part1 + part2;
+                    DebugLogger.LogFormat("  Companion orbit: ({0:F2}) + ({1:F2}) = {2:F3}", part1, part2, companionOrbit);
+                }
+
+                float fractionalOrbit = FractionalOrbit(companionOrbit, dice, Starhelper.starOrbitType.Companion);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F3}", fractionalOrbit);
                 cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
             }
 
@@ -427,10 +449,30 @@ namespace TravellerSystemGenerator
                     {
                         Console.WriteLine($"  {companionStar.starOrbitType} star has Companion orbit companion");
                         DebugLogger.LogFormat("  {0} companion will have a Companion orbit companion", companionStar.starOrbitType);
-                        int baseOrb = Starhelper.diceRoll(6, 1, dice) / 10 + (Starhelper.diceRoll(6, 2, dice) - 7) / 100;
-                        DebugLogger.LogFormat("    Base orbit: {0}", baseOrb);
-                        float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
-                        DebugLogger.LogFormat("    Fractional orbit: {0:F2}", fractionalOrbit);
+
+                        float companionOrbit = 0;
+
+                        // Check if parent companion star is Class Ia, Ib, II, or III
+                        if (companionStar.starclass == "Ia" || companionStar.starclass == "Ib" ||
+                            companionStar.starclass == "II" || companionStar.starclass == "III")
+                        {
+                            // For giant stars: orbit = 1d6 * Min Allowable Orbit
+                            int multiplier = Starhelper.diceRoll(6, 1, dice);
+                            companionOrbit = multiplier * companionStar.MinAllowableOrbit;
+                            DebugLogger.LogFormat("    Parent is Class {0} - Companion orbit: {1}d6 * MAO({2:F2}) = {3:F3}",
+                                companionStar.starclass, multiplier, companionStar.MinAllowableOrbit, companionOrbit);
+                        }
+                        else
+                        {
+                            // For non-giant stars: orbit = (1d6 / 10) + ((2d6 - 7) / 100)
+                            float part1 = Starhelper.diceRoll(6, 1, dice) / 10.0f;
+                            float part2 = (Starhelper.diceRoll(6, 2, dice) - 7) / 100.0f;
+                            companionOrbit = part1 + part2;
+                            DebugLogger.LogFormat("    Companion orbit: ({0:F2}) + ({1:F2}) = {2:F3}", part1, part2, companionOrbit);
+                        }
+
+                        float fractionalOrbit = FractionalOrbit(companionOrbit, dice, Starhelper.starOrbitType.Companion);
+                        DebugLogger.LogFormat("    Fractional orbit: {0:F3}", fractionalOrbit);
                         companion.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
                     }
                     else
