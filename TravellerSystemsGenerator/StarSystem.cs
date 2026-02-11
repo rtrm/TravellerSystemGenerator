@@ -11,6 +11,38 @@ using System.Threading.Tasks;
 
 namespace TravellerSystemGenerator
 {
+    // Helper class for displaying star data in table format
+    internal class StarDisplayData
+    {
+        public string Component { get; set; } = "";
+        public string? ParentDesignation { get; set; } // For "Aab (A)" notation
+        public string Class { get; set; } = "";
+        public float Mass { get; set; }
+        public float Temp { get; set; }
+        public float Diameter { get; set; }
+        public float Luminosity { get; set; }
+        public float? Orbit { get; set; } // nullable for primary
+        public float? AU { get; set; }
+        public float? Ecc { get; set; }
+        public string? Period { get; set; }
+        public float MAO { get; set; }
+        public float HZCO { get; set; }
+        public bool IsCombined { get; set; }
+        public int SortOrder { get; set; } // For proper ordering
+    }
+
+    // Helper class for displaying world data in table format
+    internal class WorldDisplayData
+    {
+        public string Primary { get; set; } = "";
+        public string Object { get; set; } = "";
+        public float Orbit { get; set; }
+        public float AU { get; set; }
+        public float Ecc { get; set; }
+        public string Period { get; set; } = "";
+        public string Notes { get; set; } = "";
+    }
+
     internal class StarSystem
     {
         
@@ -97,76 +129,31 @@ namespace TravellerSystemGenerator
             // Assign world designations
             AssignWorldDesignations();
 
-            Star? star = primaryObject.celestrialObject as Star;
+            // Collect data for table-based output
+            List<StarDisplayData> starData = CollectAllStarData();
+            List<WorldDisplayData> worldData = CollectAllWorldData();
 
             // Print console output header
             Console.WriteLine();
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
-            Console.WriteLine("              TRAVELLER STAR SYSTEM GENERATION                 ");
-            Console.WriteLine($"                        Version {Version.VersionString}                        ");
+            Console.WriteLine("              TRAVELLER STAR SYSTEM GENERATION");
+            Console.WriteLine($"                        Version {Version.VersionString}");
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
             Console.WriteLine();
 
             DebugLogger.LogSection("SYSTEM SUMMARY");
-            if (star != null)
-                PrintStar(star, 0, primaryObject, dice);
 
-            int companionStarCount = primaryObject.celestrialObjectOrbits.Count(o => o.celestrialObject is Star);
-            if (companionStarCount > 0)
-            {
-                Console.WriteLine();
-                Console.WriteLine($"System contains {companionStarCount} companion star(s)");
-                Console.WriteLine();
-                DebugLogger.Log($"Total companion stars found: {companionStarCount}");
-            }
-            else
-            {
-                Console.WriteLine();
-                Console.WriteLine("Single star system (no companions)");
-                Console.WriteLine();
-                DebugLogger.Log("No companion stars in this system");
-            }
+            // Print STELLAR summary
+            PrintStellarSummary();
 
-            foreach (CelestrialObject Cobj in primaryObject.celestrialObjectOrbits)
-            {
-                if (Cobj.celestrialObject is Star)
-                {
-                    Star starObj = (Star)Cobj.celestrialObject;
-                    PrintStar(starObj, Cobj.orbit, Cobj, dice);
+            // Print STARS table
+            PrintStarsTable(starData);
 
-                    // Check if this companion has its own Companion orbit companions
-                    if (Cobj.celestrialObjectOrbits.Count > 0)
-                    {
-                        Console.WriteLine();
-                        Console.WriteLine($"  {starObj.starOrbitType} star has {Cobj.celestrialObjectOrbits.Count} Companion orbit companion(s)");
-                        Console.WriteLine();
-                        DebugLogger.Log($"  {starObj.starOrbitType} companion has {Cobj.celestrialObjectOrbits.Count} sub-companion(s)");
+            // Print OBJECTS table
+            PrintObjectsTable(worldData);
 
-                        foreach (CelestrialObject subCobj in Cobj.celestrialObjectOrbits)
-                        {
-                            if (subCobj.celestrialObject is Star)
-                            {
-                                Star subStarObj = (Star)subCobj.celestrialObject;
-                                Console.WriteLine($"    Orbiting the {starObj.starOrbitType} companion:");
-                                DebugLogger.LogFormat("    Sub-companion of {0} companion:", starObj.starOrbitType);
-                                PrintStar(subStarObj, subCobj.orbit, subCobj, dice);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Print non-stellar objects summary
-            Console.WriteLine();
-            Console.WriteLine("─────────────────────────────────────────────────────────────");
-            Console.WriteLine("NON-STELLAR OBJECTS");
-            Console.WriteLine("─────────────────────────────────────────────────────────────");
-            Console.WriteLine($"Gas Giants:          {GasGiantCount}");
-            Console.WriteLine($"Planetoid Belts:     {PlanetoidBeltCount}");
-            Console.WriteLine($"Terrestrial Planets: {TerrestrialPlanetCount}");
-            Console.WriteLine();
-            Console.WriteLine($"System Total Worlds: {SystemTotalWorlds}");
-            Console.WriteLine($"System Total Available Orbits: {SystemTotalAvailableOrbits:F2}");
+            // Print console output footer
+            Console.WriteLine("═══════════════════════════════════════════════════════════════");
 
             DebugLogger.Log("");
             DebugLogger.Log("NON-STELLAR OBJECTS SUMMARY:");
@@ -175,10 +162,6 @@ namespace TravellerSystemGenerator
             DebugLogger.LogFormat("  Terrestrial Planets: {0}", TerrestrialPlanetCount);
             DebugLogger.LogFormat("  System Total Worlds: {0}", SystemTotalWorlds);
             DebugLogger.LogFormat("  System Total Available Orbits: {0:F2}", SystemTotalAvailableOrbits);
-
-            // Print console output footer
-            Console.WriteLine();
-            Console.WriteLine("═══════════════════════════════════════════════════════════════");
 
 
             //Console.WriteLine("Primary = " + GetProperty(primaryObject.celestrialObject, "type") + GetProperty(primaryObject.celestrialObject, "subType") + " " + GetProperty(primaryObject.celestrialObject, "starclass"));
@@ -1975,6 +1958,77 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private string DeterminePrimaryDesignation(CelestrialObject worldObj, Star parentStar, List<CelestrialObject> companionStars)
+        {
+            // If this world belongs to a secondary star (not primary), return just that star's designation
+            if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
+            {
+                // Check if parent has a companion
+                if (parentStar.Designation.EndsWith("a"))
+                {
+                    // Parent is part of a companion pair, return combined (e.g., "Bab", "Cab")
+                    string baseLetter = parentStar.Designation.TrimEnd('a');
+                    return $"{baseLetter}ab";
+                }
+                return parentStar.Designation; // Just "B", "C", etc.
+            }
+
+            // World belongs to primary - determine combined designation
+            // Use existing DetermineStarDesignation logic
+            return DetermineStarDesignation(worldObj, parentStar, companionStars, false);
+        }
+
+        private string BuildNotesString(CelestrialObject worldObj, CelestialBody body, Star parentStar)
+        {
+            List<string> notes = new List<string>();
+
+            // Anomalous orbit types
+            if (body.Type == CelestialBodyType.Retrograde)
+                notes.Add("Retrograde orbit");
+            else if (body.Type == CelestialBodyType.Random)
+                notes.Add("R01");
+            else if (body.Type == CelestialBodyType.Eccentric)
+            {
+                float inclination = 0;
+                if (body is GasGiant gg)
+                    inclination = gg.Inclination ?? 0;
+                else if (body is TerrestrialPlanet tp)
+                    inclination = tp.Inclination ?? 0;
+
+                if (inclination > 0)
+                    notes.Add($"R02, i:{inclination:F0}°");
+                else
+                    notes.Add("R02");
+            }
+            else if (body.Type == CelestialBodyType.Inclined)
+                notes.Add("Inclined orbit");
+
+            // Trojan position
+            string? trojanPos = null;
+            if (body is GasGiant gasGiant)
+                trojanPos = gasGiant.TrojanPosition;
+            else if (body is TerrestrialPlanet terrestrial)
+                trojanPos = terrestrial.TrojanPosition;
+
+            if (!string.IsNullOrEmpty(trojanPos))
+                notes.Add($"Trojan {trojanPos}");
+
+            // Habitable zone check
+            if (parentStar.HZCO > 0)
+            {
+                float hzMin = Math.Max(0, parentStar.HZCO - 1);
+                float hzMax = parentStar.HZCO + 1;
+                if (worldObj.orbit >= hzMin && worldObj.orbit <= hzMax)
+                {
+                    // Add HZ first if it hasn't been added yet
+                    if (!notes.Contains("HZ"))
+                        notes.Insert(0, "HZ");
+                }
+            }
+
+            return string.Join(", ", notes);
+        }
+
         private string DetermineStarDesignation(CelestrialObject worldObj, Star parentStar, List<CelestrialObject> companionStars, bool isSingleStar)
         {
             // If this world belongs to a secondary star (not primary), just return the star's designation
@@ -2131,6 +2185,524 @@ namespace TravellerSystemGenerator
             }
 
             return count;
+        }
+
+        private int CountAllStars()
+        {
+            int count = 1; // Primary star
+
+            // Count companion stars
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star)
+                {
+                    count++;
+
+                    // Count sub-companions
+                    foreach (var subObj in obj.celestrialObjectOrbits)
+                    {
+                        if (subObj.celestrialObject is Star)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        private List<StarDisplayData> CollectAllStarData()
+        {
+            List<StarDisplayData> starData = new List<StarDisplayData>();
+            int sortOrder = 0;
+
+            // Get primary star
+            Star? primaryStar = primaryObject.celestrialObject as Star;
+            if (primaryStar == null) return starData;
+
+            // Check if primary has a companion (Aa/Ab case)
+            bool primaryHasCompanion = primaryStar.Designation.EndsWith("a");
+            Star? primaryCompanion = null;
+            CelestrialObject? primaryCompanionObj = null;
+
+            if (primaryHasCompanion)
+            {
+                // Find Ab companion
+                foreach (var obj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (obj.celestrialObject is Star star && star.Designation == "Ab")
+                    {
+                        primaryCompanion = star;
+                        primaryCompanionObj = obj;
+                        break;
+                    }
+                }
+            }
+
+            // Add primary star (Aa or A)
+            starData.Add(new StarDisplayData
+            {
+                Component = primaryStar.Designation,
+                ParentDesignation = null,
+                Class = $"{primaryStar.type}{primaryStar.subType} {primaryStar.starclass}",
+                Mass = primaryStar.mass,
+                Temp = primaryStar.temperture,
+                Diameter = primaryStar.diameter,
+                Luminosity = primaryStar.luminosity,
+                Orbit = null,
+                AU = null,
+                Ecc = null,
+                Period = null,
+                MAO = primaryStar.MinAllowableOrbit,
+                HZCO = primaryStar.HZCO,
+                IsCombined = false,
+                SortOrder = sortOrder++
+            });
+
+            // Add primary companion (Ab) if exists
+            if (primaryCompanion != null && primaryCompanionObj != null)
+            {
+                starData.Add(new StarDisplayData
+                {
+                    Component = primaryCompanion.Designation,
+                    ParentDesignation = null,
+                    Class = $"{primaryCompanion.type}{primaryCompanion.subType} {primaryCompanion.starclass}",
+                    Mass = primaryCompanion.mass,
+                    Temp = primaryCompanion.temperture,
+                    Diameter = primaryCompanion.diameter,
+                    Luminosity = primaryCompanion.luminosity,
+                    Orbit = null,
+                    AU = null,
+                    Ecc = null,
+                    Period = null,
+                    MAO = primaryCompanion.MinAllowableOrbit,
+                    HZCO = primaryCompanion.HZCO,
+                    IsCombined = false,
+                    SortOrder = sortOrder++
+                });
+
+                // Add combined Aab
+                starData.Add(new StarDisplayData
+                {
+                    Component = "Aab",
+                    ParentDesignation = "A",
+                    Class = "—",
+                    Mass = primaryStar.mass + primaryCompanion.mass,
+                    Temp = 0,
+                    Diameter = 0,
+                    Luminosity = primaryStar.luminosity + primaryCompanion.luminosity,
+                    Orbit = primaryCompanionObj.orbit,
+                    AU = primaryCompanionObj.orbitAU,
+                    Ecc = primaryCompanionObj.orbitEccentricity,
+                    Period = FormatOrbitalPeriod(primaryCompanionObj.OrbitalPeriodYears),
+                    MAO = primaryStar.MinAllowableOrbit,
+                    HZCO = primaryStar.HZCO,
+                    IsCombined = true,
+                    SortOrder = sortOrder++
+                });
+            }
+
+            // Get all companion stars (B, C, etc.)
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            // Add secondary stars and their companions
+            foreach (var companionObj in companionStars)
+            {
+                if (!(companionObj.celestrialObject is Star companionStar)) continue;
+
+                // Skip Ab as we already added it
+                if (companionStar.Designation == "Ab") continue;
+
+                // Check if this companion has its own companion
+                bool companionHasCompanion = companionStar.Designation.EndsWith("a");
+                Star? subCompanion = null;
+                CelestrialObject? subCompanionObj = null;
+
+                if (companionHasCompanion)
+                {
+                    // Find the b companion
+                    foreach (var subObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subObj.celestrialObject is Star star && star.Designation.EndsWith("b"))
+                        {
+                            subCompanion = star;
+                            subCompanionObj = subObj;
+                            break;
+                        }
+                    }
+                }
+
+                // Add main companion star (Ba, Ca, etc. or B, C, etc.)
+                starData.Add(new StarDisplayData
+                {
+                    Component = companionStar.Designation,
+                    ParentDesignation = null,
+                    Class = $"{companionStar.type}{companionStar.subType} {companionStar.starclass}",
+                    Mass = companionStar.mass,
+                    Temp = companionStar.temperture,
+                    Diameter = companionStar.diameter,
+                    Luminosity = companionStar.luminosity,
+                    Orbit = companionHasCompanion ? null : (float?)companionObj.orbit,
+                    AU = companionHasCompanion ? null : (float?)companionObj.orbitAU,
+                    Ecc = companionHasCompanion ? null : (float?)companionObj.orbitEccentricity,
+                    Period = companionHasCompanion ? null : FormatOrbitalPeriod(companionObj.OrbitalPeriodYears),
+                    MAO = companionStar.MinAllowableOrbit,
+                    HZCO = companionStar.HZCO,
+                    IsCombined = false,
+                    SortOrder = sortOrder++
+                });
+
+                // Add sub-companion if exists
+                if (subCompanion != null && subCompanionObj != null)
+                {
+                    starData.Add(new StarDisplayData
+                    {
+                        Component = subCompanion.Designation,
+                        ParentDesignation = null,
+                        Class = $"{subCompanion.type}{subCompanion.subType} {subCompanion.starclass}",
+                        Mass = subCompanion.mass,
+                        Temp = subCompanion.temperture,
+                        Diameter = subCompanion.diameter,
+                        Luminosity = subCompanion.luminosity,
+                        Orbit = null,
+                        AU = null,
+                        Ecc = null,
+                        Period = null,
+                        MAO = subCompanion.MinAllowableOrbit,
+                        HZCO = subCompanion.HZCO,
+                        IsCombined = false,
+                        SortOrder = sortOrder++
+                    });
+
+                    // Add combined (e.g., Bab, Cab)
+                    string baseLetter = companionStar.Designation.TrimEnd('a');
+                    starData.Add(new StarDisplayData
+                    {
+                        Component = $"{baseLetter}ab",
+                        ParentDesignation = baseLetter,
+                        Class = "—",
+                        Mass = companionStar.mass + subCompanion.mass,
+                        Temp = 0,
+                        Diameter = 0,
+                        Luminosity = companionStar.luminosity + subCompanion.luminosity,
+                        Orbit = companionObj.orbit,
+                        AU = companionObj.orbitAU,
+                        Ecc = companionObj.orbitEccentricity,
+                        Period = FormatOrbitalPeriod(companionObj.OrbitalPeriodYears),
+                        MAO = companionStar.MinAllowableOrbit,
+                        HZCO = companionStar.HZCO,
+                        IsCombined = true,
+                        SortOrder = sortOrder++
+                    });
+                }
+            }
+
+            // Add multi-star combinations (AB, ABC, etc.) - only if needed
+            // For now, we'll add them based on what worlds exist in CollectAllWorldData
+            // This is a simplified version - full implementation would check which combinations have worlds
+            if (companionStars.Count > 0)
+            {
+                List<string> starLetters = new List<string>();
+
+                // Add primary
+                if (primaryHasCompanion)
+                    starLetters.Add("A"); // Use base letter for combined
+                else
+                    starLetters.Add(primaryStar.Designation);
+
+                // Add companions
+                foreach (var companionObj in companionStars)
+                {
+                    if (companionObj.celestrialObject is Star star && star.Designation != "Ab")
+                    {
+                        string baseLetter = star.Designation.TrimEnd('a');
+                        if (!starLetters.Contains(baseLetter))
+                            starLetters.Add(baseLetter);
+                    }
+                }
+
+                // Add AB, ABC combinations if multiple stars
+                if (starLetters.Count >= 2)
+                {
+                    string abDesignation = string.Join("", starLetters.Take(2));
+                    float totalMass = 0;
+                    float totalLuminosity = 0;
+
+                    // Calculate combined properties for first two stars
+                    if (primaryHasCompanion && primaryCompanion != null)
+                    {
+                        totalMass += primaryStar.mass + primaryCompanion.mass;
+                        totalLuminosity += primaryStar.luminosity + primaryCompanion.luminosity;
+                    }
+                    else
+                    {
+                        totalMass += primaryStar.mass;
+                        totalLuminosity += primaryStar.luminosity;
+                    }
+
+                    // Add first companion's mass/luminosity
+                    var firstCompanionObj = companionStars[0];
+                    if (firstCompanionObj.celestrialObject is Star firstCompanion)
+                    {
+                        bool firstHasCompanion = firstCompanion.Designation.EndsWith("a");
+                        totalMass += firstCompanion.mass;
+                        totalLuminosity += firstCompanion.luminosity;
+
+                        if (firstHasCompanion)
+                        {
+                            // Add sub-companion mass/luminosity
+                            foreach (var subObj in firstCompanionObj.celestrialObjectOrbits)
+                            {
+                                if (subObj.celestrialObject is Star subStar)
+                                {
+                                    totalMass += subStar.mass;
+                                    totalLuminosity += subStar.luminosity;
+                                    break;
+                                }
+                            }
+                        }
+
+                        starData.Add(new StarDisplayData
+                        {
+                            Component = abDesignation,
+                            ParentDesignation = null,
+                            Class = "—",
+                            Mass = totalMass,
+                            Temp = 0,
+                            Diameter = 0,
+                            Luminosity = totalLuminosity,
+                            Orbit = firstCompanionObj.orbit,
+                            AU = firstCompanionObj.orbitAU,
+                            Ecc = firstCompanionObj.orbitEccentricity,
+                            Period = FormatOrbitalPeriod(firstCompanionObj.OrbitalPeriodYears),
+                            MAO = 0, // Combined stars don't have meaningful MAO
+                            HZCO = 0,
+                            IsCombined = true,
+                            SortOrder = sortOrder++
+                        });
+                    }
+                }
+
+                // Add ABC if three or more stars
+                if (starLetters.Count >= 3)
+                {
+                    string abcDesignation = string.Join("", starLetters.Take(3));
+                    float totalMass = 0;
+                    float totalLuminosity = 0;
+
+                    // Calculate combined properties for all three stars
+                    if (primaryHasCompanion && primaryCompanion != null)
+                    {
+                        totalMass += primaryStar.mass + primaryCompanion.mass;
+                        totalLuminosity += primaryStar.luminosity + primaryCompanion.luminosity;
+                    }
+                    else
+                    {
+                        totalMass += primaryStar.mass;
+                        totalLuminosity += primaryStar.luminosity;
+                    }
+
+                    // Add first two companions
+                    for (int i = 0; i < Math.Min(2, companionStars.Count); i++)
+                    {
+                        var companionObj = companionStars[i];
+                        if (companionObj.celestrialObject is Star companion)
+                        {
+                            bool companionHasCompanionInner = companion.Designation.EndsWith("a");
+                            totalMass += companion.mass;
+                            totalLuminosity += companion.luminosity;
+
+                            if (companionHasCompanionInner)
+                            {
+                                foreach (var subObj in companionObj.celestrialObjectOrbits)
+                                {
+                                    if (subObj.celestrialObject is Star subStar)
+                                    {
+                                        totalMass += subStar.mass;
+                                        totalLuminosity += subStar.luminosity;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    var secondCompanionObj = companionStars[1];
+                    starData.Add(new StarDisplayData
+                    {
+                        Component = abcDesignation,
+                        ParentDesignation = null,
+                        Class = "—",
+                        Mass = totalMass,
+                        Temp = 0,
+                        Diameter = 0,
+                        Luminosity = totalLuminosity,
+                        Orbit = secondCompanionObj.orbit,
+                        AU = secondCompanionObj.orbitAU,
+                        Ecc = secondCompanionObj.orbitEccentricity,
+                        Period = FormatOrbitalPeriod(secondCompanionObj.OrbitalPeriodYears),
+                        MAO = 0,
+                        HZCO = 0,
+                        IsCombined = true,
+                        SortOrder = sortOrder++
+                    });
+                }
+            }
+
+            return starData.OrderBy(s => s.SortOrder).ToList();
+        }
+
+        private List<WorldDisplayData> CollectAllWorldData()
+        {
+            List<WorldDisplayData> worldData = new List<WorldDisplayData>();
+
+            // Get all companion stars sorted by orbit
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            // Collect worlds from primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is CelestialBody body && !(body is EmptyOrbit))
+                    {
+                        string primaryDesignation = DeterminePrimaryDesignation(bodyObj, primaryStar, companionStars);
+                        string notes = BuildNotesString(bodyObj, body, primaryStar);
+
+                        worldData.Add(new WorldDisplayData
+                        {
+                            Primary = primaryDesignation,
+                            Object = body.Designation,
+                            Orbit = bodyObj.orbit,
+                            AU = bodyObj.orbitAU,
+                            Ecc = bodyObj.orbitEccentricity,
+                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                            Notes = notes
+                        });
+                    }
+                }
+            }
+
+            // Collect worlds from companion stars
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is CelestialBody body && !(body is EmptyOrbit))
+                        {
+                            string primaryDesignation = DeterminePrimaryDesignation(bodyObj, companionStar, new List<CelestrialObject>());
+                            string notes = BuildNotesString(bodyObj, body, companionStar);
+
+                            worldData.Add(new WorldDisplayData
+                            {
+                                Primary = primaryDesignation,
+                                Object = body.Designation,
+                                Orbit = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Ecc = bodyObj.orbitEccentricity,
+                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Notes = notes
+                            });
+                        }
+                    }
+                }
+            }
+
+            return worldData;
+        }
+
+        private void PrintStellarSummary()
+        {
+            int starCount = CountAllStars();
+
+            Console.WriteLine("STELLAR");
+            Console.WriteLine($"  Stars: {starCount}");
+            Console.WriteLine($"  Gas Giants: {GasGiantCount}");
+            Console.WriteLine($"  Planetoid Belts: {PlanetoidBeltCount}");
+            Console.WriteLine($"  Terrestrials: {TerrestrialPlanetCount}");
+            Console.WriteLine();
+        }
+
+        private void PrintStarsTable(List<StarDisplayData> starData)
+        {
+            if (starData.Count == 0) return;
+
+            Console.WriteLine("STARS");
+
+            // Calculate column widths
+            int compWidth = Math.Max(9, starData.Max(s => s.Component.Length + (s.ParentDesignation != null ? 4 : 0)));
+
+            // Print header
+            Console.WriteLine($"{"Component".PadRight(compWidth)} {"Class".PadRight(6)} {"Mass".PadLeft(6)} {"Temp".PadLeft(6)} {"Diam".PadLeft(6)} {"Lumin".PadLeft(8)} {"Orbit#".PadLeft(7)} {"AU".PadLeft(7)} {"Ecc".PadLeft(6)} {"Period".PadRight(12)} {"MAO".PadLeft(5)} {"HZCO".PadLeft(5)}");
+
+            // Print each star
+            foreach (var star in starData)
+            {
+                string component = star.Component;
+                if (star.ParentDesignation != null)
+                    component += $" ({star.ParentDesignation})";
+
+                string mass = star.Mass.ToString("F3");
+                string temp = star.Temp > 0 ? star.Temp.ToString("F0") : "—";
+                string diam = star.Diameter > 0 ? star.Diameter.ToString("F3") : "—";
+                string lumin = star.Luminosity.ToString("F4");
+                string orbit = star.Orbit.HasValue ? star.Orbit.Value.ToString("F2") : "—";
+                string au = star.AU.HasValue ? star.AU.Value.ToString("F2") : "—";
+                string ecc = star.Ecc.HasValue ? star.Ecc.Value.ToString("F2") : "—";
+                string period = star.Period ?? "—";
+                string mao = star.MAO > 0 ? star.MAO.ToString("F2") : "—";
+                string hzco = star.HZCO > 0 ? star.HZCO.ToString("F2") : "—";
+
+                Console.WriteLine($"{component.PadRight(compWidth)} {star.Class.PadRight(6)} {mass.PadLeft(6)} {temp.PadLeft(6)} {diam.PadLeft(6)} {lumin.PadLeft(8)} {orbit.PadLeft(7)} {au.PadLeft(7)} {ecc.PadLeft(6)} {period.PadRight(12)} {mao.PadLeft(5)} {hzco.PadLeft(5)}");
+            }
+
+            Console.WriteLine();
+        }
+
+        private void PrintObjectsTable(List<WorldDisplayData> worldData)
+        {
+            if (worldData.Count == 0)
+            {
+                Console.WriteLine("OBJECTS");
+                Console.WriteLine("  No worlds generated in this system");
+                Console.WriteLine();
+                return;
+            }
+
+            Console.WriteLine("OBJECTS");
+
+            // Calculate column widths
+            int primaryWidth = Math.Max(7, worldData.Max(w => w.Primary.Length));
+            int objectWidth = Math.Max(6, worldData.Max(w => w.Object.Length));
+            int notesWidth = Math.Max(5, worldData.Any(w => w.Notes.Length > 0) ? worldData.Max(w => w.Notes.Length) : 5);
+
+            // Print header
+            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Orbit#".PadLeft(7)} {"AU".PadLeft(7)} {"Ecc".PadLeft(6)} {"Period".PadRight(12)} {"Notes".PadRight(notesWidth)}");
+
+            // Group by primary and print
+            var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
+            foreach (var group in groupedWorlds)
+            {
+                foreach (var world in group.OrderBy(w => w.Orbit))
+                {
+                    string orbit = world.Orbit.ToString("F2");
+                    string au = world.AU.ToString("F2");
+                    string ecc = world.Ecc.ToString("F3");
+
+                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {orbit.PadLeft(7)} {au.PadLeft(7)} {ecc.PadLeft(6)} {world.Period.PadRight(12)} {world.Notes}");
+                }
+            }
+
+            Console.WriteLine();
         }
 
         private int CountDStarsInSystem()

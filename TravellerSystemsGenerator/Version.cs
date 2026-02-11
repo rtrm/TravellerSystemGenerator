@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 0;
-        public const int Minor = 19;
-        public const int Build = 1;
+        public const int Minor = 20;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -44,5 +44,6 @@ namespace TravellerSystemGenerator
         // 0.17.x - World placement (Gas Giants, Planetoid Belts, Terrestrial Planets, Empty Orbits)
         // 0.18.x - Star designations (A, B, C for primary/secondary/tertiary, a/b for companions)
         // 0.19.x - World designations (Roman numerals, planetoid belt P-prefix, star-based designation)
+        // 0.20.x - Table-based console output format (STELLAR, STARS, OBJECTS)
     }
 }
