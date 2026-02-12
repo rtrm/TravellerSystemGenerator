@@ -3387,15 +3387,11 @@ namespace TravellerSystemGenerator
                             if (rMoonCount > 0)
                                 moonInfo.Add($"R0{rMoonCount}");
 
-                            // Add non-R moon sizes with links to survey forms
+                            // Add non-R moon sizes
                             foreach (var moon in moons)
                             {
                                 if (moon.Size != "R")
-                                {
-                                    string moonFilename = $"{body.Designation.Replace(" ", "_")}_{moon.Designation}";
-                                    string moonLink = $"<a href=\"surveys/{moonFilename}.html\">{moon.Size}</a>";
-                                    moonInfo.Add(moonLink);
-                                }
+                                    moonInfo.Add(moon.Size);
                             }
 
                             if (moonInfo.Count > 0)
@@ -3411,9 +3407,7 @@ namespace TravellerSystemGenerator
                         worldData.Add(new WorldDisplayData
                         {
                             Primary = primaryDesignation,
-                            Object = (body is TerrestrialPlanet)
-                                ? $"<a href=\"surveys/{body.Designation.Replace(" ", "_")}.html\">{body.Designation}</a>"
-                                : body.Designation,
+                            Object = body.Designation,
                             Size = size,
                             Orbit = bodyObj.orbit,
                             AU = bodyObj.orbitAU,
@@ -3503,15 +3497,11 @@ namespace TravellerSystemGenerator
                                 if (rMoonCount > 0)
                                     moonInfo.Add($"R0{rMoonCount}");
 
-                                // Add non-R moon sizes with links to survey forms
+                                // Add non-R moon sizes
                                 foreach (var moon in moons)
                                 {
                                     if (moon.Size != "R")
-                                    {
-                                        string moonFilename = $"{body.Designation.Replace(" ", "_")}_{moon.Designation}";
-                                        string moonLink = $"<a href=\"surveys/{moonFilename}.html\">{moon.Size}</a>";
-                                        moonInfo.Add(moonLink);
-                                    }
+                                        moonInfo.Add(moon.Size);
                                 }
 
                                 if (moonInfo.Count > 0)
@@ -3527,9 +3517,7 @@ namespace TravellerSystemGenerator
                             worldData.Add(new WorldDisplayData
                             {
                                 Primary = primaryDesignation,
-                                Object = (body is TerrestrialPlanet)
-                                    ? $"<a href=\"surveys/{body.Designation.Replace(" ", "_")}.html\">{body.Designation}</a>"
-                                    : body.Designation,
+                                Object = body.Designation,
                                 Size = size,
                                 Orbit = bodyObj.orbit,
                                 AU = bodyObj.orbitAU,
@@ -3646,6 +3634,52 @@ namespace TravellerSystemGenerator
             }
 
             Console.WriteLine();
+        }
+
+        private string AddMoonLinksToNotes(string notes, string parentWorldDesignation)
+        {
+            if (string.IsNullOrEmpty(notes))
+                return notes;
+
+            // Split notes by comma and space
+            string[] parts = notes.Split(new[] { ", " }, StringSplitOptions.None);
+            List<string> processedParts = new List<string>();
+
+            foreach (string part in parts)
+            {
+                // Check if this is a moon size code (single character: 0-9, A-F, S, or single letter a-z for designation)
+                // Moon sizes are: R, S, 0, 1-9, A-F, GS, GM
+                // But we need to exclude things like "HZ", "ME", "R01", "R02", etc.
+                bool isMoonSize = false;
+                if (part.Length == 1)
+                {
+                    char c = part[0];
+                    if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || c == 'S' || c == 'B')
+                        isMoonSize = true;
+                }
+
+                if (isMoonSize)
+                {
+                    // Find the moon designation (a, b, c, etc.) - we need to track moon count
+                    // For now, we'll use a simple approach: search for matching moon files
+                    // The moon designation is lowercase a, b, c, etc. based on the order
+                    // We need to find which moon this is by counting previous moon sizes
+
+                    // Count how many moons we've seen so far in this notes string
+                    int moonIndex = processedParts.Count(p => p.Contains("href=\"surveys/"));
+                    char moonLetter = (char)('a' + moonIndex);
+
+                    string moonFilename = $"{parentWorldDesignation.Replace(" ", "_")}_{moonLetter}";
+                    string linkedPart = $"<a href=\"surveys/{moonFilename}.html\">{part}</a>";
+                    processedParts.Add(linkedPart);
+                }
+                else
+                {
+                    processedParts.Add(part);
+                }
+            }
+
+            return string.Join(", ", processedParts);
         }
 
         private void GenerateHtmlOutput(List<StarDisplayData> starData, List<WorldDisplayData> worldData)
@@ -3828,16 +3862,27 @@ namespace TravellerSystemGenerator
                         string au = world.AU.ToString("F2");
                         string ecc = world.Ecc.ToString("F3");
 
+                        // Add clickable link for terrestrial planets (Size ends with "??")
+                        string objectCell = world.Object;
+                        if (world.Size.EndsWith("??"))
+                        {
+                            string surveyFilename = world.Object.Replace(" ", "_");
+                            objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
+                        }
+
+                        // Add clickable links for moons in Notes field
+                        string notesCell = AddMoonLinksToNotes(world.Notes, world.Object);
+
                         html.AppendLine("            <tr>");
                         html.AppendLine($"                <td>{world.Primary}</td>");
-                        html.AppendLine($"                <td>{world.Object}</td>");
+                        html.AppendLine($"                <td>{objectCell}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{au}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
                         html.AppendLine($"                <td>{world.Period}</td>");
                         html.AppendLine($"                <td class=\"center\">{world.Size}</td>");
                         html.AppendLine($"                <td class=\"center\">{world.Sub}</td>");
-                        html.AppendLine($"                <td>{world.Notes}</td>");
+                        html.AppendLine($"                <td>{notesCell}</td>");
                         html.AppendLine("            </tr>");
                     }
                 }
