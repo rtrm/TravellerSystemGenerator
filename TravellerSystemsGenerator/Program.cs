@@ -12,16 +12,24 @@ namespace TravellerSystemGenerator
         {
             // Parse command line arguments
             int? seed = null;
-            if (args.Length > 0)
+            bool uniqueHtmlFilename = false;
+
+            foreach (string arg in args)
             {
-                if (int.TryParse(args[0], out int parsedSeed))
+                if (arg == "-u" || arg == "--unique")
+                {
+                    uniqueHtmlFilename = true;
+                }
+                else if (int.TryParse(arg, out int parsedSeed))
                 {
                     seed = parsedSeed;
                 }
                 else
                 {
-                    Console.WriteLine($"Error: Invalid seed value '{args[0]}'. Seed must be an integer.");
-                    Console.WriteLine("Usage: TravellerSystemsGenerator [seed]");
+                    Console.WriteLine($"Error: Invalid argument '{arg}'.");
+                    Console.WriteLine("Usage: TravellerSystemsGenerator [seed] [-u|--unique]");
+                    Console.WriteLine("  seed           Optional seed value for reproducible generation");
+                    Console.WriteLine("  -u, --unique   Generate unique HTML filename (system_[seed].html)");
                     return;
                 }
             }
@@ -32,10 +40,12 @@ namespace TravellerSystemGenerator
             DebugLogger.Log($"Version: {Version.VersionString}");
             if (seed.HasValue)
                 DebugLogger.Log($"Command line seed: {seed.Value}");
+            if (uniqueHtmlFilename)
+                DebugLogger.Log($"Unique HTML filename enabled");
 
             try
             {
-                StarSystem starsystem = new StarSystem(seed);
+                StarSystem starsystem = new StarSystem(seed, uniqueHtmlFilename);
                 DebugLogger.Log("System generation completed successfully");
             }
             catch (Exception ex)

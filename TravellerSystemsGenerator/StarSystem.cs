@@ -49,9 +49,11 @@ namespace TravellerSystemGenerator
     {
         private Random dice;
         internal int Seed { get; private set; }
+        private bool uniqueHtmlFilename;
 
-        internal StarSystem(int? seed = null)
+        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false)
         {
+            this.uniqueHtmlFilename = uniqueHtmlFilename;
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
 
             // Generate or use provided seed
@@ -3636,7 +3638,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("</html>");
 
             // Save HTML file
-            string filename = $"system_{Seed}.html";
+            string filename = uniqueHtmlFilename ? $"system_{Seed}.html" : "system.html";
             try
             {
                 System.IO.File.WriteAllText(filename, html.ToString());
