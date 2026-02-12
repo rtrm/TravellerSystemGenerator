@@ -3153,23 +3153,28 @@ namespace TravellerSystemGenerator
                             sub = "?";
                         }
 
-                        // Add ring count and moon sizes to notes
+                        // Add ring count and moon sizes to notes (excluding R-sized moons)
                         if (ringCount > 0 || moons.Count > 0)
                         {
                             List<string> moonInfo = new List<string>();
                             if (ringCount > 0)
                                 moonInfo.Add($"R0{ringCount}");
 
+                            // Add moon sizes, but exclude R-sized moons
                             foreach (var moon in moons)
                             {
-                                moonInfo.Add(moon.Size);
+                                if (moon.Size != "R")
+                                    moonInfo.Add(moon.Size);
                             }
 
-                            string moonString = string.Join(", ", moonInfo);
-                            if (!string.IsNullOrEmpty(notes))
-                                notes = $"{notes}, {moonString}";
-                            else
-                                notes = moonString;
+                            if (moonInfo.Count > 0)
+                            {
+                                string moonString = string.Join(", ", moonInfo);
+                                if (!string.IsNullOrEmpty(notes))
+                                    notes = $"{notes}, {moonString}";
+                                else
+                                    notes = moonString;
+                            }
                         }
 
                         worldData.Add(new WorldDisplayData
@@ -3236,23 +3241,28 @@ namespace TravellerSystemGenerator
                                 sub = "?";
                             }
 
-                            // Add ring count and moon sizes to notes
+                            // Add ring count and moon sizes to notes (excluding R-sized moons)
                             if (ringCount > 0 || moons.Count > 0)
                             {
                                 List<string> moonInfo = new List<string>();
                                 if (ringCount > 0)
                                     moonInfo.Add($"R0{ringCount}");
 
+                                // Add moon sizes, but exclude R-sized moons
                                 foreach (var moon in moons)
                                 {
-                                    moonInfo.Add(moon.Size);
+                                    if (moon.Size != "R")
+                                        moonInfo.Add(moon.Size);
                                 }
 
-                                string moonString = string.Join(", ", moonInfo);
-                                if (!string.IsNullOrEmpty(notes))
-                                    notes = $"{notes}, {moonString}";
-                                else
-                                    notes = moonString;
+                                if (moonInfo.Count > 0)
+                                {
+                                    string moonString = string.Join(", ", moonInfo);
+                                    if (!string.IsNullOrEmpty(notes))
+                                        notes = $"{notes}, {moonString}";
+                                    else
+                                        notes = moonString;
+                                }
                             }
 
                             worldData.Add(new WorldDisplayData
