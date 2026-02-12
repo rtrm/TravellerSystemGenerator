@@ -57,6 +57,11 @@ namespace TravellerSystemGenerator
         public float Eccentricity { get; set; }
         public string Period { get; set; } = "";
         public int Diameter { get; set; }
+        public string Composition { get; set; } = "";
+        public float Density { get; set; } = 0;
+        public float Gravity { get; set; } = 0;
+        public float Mass { get; set; } = 0;
+        public float EscapeVelocity { get; set; } = 0;
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -601,6 +606,9 @@ namespace TravellerSystemGenerator
                 moon.Size = DetermineMoonSize(body, dice);
                 moon.Diameter = CalculateDiameter(moon.Size, dice);
 
+                // Calculate physical properties (use parent world's orbit for composition)
+                CalculatePhysicalProperties(moon, bodyObj.orbit, parentStar, dice);
+
                 if (body is TerrestrialPlanet tp)
                 {
                     tp.Moons.Add(moon);
@@ -1024,6 +1032,154 @@ namespace TravellerSystemGenerator
                 size, baseDiameter, d3Modifier, d6Modifier, d100Roll, diameter);
 
             return diameter;
+        }
+
+        private int GetSizeValue(string size)
+        {
+            if (string.IsNullOrEmpty(size)) return 0;
+            if (size == "0" || size == "R") return 0;
+            if (size == "S") return 1;
+            if (char.IsDigit(size[0])) return int.Parse(size.Substring(0, 1));
+            // Extended hex: A=10, B=11, C=12, D=13, E=14, F=15
+            return size[0] - 'A' + 10;
+        }
+
+        private string CalculateComposition(string size, float orbitNumber, float parentStarHZCO, float systemAge, Random dice)
+        {
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+            int modifiers = 0;
+
+            // Size modifier
+            int sizeValue = GetSizeValue(size);
+            if (sizeValue >= 0 && sizeValue <= 4) modifiers -= 1;
+            else if (sizeValue >= 6 && sizeValue <= 9) modifiers += 1;
+            else if (sizeValue >= 10 && sizeValue <= 15) modifiers += 3;  // A-F
+
+            // Orbital position modifier
+            if (orbitNumber <= parentStarHZCO)
+            {
+                modifiers += 1;  // At HZCO or closer
+            }
+            else
+            {
+                modifiers -= 1;  // Further than HZCO
+                int fullOrbitsFromHZCO = (int)(orbitNumber - parentStarHZCO);
+                modifiers -= fullOrbitsFromHZCO;  // -1 per full orbit
+            }
+
+            // System age modifier
+            if (systemAge > 10) modifiers -= 1;
+
+            int result = baseRoll + modifiers;
+
+            DebugLogger.Log($"    Composition roll: 2d6={baseRoll}, modifiers={modifiers}, result={result}");
+
+            // Determine composition
+            if (result <= -4) return "Exotic Ice";
+            if (result >= -3 && result <= 2) return "Mostly Ice";
+            if (result >= 3 && result <= 6) return "Mostly Rock";
+            if (result >= 7 && result <= 11) return "Rock and Metal";
+            if (result >= 12 && result <= 14) return "Mostly Metal";
+            return "Compressed Metal";  // >= 15
+        }
+
+        private float CalculateDensity(string composition, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+
+            float[,] densityTable = new float[,]
+            {
+                // Row 0: Roll 2, Columns: Exotic Ice, Mostly Ice, Mostly Rock, Rock and Metal, Mostly Metal, Compressed Metal
+                { 0.03f, 0.18f, 0.5f,  0.82f, 1.15f, 1.5f },
+                { 0.06f, 0.21f, 0.53f, 0.85f, 1.18f, 1.55f },
+                { 0.09f, 0.24f, 0.56f, 0.88f, 1.21f, 1.6f },
+                { 0.12f, 0.27f, 0.59f, 0.91f, 1.24f, 1.65f },
+                { 0.15f, 0.3f,  0.62f, 0.94f, 1.27f, 1.7f },
+                { 0.18f, 0.33f, 0.65f, 0.97f, 1.3f,  1.75f },
+                { 0.21f, 0.36f, 0.68f, 1.0f,  1.33f, 1.8f },
+                { 0.24f, 0.39f, 0.71f, 1.03f, 1.36f, 1.85f },
+                { 0.27f, 0.41f, 0.74f, 1.06f, 1.39f, 1.9f },
+                { 0.3f,  0.44f, 0.77f, 1.09f, 1.42f, 1.95f },
+                { 0.33f, 0.47f, 0.8f,  1.12f, 1.45f, 2.0f }
+            };
+
+            int compositionIndex = composition switch
+            {
+                "Exotic Ice" => 0,
+                "Mostly Ice" => 1,
+                "Mostly Rock" => 2,
+                "Rock and Metal" => 3,
+                "Mostly Metal" => 4,
+                "Compressed Metal" => 5,
+                _ => 2  // Default to Mostly Rock
+            };
+
+            int rollIndex = roll - 2;  // Map 2-12 to 0-10
+            float density = densityTable[rollIndex, compositionIndex];
+
+            DebugLogger.Log($"    Density roll: 2d6={roll}, composition={composition}, density={density:F2}");
+
+            return density;
+        }
+
+        private void CalculatePhysicalProperties(TerrestrialPlanet planet, float orbitNumber, Star parentStar, Random dice)
+        {
+            if (string.IsNullOrEmpty(planet.Size) || planet.Size == "R" || planet.Diameter == 0)
+                return;  // Skip rings and size 0
+
+            // Calculate composition
+            string composition = CalculateComposition(planet.Size, orbitNumber, parentStar.HZCO, parentStar.age, dice);
+
+            // Calculate density
+            float density = CalculateDensity(composition, dice);
+
+            // Calculate mass (in Earth masses)
+            float mass = density * (float)Math.Pow(planet.Diameter / 12742.0, 2);
+
+            // Calculate gravity (in Earth gravities)
+            float gravity = (density * planet.Diameter) / 12742.0f;
+
+            // Calculate escape velocity (in km/s)
+            float escapeVelocity = ((float)Math.Sqrt(mass / (planet.Diameter / 12742.0)) * 11186.0f) / 1000.0f;
+
+            // Set properties
+            planet.Composition = composition;
+            planet.Density = density;
+            planet.WorldMass = mass;
+            planet.Gravity = gravity;
+            planet.EscapeVelocity = escapeVelocity;
+
+            DebugLogger.Log($"  Terrestrial planet {planet.Designation}: Comp={composition}, Density={density:F2}, Mass={mass:F2}⊕, Gravity={gravity:F2}g, EscV={escapeVelocity:F2}km/s");
+        }
+
+        private void CalculatePhysicalProperties(Moon moon, float orbitNumber, Star parentStar, Random dice)
+        {
+            if (string.IsNullOrEmpty(moon.Size) || moon.Size == "R" || moon.Diameter == 0)
+                return;  // Skip rings and size 0
+
+            // Calculate composition
+            string composition = CalculateComposition(moon.Size, orbitNumber, parentStar.HZCO, parentStar.age, dice);
+
+            // Calculate density
+            float density = CalculateDensity(composition, dice);
+
+            // Calculate mass (in Earth masses)
+            float mass = density * (float)Math.Pow(moon.Diameter / 12742.0, 2);
+
+            // Calculate gravity (in Earth gravities)
+            float gravity = (density * moon.Diameter) / 12742.0f;
+
+            // Calculate escape velocity (in km/s)
+            float escapeVelocity = ((float)Math.Sqrt(mass / (moon.Diameter / 12742.0)) * 11186.0f) / 1000.0f;
+
+            // Set properties
+            moon.Composition = composition;
+            moon.Density = density;
+            moon.Mass = mass;
+            moon.Gravity = gravity;
+            moon.EscapeVelocity = escapeVelocity;
+
+            DebugLogger.Log($"    Moon {moon.Designation}: Comp={composition}, Density={density:F2}, Mass={mass:F2}⊕, Gravity={gravity:F2}g, EscV={escapeVelocity:F2}km/s");
         }
 
         private void PlaceEmptyOrbits(Random dice)
@@ -1519,6 +1675,9 @@ namespace TravellerSystemGenerator
                 // Determine planet size and diameter
                 planet.Size = DetermineTerrestrialSize(dice);
                 planet.Diameter = CalculateDiameter(planet.Size, dice);
+
+                // Calculate physical properties
+                CalculatePhysicalProperties(planet, cobj.orbit, parentStar, dice);
 
                 DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
                     cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
@@ -4023,11 +4182,11 @@ namespace TravellerSystemGenerator
             html.AppendLine("            <tr>");
             html.AppendLine("                <td style=\"background-color: #d3d3d3; border-top: none;\"></td>");
             html.AppendLine($"                <td>{data.Diameter:N0}</td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.Composition}</td>");
+            html.AppendLine($"                <td>{data.Density:F2}</td>");
+            html.AppendLine($"                <td>{data.Gravity:F2}</td>");
+            html.AppendLine($"                <td>{data.Mass:F2}</td>");
+            html.AppendLine($"                <td>{data.EscapeVelocity:F2}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td colspan=\"7\"><strong>Notes:</strong></td>");
@@ -4299,6 +4458,11 @@ namespace TravellerSystemGenerator
                             Eccentricity = bodyObj.orbitEccentricity,
                             Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
                             Diameter = tp.Diameter,
+                            Composition = tp.Composition,
+                            Density = tp.Density,
+                            Gravity = tp.Gravity,
+                            Mass = tp.WorldMass,
+                            EscapeVelocity = tp.EscapeVelocity,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -4318,6 +4482,11 @@ namespace TravellerSystemGenerator
                                 Eccentricity = 0, // Moon orbital data not yet calculated
                                 Period = "", // Moon orbital data not yet calculated
                                 Diameter = moon.Diameter,
+                                Composition = moon.Composition,
+                                Density = moon.Density,
+                                Gravity = moon.Gravity,
+                                Mass = moon.Mass,
+                                EscapeVelocity = moon.EscapeVelocity,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -4340,6 +4509,11 @@ namespace TravellerSystemGenerator
                                 Eccentricity = 0, // Moon orbital data not yet calculated
                                 Period = "", // Moon orbital data not yet calculated
                                 Diameter = moon.Diameter,
+                                Composition = moon.Composition,
+                                Density = moon.Density,
+                                Gravity = moon.Gravity,
+                                Mass = moon.Mass,
+                                EscapeVelocity = moon.EscapeVelocity,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -4369,6 +4543,11 @@ namespace TravellerSystemGenerator
                                 Eccentricity = bodyObj.orbitEccentricity,
                                 Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
                                 Diameter = tp.Diameter,
+                                Composition = tp.Composition,
+                                Density = tp.Density,
+                                Gravity = tp.Gravity,
+                                Mass = tp.WorldMass,
+                                EscapeVelocity = tp.EscapeVelocity,
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
@@ -4388,6 +4567,11 @@ namespace TravellerSystemGenerator
                                     Eccentricity = 0,
                                     Period = "",
                                     Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
                                     Moons = new List<Moon>(),
                                     Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
@@ -4410,6 +4594,11 @@ namespace TravellerSystemGenerator
                                     Eccentricity = 0, // Moon orbital data not yet calculated
                                     Period = "", // Moon orbital data not yet calculated
                                     Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
                                     Moons = new List<Moon>(),
                                     Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };

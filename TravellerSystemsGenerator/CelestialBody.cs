@@ -19,6 +19,11 @@ namespace TravellerSystemGenerator
         public string Size { get; set; } = "";      // Size code: R, S, 0-9, A-F, GS, GM
         public string Designation { get; set; } = ""; // a, b, c, etc.
         public int Diameter { get; set; } = 0;      // Diameter in km
+        public string Composition { get; set; } = ""; // e.g., "Mostly Ice"
+        public float Density { get; set; } = 0;     // Relative to Earth
+        public float Gravity { get; set; } = 0;     // In Earth gravities
+        public float Mass { get; set; } = 0;        // In Earth masses
+        public float EscapeVelocity { get; set; } = 0; // In km/s
 
         public Moon() { }
     }
@@ -48,6 +53,11 @@ namespace TravellerSystemGenerator
         public int Diameter { get; set; } = 0;    // Diameter in km
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public int RingCount { get; set; } = 0;   // Number of planetary rings
+        public string Composition { get; set; } = ""; // e.g., "Mostly Rock"
+        public float Density { get; set; } = 0;   // Relative to Earth
+        public float Gravity { get; set; } = 0;   // In Earth gravities
+        public float WorldMass { get; set; } = 0; // In Earth masses
+        public float EscapeVelocity { get; set; } = 0; // In km/s
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
