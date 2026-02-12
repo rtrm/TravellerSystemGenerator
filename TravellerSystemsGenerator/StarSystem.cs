@@ -3129,7 +3129,8 @@ namespace TravellerSystemGenerator
                             moons = tp.Moons;
                             // R-sized moons are rings
                             ringCount = moons.Count(m => m.Size == "R");
-                            sub = (moons.Count - ringCount).ToString();
+                            // If only R moons (rings), show "R", otherwise show count
+                            sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
                         }
                         else if (body is GasGiant gg)
                         {
@@ -3137,7 +3138,8 @@ namespace TravellerSystemGenerator
                             moons = gg.Moons;
                             // R-sized moons are rings
                             ringCount = moons.Count(m => m.Size == "R");
-                            sub = (moons.Count - ringCount).ToString();
+                            // If only R moons (rings), show "R", otherwise show count
+                            sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
 
                             // Add mass to notes with ME suffix, but after HZ if present
                             if (!string.IsNullOrEmpty(notes))
@@ -3222,7 +3224,8 @@ namespace TravellerSystemGenerator
                                 moons = tp.Moons;
                                 // R-sized moons are rings
                                 ringCount = moons.Count(m => m.Size == "R");
-                                sub = (moons.Count - ringCount).ToString();
+                                // If only R moons (rings), show "R", otherwise show count
+                                sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
                             }
                             else if (body is GasGiant gg)
                             {
@@ -3230,7 +3233,8 @@ namespace TravellerSystemGenerator
                                 moons = gg.Moons;
                                 // R-sized moons are rings
                                 ringCount = moons.Count(m => m.Size == "R");
-                                sub = (moons.Count - ringCount).ToString();
+                                // If only R moons (rings), show "R", otherwise show count
+                                sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
 
                                 // Add mass to notes with ME suffix, but after HZ if present
                                 if (!string.IsNullOrEmpty(notes))
