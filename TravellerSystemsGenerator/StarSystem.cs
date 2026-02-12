@@ -4021,7 +4021,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th>Esc v (kps)</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td style=\"background-color: #d3d3d3; border-top: none;\"></td>");
             html.AppendLine($"                <td>{data.Diameter:N0}</td>");
             html.AppendLine("                <td></td>");
             html.AppendLine("                <td></td>");
