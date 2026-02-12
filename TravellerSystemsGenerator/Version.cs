@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 1;
-        public const int Minor = 1;
+        public const int Minor = 2;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -53,5 +53,6 @@ namespace TravellerSystemGenerator
         // 0.26.x - HTML output generation (table-based format, terrestrial planet mass with ⊕ symbol)
         // 1.0.0 - First major release
         // 1.1.x - World and moon diameter calculations (Size-based with random variation)
+        // 1.2.x - IISS Class IV Survey forms (HTML forms for terrestrial worlds and moons, clickable links)
     }
 }

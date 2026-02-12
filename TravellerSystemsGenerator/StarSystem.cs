@@ -45,6 +45,22 @@ namespace TravellerSystemGenerator
         public string Notes { get; set; } = "";
     }
 
+    // Helper class for IISS Class IV Survey data
+    internal class SurveyData
+    {
+        public string WorldName { get; set; } = "";
+        public string SAH_UWP { get; set; } = "";
+        public string PrimaryObject { get; set; } = "";
+        public string SystemAge { get; set; } = "";
+        public float OrbitNumber { get; set; }
+        public float AU { get; set; }
+        public float Eccentricity { get; set; }
+        public string Period { get; set; } = "";
+        public int Diameter { get; set; }
+        public List<Moon> Moons { get; set; } = new List<Moon>();
+        public string Filename { get; set; } = "";
+    }
+
     internal class StarSystem
     {
         private Random dice;
@@ -180,6 +196,9 @@ namespace TravellerSystemGenerator
 
             // Generate HTML output
             GenerateHtmlOutput(starData, worldData);
+
+            // Generate IISS Class IV Survey forms
+            GenerateSurveyForms();
 
             DebugLogger.Log("");
             DebugLogger.Log("NON-STELLAR OBJECTS SUMMARY:");
@@ -3368,11 +3387,15 @@ namespace TravellerSystemGenerator
                             if (rMoonCount > 0)
                                 moonInfo.Add($"R0{rMoonCount}");
 
-                            // Add non-R moon sizes
+                            // Add non-R moon sizes with links to survey forms
                             foreach (var moon in moons)
                             {
                                 if (moon.Size != "R")
-                                    moonInfo.Add(moon.Size);
+                                {
+                                    string moonFilename = $"{body.Designation.Replace(" ", "_")}_{moon.Designation}";
+                                    string moonLink = $"<a href=\"surveys/{moonFilename}.html\">{moon.Size}</a>";
+                                    moonInfo.Add(moonLink);
+                                }
                             }
 
                             if (moonInfo.Count > 0)
@@ -3388,7 +3411,9 @@ namespace TravellerSystemGenerator
                         worldData.Add(new WorldDisplayData
                         {
                             Primary = primaryDesignation,
-                            Object = body.Designation,
+                            Object = (body is TerrestrialPlanet)
+                                ? $"<a href=\"surveys/{body.Designation.Replace(" ", "_")}.html\">{body.Designation}</a>"
+                                : body.Designation,
                             Size = size,
                             Orbit = bodyObj.orbit,
                             AU = bodyObj.orbitAU,
@@ -3478,11 +3503,15 @@ namespace TravellerSystemGenerator
                                 if (rMoonCount > 0)
                                     moonInfo.Add($"R0{rMoonCount}");
 
-                                // Add non-R moon sizes
+                                // Add non-R moon sizes with links to survey forms
                                 foreach (var moon in moons)
                                 {
                                     if (moon.Size != "R")
-                                        moonInfo.Add(moon.Size);
+                                    {
+                                        string moonFilename = $"{body.Designation.Replace(" ", "_")}_{moon.Designation}";
+                                        string moonLink = $"<a href=\"surveys/{moonFilename}.html\">{moon.Size}</a>";
+                                        moonInfo.Add(moonLink);
+                                    }
                                 }
 
                                 if (moonInfo.Count > 0)
@@ -3498,7 +3527,9 @@ namespace TravellerSystemGenerator
                             worldData.Add(new WorldDisplayData
                             {
                                 Primary = primaryDesignation,
-                                Object = body.Designation,
+                                Object = (body is TerrestrialPlanet)
+                                    ? $"<a href=\"surveys/{body.Designation.Replace(" ", "_")}.html\">{body.Designation}</a>"
+                                    : body.Designation,
                                 Size = size,
                                 Orbit = bodyObj.orbit,
                                 AU = bodyObj.orbitAU,
@@ -3830,6 +3861,538 @@ namespace TravellerSystemGenerator
                 Console.WriteLine($"\nError saving HTML file: {ex.Message}");
                 DebugLogger.Log($"ERROR: Failed to save HTML file - {ex.Message}");
             }
+        }
+
+        private string GenerateSurveyFormHtml(SurveyData data)
+        {
+            StringBuilder html = new StringBuilder();
+
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine($"    <title>IISS Class IV Survey - {data.WorldName}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; }");
+            html.AppendLine("        .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }");
+            html.AppendLine("        .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 5px; text-align: left; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; }");
+            html.AppendLine("        .field-label { font-weight: bold; width: 150px; }");
+            html.AppendLine("        .field-value { }");
+            html.AppendLine("        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }");
+            html.AppendLine("        .back-link { margin-bottom: 10px; }");
+            html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+
+            // Back link
+            html.AppendLine("        <div class=\"back-link\">");
+            html.AppendLine("            <a href=\"../system.html\">&larr; Back to System Overview</a>");
+            html.AppendLine("        </div>");
+
+            // Title
+            html.AppendLine("        <div class=\"header\" style=\"text-align: center;\">");
+            html.AppendLine("            <h1 style=\"margin: 0;\">IISS CLASS IV SURVEY</h1>");
+            html.AppendLine("            <h2 style=\"margin: 5px 0;\">FORM 0407F-IV PART P</h2>");
+            html.AppendLine("        </div>");
+
+            // World and SAH/UWP
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th style=\"width: 80%;\">WORLD</th>");
+            html.AppendLine($"                <th>SAH/UWP</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{data.WorldName}</td>");
+            html.AppendLine($"                <td>{data.SAH_UWP}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Sector/Location and Survey Info
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">SECTOR | LOCATION</th>");
+            html.AppendLine("                <th>Initial Survey</th>");
+            html.AppendLine("                <th>Last Updated</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Primary Object and System Info
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">PRIMARY OBJECT(S)</th>");
+            html.AppendLine("                <th>System Age (Gyr)</th>");
+            html.AppendLine("                <th>Travel Zone</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td colspan=\"2\">{data.PrimaryObject}</td>");
+            html.AppendLine($"                <td>{data.SystemAge}</td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Orbit Information
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>ORBIT</th>");
+            html.AppendLine("                <th>O#</th>");
+            html.AppendLine("                <th colspan=\"2\">AU</th>");
+            html.AppendLine("                <th>Eccentricity</th>");
+            html.AppendLine("                <th colspan=\"2\">Period</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td><strong>Notes:</strong></td>");
+            html.AppendLine($"                <td>{data.OrbitNumber:F2}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.AU:F2}</td>");
+            html.AppendLine($"                <td>{data.Eccentricity:F3}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.Period}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"7\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Size Information
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>SIZE</th>");
+            html.AppendLine("                <th>Diameter(km)</th>");
+            html.AppendLine("                <th>Composition</th>");
+            html.AppendLine("                <th>Density</th>");
+            html.AppendLine("                <th>Gravity</th>");
+            html.AppendLine("                <th>Mass</th>");
+            html.AppendLine("                <th>Esc v (kps)</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.Diameter:N0}</td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"7\"><strong>Notes:</strong></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Atmosphere
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"2\">ATMOSPHERE</th>");
+            html.AppendLine("                <th colspan=\"2\">Pressure (bar)</th>");
+            html.AppendLine("                <th colspan=\"3\">Composition</th>");
+            html.AppendLine("                <th>O<sub>2</sub> (bar)</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td colspan=\"3\"></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Taints</th>");
+            html.AppendLine("                <td colspan=\"5\"></td>");
+            html.AppendLine("                <th>Scale Height</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("                <td colspan=\"6\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Hydrographics
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"2\">HYDROGRAPHICS</th>");
+            html.AppendLine("                <th colspan=\"2\">Coverage (%)</th>");
+            html.AppendLine("                <th colspan=\"2\">Composition</th>");
+            html.AppendLine("                <th colspan=\"2\">Distribution</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Major bodies</th>");
+            html.AppendLine("                <td colspan=\"3\"></td>");
+            html.AppendLine("                <th>Minor bodies</th>");
+            html.AppendLine("                <th>Other</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("                <td colspan=\"6\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Rotation
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"2\">ROTATION</th>");
+            html.AppendLine("                <th colspan=\"2\">Sidereal</th>");
+            html.AppendLine("                <th colspan=\"2\">Solar</th>");
+            html.AppendLine("                <th>Solar days/year</th>");
+            html.AppendLine("                <th>Axial Tilt</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th></th>");
+            html.AppendLine("                <th colspan=\"2\">Tidal lock?</th>");
+            html.AppendLine("                <th colspan=\"3\">Tides</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("                <td colspan=\"6\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Temperature
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"3\">TEMPERATURE</th>");
+            html.AppendLine("                <th>High</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <th colspan=\"2\">Luminosity</th>");
+            html.AppendLine("                <th colspan=\"2\"><strong>Notes:</strong></th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Mean</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <th colspan=\"2\">Albedo</th>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Low</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <th colspan=\"2\">Greenhouse</th>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Seismic Stress
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Seismic Stress</th>");
+            html.AppendLine("                <th>Residual Stress</th>");
+            html.AppendLine("                <th>Tidal Stress</th>");
+            html.AppendLine("                <th colspan=\"2\">Tidal Heating</th>");
+            html.AppendLine("                <th>Major Tectonic Plates</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Life
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>LIFE</th>");
+            html.AppendLine("                <th>Biomass</th>");
+            html.AppendLine("                <th>Biocomplexity</th>");
+            html.AppendLine("                <th>Sophonts?</th>");
+            html.AppendLine("                <th>Biodiversity</th>");
+            html.AppendLine("                <th>Compatibility</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Resources
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>RESOURCES</th>");
+            html.AppendLine("                <th>Rating</th>");
+            html.AppendLine("                <th colspan=\"4\">Notes</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td colspan=\"4\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Habitability
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>HABITABILITY</th>");
+            html.AppendLine("                <th>Rating</th>");
+            html.AppendLine("                <th colspan=\"4\">Notes</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td colspan=\"4\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Subordinates (Moons)
+            if (data.Moons.Count > 0)
+            {
+                html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>SUBORDINATES</th>");
+                html.AppendLine("                <th>SAH/UWP</th>");
+                html.AppendLine("                <th>Orbit (PD)</th>");
+                html.AppendLine("                <th>Orbit (km)</th>");
+                html.AppendLine("                <th>Ecc</th>");
+                html.AppendLine("                <th>Diameter</th>");
+                html.AppendLine("                <th>Density</th>");
+                html.AppendLine("                <th>Mass</th>");
+                html.AppendLine("                <th>Period (h)</th>");
+                html.AppendLine("                <th>Size(°)</th>");
+                html.AppendLine("            </tr>");
+
+                foreach (var moon in data.Moons.Where(m => m.Size != "R"))
+                {
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><a href=\"{data.Filename.Replace(".html", "")}_{moon.Designation}.html\">{data.WorldName} {moon.Designation}</a></td>");
+                    html.AppendLine($"                <td>{moon.Size}</td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine($"                <td>{moon.Diameter:N0}</td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("            </tr>");
+                }
+
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Notes</th>");
+                html.AppendLine("                <td colspan=\"9\"></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // Comments
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>COMMENTS</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td style=\"height: 100px;\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private void GenerateSurveyForms()
+        {
+            // Create surveys folder (delete existing if not using unique filenames)
+            string surveysFolder = "surveys";
+            if (System.IO.Directory.Exists(surveysFolder) && !uniqueHtmlFilename)
+            {
+                try
+                {
+                    System.IO.Directory.Delete(surveysFolder, true);
+                    DebugLogger.Log("Deleted existing surveys folder");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"Warning: Could not delete surveys folder - {ex.Message}");
+                }
+            }
+
+            if (!System.IO.Directory.Exists(surveysFolder))
+            {
+                System.IO.Directory.CreateDirectory(surveysFolder);
+                DebugLogger.Log("Created surveys folder");
+            }
+
+            List<SurveyData> surveyDataList = new List<SurveyData>();
+
+            // Collect survey data for primary star's terrestrial worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                    {
+                        SurveyData surveyData = new SurveyData
+                        {
+                            WorldName = tp.Designation,
+                            SAH_UWP = tp.Size + "??",
+                            PrimaryObject = primaryStar.Designation + ", orbiting (nothing)",
+                            SystemAge = "", // Not yet implemented
+                            OrbitNumber = bodyObj.orbit,
+                            AU = bodyObj.orbitAU,
+                            Eccentricity = bodyObj.orbitEccentricity,
+                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                            Diameter = tp.Diameter,
+                            Moons = tp.Moons,
+                            Filename = $"{tp.Designation.Replace(" ", "_")}.html"
+                        };
+                        surveyDataList.Add(surveyData);
+
+                        // Generate surveys for moons
+                        foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
+                        {
+                            SurveyData moonSurvey = new SurveyData
+                            {
+                                WorldName = $"{tp.Designation} {moon.Designation}",
+                                SAH_UWP = moon.Size,
+                                PrimaryObject = $"{tp.Designation}",
+                                SystemAge = "",
+                                OrbitNumber = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Eccentricity = 0, // Moon orbital data not yet calculated
+                                Period = "", // Moon orbital data not yet calculated
+                                Diameter = moon.Diameter,
+                                Moons = new List<Moon>(),
+                                Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                            };
+                            surveyDataList.Add(moonSurvey);
+                        }
+                    }
+                    else if (bodyObj.celestrialObject is GasGiant gg)
+                    {
+                        // Generate surveys for gas giant moons
+                        foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
+                        {
+                            SurveyData moonSurvey = new SurveyData
+                            {
+                                WorldName = $"{gg.Designation} {moon.Designation}",
+                                SAH_UWP = moon.Size,
+                                PrimaryObject = $"{gg.Designation}",
+                                SystemAge = "",
+                                OrbitNumber = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Eccentricity = 0, // Moon orbital data not yet calculated
+                                Period = "", // Moon orbital data not yet calculated
+                                Diameter = moon.Diameter,
+                                Moons = new List<Moon>(),
+                                Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                            };
+                            surveyDataList.Add(moonSurvey);
+                        }
+                    }
+                }
+            }
+
+            // Collect survey data for companion stars' terrestrial worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                        {
+                            SurveyData surveyData = new SurveyData
+                            {
+                                WorldName = tp.Designation,
+                                SAH_UWP = tp.Size + "??",
+                                PrimaryObject = companionStar.Designation + ", orbiting " + (primaryObject.celestrialObject as Star)?.Designation,
+                                SystemAge = "",
+                                OrbitNumber = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Eccentricity = bodyObj.orbitEccentricity,
+                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Diameter = tp.Diameter,
+                                Moons = tp.Moons,
+                                Filename = $"{tp.Designation.Replace(" ", "_")}.html"
+                            };
+                            surveyDataList.Add(surveyData);
+
+                            // Generate surveys for moons
+                            foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
+                            {
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = $"{tp.Designation} {moon.Designation}",
+                                    SAH_UWP = moon.Size,
+                                    PrimaryObject = $"{tp.Designation}",
+                                    SystemAge = "",
+                                    OrbitNumber = bodyObj.orbit,
+                                    AU = bodyObj.orbitAU,
+                                    Eccentricity = 0,
+                                    Period = "",
+                                    Diameter = moon.Diameter,
+                                    Moons = new List<Moon>(),
+                                    Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            // Generate surveys for gas giant moons
+                            foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
+                            {
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = $"{gg.Designation} {moon.Designation}",
+                                    SAH_UWP = moon.Size,
+                                    PrimaryObject = $"{gg.Designation}",
+                                    SystemAge = "",
+                                    OrbitNumber = bodyObj.orbit,
+                                    AU = bodyObj.orbitAU,
+                                    Eccentricity = 0, // Moon orbital data not yet calculated
+                                    Period = "", // Moon orbital data not yet calculated
+                                    Diameter = moon.Diameter,
+                                    Moons = new List<Moon>(),
+                                    Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Generate HTML files
+            foreach (var surveyData in surveyDataList)
+            {
+                string html = GenerateSurveyFormHtml(surveyData);
+                string filepath = System.IO.Path.Combine(surveysFolder, surveyData.Filename);
+
+                try
+                {
+                    System.IO.File.WriteAllText(filepath, html);
+                    DebugLogger.LogFormat("Generated survey form: {0}", surveyData.Filename);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ERROR: Failed to write survey file {surveyData.Filename} - {ex.Message}");
+                }
+            }
+
+            Console.WriteLine($"Generated {surveyDataList.Count} IISS Class IV Survey forms in surveys/");
         }
 
         private int CountDStarsInSystem()
