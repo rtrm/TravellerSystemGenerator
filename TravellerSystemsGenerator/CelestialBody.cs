@@ -19,6 +19,9 @@ namespace TravellerSystemGenerator
         public float Radius { get; set; }         // Earth radii
         public float? Inclination { get; set; }   // Degrees (for Eccentric anomalous)
         public string? TrojanPosition { get; set; } // "L4" or "L5"
+        public string Size { get; set; } = "";    // Size code: GS, GM, GL
+        public int Diameter { get; set; }         // Diameter in Earth diameters (for ehex)
+        public int GasGiantMass { get; set; }     // Mass in Earth masses
 
         public GasGiant() : base(CelestialBodyType.GasGiant) { }
     }

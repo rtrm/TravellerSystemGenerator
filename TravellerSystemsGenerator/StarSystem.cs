@@ -675,11 +675,90 @@ namespace TravellerSystemGenerator
                 // Calculate orbital period
                 CalculateOrbitalPeriod(cobj);
 
-                DebugLogger.LogFormat("  Placed Gas Giant at orbit {0:F3} (e:{1:F3}, P:{2})",
-                    cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+                // Determine gas giant size
+                DetermineGasGiantSize(gasGiant, dice);
+
+                DebugLogger.LogFormat("  Placed Gas Giant at orbit {0:F3} (Size:{1}-{2}, Mass:{3}, e:{4:F3}, P:{5})",
+                    cobj.orbit, gasGiant.Size, ToEhex(gasGiant.Diameter), gasGiant.GasGiantMass,
+                    cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
             }
 
             DebugLogger.Log("  Gas Giant placement complete");
+        }
+
+        private void DetermineGasGiantSize(GasGiant gasGiant, Random dice)
+        {
+            // Get primary star for modifiers
+            Star? primaryStar = primaryObject.celestrialObject as Star;
+            if (primaryStar == null) return;
+
+            // Roll 1d6
+            int roll = Starhelper.diceRoll(6, 1, dice);
+            int modifier = 0;
+
+            DebugLogger.LogFormat("    Gas Giant size roll: {0}", roll);
+
+            // Modifier: -1 if primary is BD, M-Type Class V, or any Class VI
+            if (primaryStar.type == "BD" ||
+                (primaryStar.type == "M" && primaryStar.starclass == "V") ||
+                primaryStar.starclass == "VI")
+            {
+                modifier -= 1;
+                DebugLogger.LogFormat("    Primary is {0}{1} {2} - applying -1 modifier",
+                    primaryStar.type, primaryStar.subType, primaryStar.starclass);
+            }
+
+            // Modifier: -1 if Spread < 0.1
+            if (primaryStar.SystemSpread < 0.1f)
+            {
+                modifier -= 1;
+                DebugLogger.LogFormat("    System Spread {0:F4} < 0.1 - applying -1 modifier", primaryStar.SystemSpread);
+            }
+
+            int finalRoll = roll + modifier;
+            DebugLogger.LogFormat("    Final roll: {0} + {1} = {2}", roll, modifier, finalRoll);
+
+            // Determine size based on final roll
+            if (finalRoll <= 2)
+            {
+                // Small: GS
+                gasGiant.Size = "GS";
+                int diam1 = Starhelper.diceRoll(3, 1, dice);
+                int diam2 = Starhelper.diceRoll(3, 1, dice);
+                gasGiant.Diameter = diam1 + diam2; // 2-6
+                int massRoll = Starhelper.diceRoll(6, 1, dice);
+                gasGiant.GasGiantMass = 5 * (massRoll + 1); // 10-35
+                DebugLogger.LogFormat("    Size: GS (Small), Diameter: {0}, Mass: {1}", gasGiant.Diameter, gasGiant.GasGiantMass);
+            }
+            else if (finalRoll >= 3 && finalRoll <= 4)
+            {
+                // Medium: GM
+                gasGiant.Size = "GM";
+                int diamRoll = Starhelper.diceRoll(6, 1, dice);
+                gasGiant.Diameter = diamRoll + 6; // 7-12
+                int massRoll = Starhelper.diceRoll(6, 3, dice);
+                gasGiant.GasGiantMass = 10 * (massRoll - 1); // 20-170
+                DebugLogger.LogFormat("    Size: GM (Medium), Diameter: {0}, Mass: {1}", gasGiant.Diameter, gasGiant.GasGiantMass);
+            }
+            else // >= 5
+            {
+                // Large: GL
+                gasGiant.Size = "GL";
+                int diamRoll = Starhelper.diceRoll(6, 2, dice);
+                gasGiant.Diameter = diamRoll + 6; // 8-18
+                int massMultiplier = Starhelper.diceRoll(3, 1, dice);
+                int massRoll = Starhelper.diceRoll(6, 3, dice);
+                gasGiant.GasGiantMass = massMultiplier * 50 * (massRoll + 4); // 350-1650
+
+                // Check if mass >= 3000, then recalculate
+                if (gasGiant.GasGiantMass >= 3000)
+                {
+                    int rerollDice = Starhelper.diceRoll(6, 2, dice);
+                    gasGiant.GasGiantMass = 4000 - ((rerollDice - 2) * 200); // 2000-3800
+                    DebugLogger.LogFormat("    Mass >= 3000, recalculated to: {0}", gasGiant.GasGiantMass);
+                }
+                DebugLogger.LogFormat("    Size: GL (Large), Diameter: {0}, Mass: {1}", gasGiant.Diameter, gasGiant.GasGiantMass);
+            }
         }
 
         private void PlacePlanetoidBelts(Random dice)
@@ -805,6 +884,7 @@ namespace TravellerSystemGenerator
                 if (trojanBody is GasGiant gg)
                 {
                     gg.TrojanPosition = trojanPosition;
+                    DetermineGasGiantSize(gg, dice);
                 }
                 else if (trojanBody is TerrestrialPlanet tp)
                 {
@@ -812,10 +892,14 @@ namespace TravellerSystemGenerator
                     tp.Size = DetermineTerrestrialSize(dice);
                 }
 
-                // Determine size for primary if it's a terrestrial planet
+                // Determine size for primary based on type
                 if (primaryBody is TerrestrialPlanet primaryTp)
                 {
                     primaryTp.Size = DetermineTerrestrialSize(dice);
+                }
+                else if (primaryBody is GasGiant primaryGg)
+                {
+                    DetermineGasGiantSize(primaryGg, dice);
                 }
 
                 // Calculate eccentricity for primary (if not already calculated)
@@ -2185,6 +2269,22 @@ namespace TravellerSystemGenerator
                    ones[number % 10];
         }
 
+        private string ToEhex(int number)
+        {
+            if (number < 0) return "0";
+            if (number >= 0 && number <= 9) return number.ToString();
+            if (number == 10) return "A";
+            if (number == 11) return "B";
+            if (number == 12) return "C";
+            if (number == 13) return "D";
+            if (number == 14) return "E";
+            if (number == 15) return "F";
+            if (number == 16) return "G";
+            if (number == 17) return "H";
+            if (number == 18) return "J";
+            return number.ToString(); // Fallback for larger numbers
+        }
+
         private void CalculateAllOrbitalPeriods()
         {
             DebugLogger.Log("");
@@ -2639,7 +2739,22 @@ namespace TravellerSystemGenerator
                     {
                         string primaryDesignation = DeterminePrimaryDesignation(bodyObj, primaryStar, companionStars);
                         string notes = BuildNotesString(bodyObj, body, primaryStar);
-                        string size = body is TerrestrialPlanet tp ? tp.Size : "";
+
+                        // Determine size based on body type
+                        string size = "";
+                        if (body is TerrestrialPlanet tp)
+                        {
+                            size = tp.Size;
+                        }
+                        else if (body is GasGiant gg)
+                        {
+                            size = $"{gg.Size}-{ToEhex(gg.Diameter)}";
+                            // Add mass to notes
+                            if (!string.IsNullOrEmpty(notes))
+                                notes = $"{gg.GasGiantMass}, {notes}";
+                            else
+                                notes = gg.GasGiantMass.ToString();
+                        }
 
                         worldData.Add(new WorldDisplayData
                         {
@@ -2667,7 +2782,22 @@ namespace TravellerSystemGenerator
                         {
                             string primaryDesignation = DeterminePrimaryDesignation(bodyObj, companionStar, new List<CelestrialObject>());
                             string notes = BuildNotesString(bodyObj, body, companionStar);
-                            string size = body is TerrestrialPlanet tp ? tp.Size : "";
+
+                            // Determine size based on body type
+                            string size = "";
+                            if (body is TerrestrialPlanet tp)
+                            {
+                                size = tp.Size;
+                            }
+                            else if (body is GasGiant gg)
+                            {
+                                size = $"{gg.Size}-{ToEhex(gg.Diameter)}";
+                                // Add mass to notes
+                                if (!string.IsNullOrEmpty(notes))
+                                    notes = $"{gg.GasGiantMass}, {notes}";
+                                else
+                                    notes = gg.GasGiantMass.ToString();
+                            }
 
                             worldData.Add(new WorldDisplayData
                             {
