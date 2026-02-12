@@ -2144,32 +2144,32 @@ namespace TravellerSystemGenerator
             if (years < (1.0f / 8766))  // Less than 1 hour
             {
                 float hours = years * 8766;
-                return $"{hours:F2} hours";
+                return $"{hours:F2}h";
             }
             else if (years < (1.0f / 365.25))  // Less than 1 day
             {
                 float hours = years * 8766;
-                return $"{hours:F2} hours";
+                return $"{hours:F2}h";
             }
             else if (years < (5.0f / 365.25))  // Less than 5 days
             {
                 float days = years * 365.25f;
                 float remainderHours = (days - (int)days) * 24;
-                return $"{(int)days} days {remainderHours:F1} hours";
+                return $"{(int)days}d {remainderHours:F1}h";
             }
             else if (years < 1.0f)  // Less than 1 year
             {
                 float days = years * 365.25f;
-                return $"{days:F1} days";
+                return $"{days:F1}d";
             }
             else if (years < 5.0f)  // Less than 5 years
             {
                 float remainderDays = (years - (int)years) * 365.25f;
-                return $"{(int)years} years {remainderDays:F0} days";
+                return $"{(int)years}y {remainderDays:F0}d";
             }
             else  // 5+ years
             {
-                return $"{years:F2} years";
+                return $"{years:F2}y";
             }
         }
 
