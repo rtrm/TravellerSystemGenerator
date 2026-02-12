@@ -36,6 +36,7 @@ namespace TravellerSystemGenerator
     {
         public string Primary { get; set; } = "";
         public string Object { get; set; } = "";
+        public string Size { get; set; } = ""; // Size code for terrestrial planets
         public float Orbit { get; set; }
         public float AU { get; set; }
         public float Ecc { get; set; }
@@ -808,6 +809,13 @@ namespace TravellerSystemGenerator
                 else if (trojanBody is TerrestrialPlanet tp)
                 {
                     tp.TrojanPosition = trojanPosition;
+                    tp.Size = DetermineTerrestrialSize(dice);
+                }
+
+                // Determine size for primary if it's a terrestrial planet
+                if (primaryBody is TerrestrialPlanet primaryTp)
+                {
+                    primaryTp.Size = DetermineTerrestrialSize(dice);
                 }
 
                 // Calculate eccentricity for primary (if not already calculated)
@@ -889,11 +897,67 @@ namespace TravellerSystemGenerator
                 // Calculate orbital period
                 CalculateOrbitalPeriod(cobj);
 
-                DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (e:{1:F3}, P:{2})",
-                    cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+                // Determine planet size
+                planet.Size = DetermineTerrestrialSize(dice);
+
+                DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, e:{2:F3}, P:{3})",
+                    cobj.orbit, planet.Size, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
             }
 
             DebugLogger.Log("  Terrestrial Planet placement complete");
+        }
+
+        private string DetermineTerrestrialSize(Random dice)
+        {
+            // First roll: 1d6
+            int firstRoll = Starhelper.diceRoll(6, 1, dice);
+            int size = 0;
+
+            DebugLogger.LogFormat("    First roll: {0}", firstRoll);
+
+            // Determine size based on first roll
+            if (firstRoll >= 1 && firstRoll <= 2)
+            {
+                // Roll 1d6, size range 1-6
+                size = Starhelper.diceRoll(6, 1, dice);
+                DebugLogger.LogFormat("    Second roll (1d6): {0}", size);
+            }
+            else if (firstRoll >= 3 && firstRoll <= 4)
+            {
+                // Roll 2d6, size range 2-12 (C)
+                size = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogFormat("    Second roll (2d6): {0}", size);
+            }
+            else // 5-6
+            {
+                // Roll 2d6+3, size range 5-15 (F)
+                size = Starhelper.diceRoll(6, 2, dice) + 3;
+                DebugLogger.LogFormat("    Second roll (2d6+3): {0}", size);
+            }
+
+            // Convert size to code (0, S, 1-9, A-F)
+            string sizeCode;
+            if (size == 0)
+                sizeCode = "0";
+            else if (size >= 1 && size <= 9)
+                sizeCode = size.ToString();
+            else if (size == 10)
+                sizeCode = "A";
+            else if (size == 11)
+                sizeCode = "B";
+            else if (size == 12)
+                sizeCode = "C";
+            else if (size == 13)
+                sizeCode = "D";
+            else if (size == 14)
+                sizeCode = "E";
+            else if (size == 15)
+                sizeCode = "F";
+            else
+                sizeCode = "0"; // Fallback
+
+            DebugLogger.LogFormat("    Size code: {0}", sizeCode);
+            return sizeCode;
         }
 
         private void PrintStar (Star star, float orbit, CelestrialObject Cobj, Random dice)
@@ -2575,11 +2639,13 @@ namespace TravellerSystemGenerator
                     {
                         string primaryDesignation = DeterminePrimaryDesignation(bodyObj, primaryStar, companionStars);
                         string notes = BuildNotesString(bodyObj, body, primaryStar);
+                        string size = body is TerrestrialPlanet tp ? tp.Size : "";
 
                         worldData.Add(new WorldDisplayData
                         {
                             Primary = primaryDesignation,
                             Object = body.Designation,
+                            Size = size,
                             Orbit = bodyObj.orbit,
                             AU = bodyObj.orbitAU,
                             Ecc = bodyObj.orbitEccentricity,
@@ -2601,11 +2667,13 @@ namespace TravellerSystemGenerator
                         {
                             string primaryDesignation = DeterminePrimaryDesignation(bodyObj, companionStar, new List<CelestrialObject>());
                             string notes = BuildNotesString(bodyObj, body, companionStar);
+                            string size = body is TerrestrialPlanet tp ? tp.Size : "";
 
                             worldData.Add(new WorldDisplayData
                             {
                                 Primary = primaryDesignation,
                                 Object = body.Designation,
+                                Size = size,
                                 Orbit = bodyObj.orbit,
                                 AU = bodyObj.orbitAU,
                                 Ecc = bodyObj.orbitEccentricity,
@@ -2694,6 +2762,7 @@ namespace TravellerSystemGenerator
             // Calculate column widths dynamically based on data
             int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
             int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
+            int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("Size".Length, worldData.Max(w => w.Size.Length)) : "Size".Length;
             int orbitWidth = Math.Max("Orbit#".Length, worldData.Max(w => w.Orbit.ToString("F2").Length));
             int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
             int eccWidth = Math.Max("Ecc".Length, worldData.Max(w => w.Ecc.ToString("F3").Length));
@@ -2701,7 +2770,7 @@ namespace TravellerSystemGenerator
             int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
 
             // Print header
-            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Orbit#".PadLeft(orbitWidth)} {"AU".PadLeft(auWidth)} {"Ecc".PadLeft(eccWidth)} {"Period".PadRight(periodWidth)} {"Notes".PadRight(notesWidth)}");
+            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Size".PadRight(sizeWidth)} {"Orbit#".PadLeft(orbitWidth)} {"AU".PadLeft(auWidth)} {"Ecc".PadLeft(eccWidth)} {"Period".PadRight(periodWidth)} {"Notes".PadRight(notesWidth)}");
 
             // Group by primary and print
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
@@ -2713,7 +2782,7 @@ namespace TravellerSystemGenerator
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
-                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {orbit.PadLeft(orbitWidth)} {au.PadLeft(auWidth)} {ecc.PadLeft(eccWidth)} {world.Period.PadRight(periodWidth)} {world.Notes}");
+                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Size.PadRight(sizeWidth)} {orbit.PadLeft(orbitWidth)} {au.PadLeft(auWidth)} {ecc.PadLeft(eccWidth)} {world.Period.PadRight(periodWidth)} {world.Notes}");
                 }
             }
 

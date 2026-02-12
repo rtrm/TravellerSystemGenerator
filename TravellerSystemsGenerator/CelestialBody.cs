@@ -29,6 +29,7 @@ namespace TravellerSystemGenerator
         public float Radius { get; set; }         // Earth radii
         public float? Inclination { get; set; }   // Degrees (for Eccentric anomalous)
         public string? TrojanPosition { get; set; } // "L4" or "L5"
+        public string Size { get; set; } = "";    // Size code: 0, S, 1-9, A-F
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
