@@ -580,6 +580,7 @@ namespace TravellerSystemGenerator
                 Moon moon = new Moon();
                 moon.Designation = ((char)('a' + i)).ToString();
                 moon.Size = DetermineMoonSize(body, dice);
+                moon.Diameter = CalculateDiameter(moon.Size, dice);
 
                 if (body is TerrestrialPlanet tp)
                 {
@@ -590,7 +591,7 @@ namespace TravellerSystemGenerator
                     gg.Moons.Add(moon);
                 }
 
-                DebugLogger.LogFormat("    Moon {0}: Size {1}", moon.Designation, moon.Size);
+                DebugLogger.LogFormat("    Moon {0}: Size {1}, Diameter {2}km", moon.Designation, moon.Size, moon.Diameter);
             }
         }
 
@@ -827,6 +828,183 @@ namespace TravellerSystemGenerator
                 return 10 + (c - 'A');
 
             return 0;
+        }
+
+        private int GetBaseDiameter(string size)
+        {
+            // Size to base diameter lookup table (in km)
+            switch (size)
+            {
+                case "0":
+                case "R":
+                    return 0;
+                case "S":
+                    return 400;
+                case "1":
+                    return 800;
+                case "2":
+                    return 2400;
+                case "3":
+                    return 4000;
+                case "4":
+                    return 5600;
+                case "5":
+                    return 7200;
+                case "6":
+                    return 8800;
+                case "7":
+                    return 10400;
+                case "8":
+                    return 12000;
+                case "9":
+                    return 13600;
+                case "A":
+                    return 15200;
+                case "B":
+                    return 16800;
+                case "C":
+                    return 18400;
+                case "D":
+                    return 20000;
+                case "E":
+                    return 21600;
+                case "F":
+                    return 23200;
+                default:
+                    return 0;
+            }
+        }
+
+        private int CalculateDiameter(string size, Random dice)
+        {
+            int baseDiameter = GetBaseDiameter(size);
+
+            // Size 0 or R has diameter 0
+            if (baseDiameter == 0)
+                return 0;
+
+            // Size S calculation
+            if (size == "S")
+            {
+                int d4Roll = Starhelper.diceRoll(4, 1, dice);
+                int modifier = 0;
+
+                switch (d4Roll)
+                {
+                    case 1:
+                        modifier = 0;
+                        break;
+                    case 2:
+                        modifier = 100;
+                        break;
+                    case 3:
+                        modifier = 200;
+                        break;
+                    case 4:
+                        modifier = 400;
+                        break;
+                }
+
+                int finalDiameter = baseDiameter + modifier + Starhelper.diceRoll(100, 1, dice);
+                DebugLogger.LogFormat("    Diameter calculation (Size S): Base={0}, 1d4 modifier={1}, 1d100={2}, Final={3}km",
+                    baseDiameter, modifier, finalDiameter - baseDiameter - modifier, finalDiameter);
+                return finalDiameter;
+            }
+
+            // Size > S (1-9, A-F)
+            int d3Modifier = 0;
+            int d6Modifier = 0;
+
+            // Roll 1d3
+            int d3Roll = Starhelper.diceRoll(3, 1, dice);
+            switch (d3Roll)
+            {
+                case 1:
+                    d3Modifier = 0;
+                    break;
+                case 2:
+                    d3Modifier = 600;
+                    break;
+                case 3:
+                    d3Modifier = 1200;
+                    break;
+            }
+
+            // Roll 1d6
+            bool reroll = false;
+            do
+            {
+                reroll = false;
+                int d6Roll = Starhelper.diceRoll(6, 1, dice);
+
+                switch (d6Roll)
+                {
+                    case 1:
+                        d6Modifier = 0;
+                        break;
+                    case 2:
+                        d6Modifier = 100;
+                        break;
+                    case 3:
+                        d6Modifier = 200;
+                        break;
+                    case 4:
+                        d6Modifier = 400;
+                        break;
+                    case 5:
+                        d6Modifier = 400;
+                        if (d3Roll == 3)
+                        {
+                            reroll = true;
+                            DebugLogger.LogFormat("    Diameter: 1d6 roll of 5 with 1d3=3, rerolling both");
+                            // Reroll 1d3
+                            d3Roll = Starhelper.diceRoll(3, 1, dice);
+                            switch (d3Roll)
+                            {
+                                case 1:
+                                    d3Modifier = 0;
+                                    break;
+                                case 2:
+                                    d3Modifier = 600;
+                                    break;
+                                case 3:
+                                    d3Modifier = 1200;
+                                    break;
+                            }
+                        }
+                        break;
+                    case 6:
+                        d6Modifier = 500;
+                        if (d3Roll == 3)
+                        {
+                            reroll = true;
+                            DebugLogger.LogFormat("    Diameter: 1d6 roll of 6 with 1d3=3, rerolling both");
+                            // Reroll 1d3
+                            d3Roll = Starhelper.diceRoll(3, 1, dice);
+                            switch (d3Roll)
+                            {
+                                case 1:
+                                    d3Modifier = 0;
+                                    break;
+                                case 2:
+                                    d3Modifier = 600;
+                                    break;
+                                case 3:
+                                    d3Modifier = 1200;
+                                    break;
+                            }
+                        }
+                        break;
+                }
+            } while (reroll);
+
+            int d100Roll = Starhelper.diceRoll(100, 1, dice);
+            int diameter = baseDiameter + d3Modifier + d6Modifier + d100Roll;
+
+            DebugLogger.LogFormat("    Diameter calculation (Size {0}): Base={1}, 1d3={2}, 1d6={3}, 1d100={4}, Final={5}km",
+                size, baseDiameter, d3Modifier, d6Modifier, d100Roll, diameter);
+
+            return diameter;
         }
 
         private void PlaceEmptyOrbits(Random dice)
@@ -1226,12 +1404,14 @@ namespace TravellerSystemGenerator
                 {
                     tp.TrojanPosition = trojanPosition;
                     tp.Size = DetermineTerrestrialSize(dice);
+                    tp.Diameter = CalculateDiameter(tp.Size, dice);
                 }
 
                 // Determine size for primary based on type
                 if (primaryBody is TerrestrialPlanet primaryTp)
                 {
                     primaryTp.Size = DetermineTerrestrialSize(dice);
+                    primaryTp.Diameter = CalculateDiameter(primaryTp.Size, dice);
                 }
                 else if (primaryBody is GasGiant primaryGg)
                 {
@@ -1317,11 +1497,12 @@ namespace TravellerSystemGenerator
                 // Calculate orbital period
                 CalculateOrbitalPeriod(cobj);
 
-                // Determine planet size
+                // Determine planet size and diameter
                 planet.Size = DetermineTerrestrialSize(dice);
+                planet.Diameter = CalculateDiameter(planet.Size, dice);
 
-                DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, e:{2:F3}, P:{3})",
-                    cobj.orbit, planet.Size, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+                DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
+                    cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
             }
 
             DebugLogger.Log("  Terrestrial Planet placement complete");

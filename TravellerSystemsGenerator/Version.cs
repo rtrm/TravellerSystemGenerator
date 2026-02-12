@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 1;
-        public const int Minor = 0;
+        public const int Minor = 1;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -51,5 +51,7 @@ namespace TravellerSystemGenerator
         // 0.24.x - Random seed support (reproducible system generation via command line parameter)
         // 0.25.x - Significant moons (moon count, sizing, Sub column, moon sizes in Notes)
         // 0.26.x - HTML output generation (table-based format, terrestrial planet mass with ⊕ symbol)
+        // 1.0.0 - First major release
+        // 1.1.x - World and moon diameter calculations (Size-based with random variation)
     }
 }

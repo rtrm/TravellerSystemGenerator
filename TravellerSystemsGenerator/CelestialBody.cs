@@ -18,6 +18,7 @@ namespace TravellerSystemGenerator
     {
         public string Size { get; set; } = "";      // Size code: R, S, 0-9, A-F, GS, GM
         public string Designation { get; set; } = ""; // a, b, c, etc.
+        public int Diameter { get; set; } = 0;      // Diameter in km
 
         public Moon() { }
     }
@@ -44,6 +45,7 @@ namespace TravellerSystemGenerator
         public float? Inclination { get; set; }   // Degrees (for Eccentric anomalous)
         public string? TrojanPosition { get; set; } // "L4" or "L5"
         public string Size { get; set; } = "";    // Size code: 0, S, 1-9, A-F
+        public int Diameter { get; set; } = 0;    // Diameter in km
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public int RingCount { get; set; } = 0;   // Number of planetary rings
 
