@@ -2162,10 +2162,56 @@ namespace TravellerSystemGenerator
                 notes.Add($"Trojan {trojanPos}");
 
             // Habitable zone check
+            // Orbits below 1.0 are treated as only 10% as large
             if (parentStar.HZCO > 0)
             {
-                float hzMin = Math.Max(0, parentStar.HZCO - 1);
-                float hzMax = parentStar.HZCO + 1;
+                float hzMin, hzMax;
+
+                // Calculate lower bound
+                if (parentStar.HZCO >= 2.0f)
+                {
+                    // Range doesn't cross below 1.0
+                    hzMin = parentStar.HZCO - 1.0f;
+                }
+                else if (parentStar.HZCO >= 1.0f)
+                {
+                    // Range crosses below 1.0
+                    // Distance from HZCO down to 1.0: (HZCO - 1.0) effective orbits
+                    // Remaining to cover below 1.0: 2.0 - HZCO effective orbits
+                    // Since orbits below 1.0 are 10% as large, we move (2.0 - HZCO) * 0.1 orbit numbers
+                    hzMin = 1.0f - (2.0f - parentStar.HZCO) * 0.1f;
+                }
+                else
+                {
+                    // HZCO is below 1.0, go down 0.1 orbit numbers (= 1.0 effective)
+                    hzMin = Math.Max(0, parentStar.HZCO - 0.1f);
+                }
+
+                // Calculate upper bound
+                if (parentStar.HZCO >= 1.0f)
+                {
+                    // Standard calculation
+                    hzMax = parentStar.HZCO + 1.0f;
+                }
+                else
+                {
+                    // HZCO is below 1.0
+                    // Distance to 1.0 in orbit numbers: (1.0 - HZCO)
+                    // Effective distance to 1.0: (1.0 - HZCO) / 0.1 = (1.0 - HZCO) * 10
+                    float effectiveDistToOne = (1.0f - parentStar.HZCO) * 10.0f;
+                    if (effectiveDistToOne >= 1.0f)
+                    {
+                        // We've used up all our 1.0 effective distance just getting to orbit 1.0
+                        hzMax = 1.0f;
+                    }
+                    else
+                    {
+                        // Remaining effective distance after reaching orbit 1.0
+                        float remaining = 1.0f - effectiveDistToOne;
+                        hzMax = 1.0f + remaining;
+                    }
+                }
+
                 if (worldObj.orbit >= hzMin && worldObj.orbit <= hzMax)
                 {
                     // Add HZ first if it hasn't been added yet
@@ -2744,16 +2790,21 @@ namespace TravellerSystemGenerator
                         string size = "";
                         if (body is TerrestrialPlanet tp)
                         {
-                            size = tp.Size;
+                            size = tp.Size + "??";
                         }
                         else if (body is GasGiant gg)
                         {
-                            size = $"{gg.Size}-{ToEhex(gg.Diameter)}";
-                            // Add mass to notes
+                            size = $"{gg.Size}{ToEhex(gg.Diameter)}";
+                            // Add mass to notes with ME suffix, but after HZ if present
                             if (!string.IsNullOrEmpty(notes))
-                                notes = $"{gg.GasGiantMass}, {notes}";
+                            {
+                                if (notes.StartsWith("HZ"))
+                                    notes = $"HZ, {gg.GasGiantMass}ME" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                else
+                                    notes = $"{gg.GasGiantMass}ME, {notes}";
+                            }
                             else
-                                notes = gg.GasGiantMass.ToString();
+                                notes = $"{gg.GasGiantMass}ME";
                         }
 
                         worldData.Add(new WorldDisplayData
@@ -2787,16 +2838,21 @@ namespace TravellerSystemGenerator
                             string size = "";
                             if (body is TerrestrialPlanet tp)
                             {
-                                size = tp.Size;
+                                size = tp.Size + "??";
                             }
                             else if (body is GasGiant gg)
                             {
-                                size = $"{gg.Size}-{ToEhex(gg.Diameter)}";
-                                // Add mass to notes
+                                size = $"{gg.Size}{ToEhex(gg.Diameter)}";
+                                // Add mass to notes with ME suffix, but after HZ if present
                                 if (!string.IsNullOrEmpty(notes))
-                                    notes = $"{gg.GasGiantMass}, {notes}";
+                                {
+                                    if (notes.StartsWith("HZ"))
+                                        notes = $"HZ, {gg.GasGiantMass}ME" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                    else
+                                        notes = $"{gg.GasGiantMass}ME, {notes}";
+                                }
                                 else
-                                    notes = gg.GasGiantMass.ToString();
+                                    notes = $"{gg.GasGiantMass}ME";
                             }
 
                             worldData.Add(new WorldDisplayData
@@ -2892,15 +2948,15 @@ namespace TravellerSystemGenerator
             // Calculate column widths dynamically based on data
             int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
             int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
-            int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("Size".Length, worldData.Max(w => w.Size.Length)) : "Size".Length;
+            int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("SAH/UWP".Length, worldData.Max(w => w.Size.Length)) : "SAH/UWP".Length;
             int orbitWidth = Math.Max("Orbit#".Length, worldData.Max(w => w.Orbit.ToString("F2").Length));
             int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
             int eccWidth = Math.Max("Ecc".Length, worldData.Max(w => w.Ecc.ToString("F3").Length));
             int periodWidth = Math.Max("Period".Length, worldData.Max(w => w.Period.Length));
             int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
 
-            // Print header
-            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Size".PadRight(sizeWidth)} {"Orbit#".PadLeft(orbitWidth)} {"AU".PadLeft(auWidth)} {"Ecc".PadLeft(eccWidth)} {"Period".PadRight(periodWidth)} {"Notes".PadRight(notesWidth)}");
+            // Print header - moved Size after Period, changed heading to SAH/UWP, added extra spacing
+            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Notes".PadRight(notesWidth)}");
 
             // Group by primary and print
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
@@ -2912,7 +2968,7 @@ namespace TravellerSystemGenerator
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
-                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Size.PadRight(sizeWidth)} {orbit.PadLeft(orbitWidth)} {au.PadLeft(auWidth)} {ecc.PadLeft(eccWidth)} {world.Period.PadRight(periodWidth)} {world.Notes}");
+                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Notes}");
                 }
             }
 
