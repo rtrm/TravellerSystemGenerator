@@ -2638,11 +2638,22 @@ namespace TravellerSystemGenerator
 
             Console.WriteLine("STARS");
 
-            // Calculate column widths
-            int compWidth = Math.Max(9, starData.Max(s => s.Component.Length + (s.ParentDesignation != null ? 4 : 0)));
+            // Calculate column widths dynamically based on data
+            int compWidth = Math.Max("Component".Length, starData.Max(s => s.Component.Length + (s.ParentDesignation != null ? 4 : 0)));
+            int classWidth = Math.Max("Class".Length, starData.Max(s => s.Class.Length));
+            int massWidth = Math.Max("Mass".Length, starData.Max(s => s.Mass.ToString("F3").Length));
+            int tempWidth = Math.Max("Temp".Length, starData.Max(s => s.Temp > 0 ? s.Temp.ToString("F0").Length : 1));
+            int diamWidth = Math.Max("Diam".Length, starData.Max(s => s.Diameter > 0 ? s.Diameter.ToString("F3").Length : 1));
+            int luminWidth = Math.Max("Lumin".Length, starData.Max(s => s.Luminosity.ToString("F4").Length));
+            int orbitWidth = Math.Max("Orbit#".Length, starData.Max(s => s.Orbit.HasValue ? s.Orbit.Value.ToString("F2").Length : 1));
+            int auWidth = Math.Max("AU".Length, starData.Max(s => s.AU.HasValue ? s.AU.Value.ToString("F2").Length : 1));
+            int eccWidth = Math.Max("Ecc".Length, starData.Max(s => s.Ecc.HasValue ? s.Ecc.Value.ToString("F2").Length : 1));
+            int periodWidth = Math.Max("Period".Length, starData.Max(s => s.Period != null ? s.Period.Length : 1));
+            int maoWidth = Math.Max("MAO".Length, starData.Max(s => s.MAO > 0 ? s.MAO.ToString("F2").Length : 1));
+            int hzcoWidth = Math.Max("HZCO".Length, starData.Max(s => s.HZCO > 0 ? s.HZCO.ToString("F2").Length : 1));
 
             // Print header
-            Console.WriteLine($"{"Component".PadRight(compWidth)} {"Class".PadRight(6)} {"Mass".PadLeft(6)} {"Temp".PadLeft(6)} {"Diam".PadLeft(6)} {"Lumin".PadLeft(8)} {"Orbit#".PadLeft(7)} {"AU".PadLeft(7)} {"Ecc".PadLeft(6)} {"Period".PadRight(12)} {"MAO".PadLeft(5)} {"HZCO".PadLeft(5)}");
+            Console.WriteLine($"{"Component".PadRight(compWidth)} {"Class".PadRight(classWidth)} {"Mass".PadLeft(massWidth)} {"Temp".PadLeft(tempWidth)} {"Diam".PadLeft(diamWidth)} {"Lumin".PadLeft(luminWidth)} {"Orbit#".PadLeft(orbitWidth)} {"AU".PadLeft(auWidth)} {"Ecc".PadLeft(eccWidth)} {"Period".PadRight(periodWidth)} {"MAO".PadLeft(maoWidth)} {"HZCO".PadLeft(hzcoWidth)}");
 
             // Print each star
             foreach (var star in starData)
@@ -2662,7 +2673,7 @@ namespace TravellerSystemGenerator
                 string mao = star.MAO > 0 ? star.MAO.ToString("F2") : "—";
                 string hzco = star.HZCO > 0 ? star.HZCO.ToString("F2") : "—";
 
-                Console.WriteLine($"{component.PadRight(compWidth)} {star.Class.PadRight(6)} {mass.PadLeft(6)} {temp.PadLeft(6)} {diam.PadLeft(6)} {lumin.PadLeft(8)} {orbit.PadLeft(7)} {au.PadLeft(7)} {ecc.PadLeft(6)} {period.PadRight(12)} {mao.PadLeft(5)} {hzco.PadLeft(5)}");
+                Console.WriteLine($"{component.PadRight(compWidth)} {star.Class.PadRight(classWidth)} {mass.PadLeft(massWidth)} {temp.PadLeft(tempWidth)} {diam.PadLeft(diamWidth)} {lumin.PadLeft(luminWidth)} {orbit.PadLeft(orbitWidth)} {au.PadLeft(auWidth)} {ecc.PadLeft(eccWidth)} {period.PadRight(periodWidth)} {mao.PadLeft(maoWidth)} {hzco.PadLeft(hzcoWidth)}");
             }
 
             Console.WriteLine();
@@ -2680,13 +2691,17 @@ namespace TravellerSystemGenerator
 
             Console.WriteLine("OBJECTS");
 
-            // Calculate column widths
-            int primaryWidth = Math.Max(7, worldData.Max(w => w.Primary.Length));
-            int objectWidth = Math.Max(6, worldData.Max(w => w.Object.Length));
-            int notesWidth = Math.Max(5, worldData.Any(w => w.Notes.Length > 0) ? worldData.Max(w => w.Notes.Length) : 5);
+            // Calculate column widths dynamically based on data
+            int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
+            int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
+            int orbitWidth = Math.Max("Orbit#".Length, worldData.Max(w => w.Orbit.ToString("F2").Length));
+            int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
+            int eccWidth = Math.Max("Ecc".Length, worldData.Max(w => w.Ecc.ToString("F3").Length));
+            int periodWidth = Math.Max("Period".Length, worldData.Max(w => w.Period.Length));
+            int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
 
             // Print header
-            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Orbit#".PadLeft(7)} {"AU".PadLeft(7)} {"Ecc".PadLeft(6)} {"Period".PadRight(12)} {"Notes".PadRight(notesWidth)}");
+            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Orbit#".PadLeft(orbitWidth)} {"AU".PadLeft(auWidth)} {"Ecc".PadLeft(eccWidth)} {"Period".PadRight(periodWidth)} {"Notes".PadRight(notesWidth)}");
 
             // Group by primary and print
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
@@ -2698,7 +2713,7 @@ namespace TravellerSystemGenerator
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
-                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {orbit.PadLeft(7)} {au.PadLeft(7)} {ecc.PadLeft(6)} {world.Period.PadRight(12)} {world.Notes}");
+                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {orbit.PadLeft(orbitWidth)} {au.PadLeft(auWidth)} {ecc.PadLeft(eccWidth)} {world.Period.PadRight(periodWidth)} {world.Notes}");
                 }
             }
 
