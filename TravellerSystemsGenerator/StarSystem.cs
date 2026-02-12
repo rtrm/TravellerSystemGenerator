@@ -3126,15 +3126,17 @@ namespace TravellerSystemGenerator
                         if (body is TerrestrialPlanet tp)
                         {
                             size = tp.Size + "??";
-                            ringCount = tp.RingCount;
                             moons = tp.Moons;
+                            // R-sized moons are rings
+                            ringCount = moons.Count(m => m.Size == "R");
                             sub = (moons.Count - ringCount).ToString();
                         }
                         else if (body is GasGiant gg)
                         {
                             size = $"{gg.Size}{ToEhex(gg.Diameter)}";
-                            ringCount = gg.RingCount;
                             moons = gg.Moons;
+                            // R-sized moons are rings
+                            ringCount = moons.Count(m => m.Size == "R");
                             sub = (moons.Count - ringCount).ToString();
 
                             // Add mass to notes with ME suffix, but after HZ if present
@@ -3153,14 +3155,17 @@ namespace TravellerSystemGenerator
                             sub = "?";
                         }
 
-                        // Add ring count and moon sizes to notes (excluding R-sized moons)
-                        if (ringCount > 0 || moons.Count > 0)
+                        // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                        if (moons.Count > 0)
                         {
                             List<string> moonInfo = new List<string>();
-                            if (ringCount > 0)
-                                moonInfo.Add($"R0{ringCount}");
 
-                            // Add moon sizes, but exclude R-sized moons
+                            // Count R-sized moons
+                            int rMoonCount = moons.Count(m => m.Size == "R");
+                            if (rMoonCount > 0)
+                                moonInfo.Add($"R0{rMoonCount}");
+
+                            // Add non-R moon sizes
                             foreach (var moon in moons)
                             {
                                 if (moon.Size != "R")
@@ -3214,15 +3219,17 @@ namespace TravellerSystemGenerator
                             if (body is TerrestrialPlanet tp)
                             {
                                 size = tp.Size + "??";
-                                ringCount = tp.RingCount;
                                 moons = tp.Moons;
+                                // R-sized moons are rings
+                                ringCount = moons.Count(m => m.Size == "R");
                                 sub = (moons.Count - ringCount).ToString();
                             }
                             else if (body is GasGiant gg)
                             {
                                 size = $"{gg.Size}{ToEhex(gg.Diameter)}";
-                                ringCount = gg.RingCount;
                                 moons = gg.Moons;
+                                // R-sized moons are rings
+                                ringCount = moons.Count(m => m.Size == "R");
                                 sub = (moons.Count - ringCount).ToString();
 
                                 // Add mass to notes with ME suffix, but after HZ if present
@@ -3241,14 +3248,17 @@ namespace TravellerSystemGenerator
                                 sub = "?";
                             }
 
-                            // Add ring count and moon sizes to notes (excluding R-sized moons)
-                            if (ringCount > 0 || moons.Count > 0)
+                            // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                            if (moons.Count > 0)
                             {
                                 List<string> moonInfo = new List<string>();
-                                if (ringCount > 0)
-                                    moonInfo.Add($"R0{ringCount}");
 
-                                // Add moon sizes, but exclude R-sized moons
+                                // Count R-sized moons
+                                int rMoonCount = moons.Count(m => m.Size == "R");
+                                if (rMoonCount > 0)
+                                    moonInfo.Add($"R0{rMoonCount}");
+
+                                // Add non-R moon sizes
                                 foreach (var moon in moons)
                                 {
                                     if (moon.Size != "R")
