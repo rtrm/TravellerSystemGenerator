@@ -176,6 +176,9 @@ namespace TravellerSystemGenerator
             // Print console output footer
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
 
+            // Generate HTML output
+            GenerateHtmlOutput(starData, worldData);
+
             DebugLogger.Log("");
             DebugLogger.Log("NON-STELLAR OBJECTS SUMMARY:");
             DebugLogger.LogFormat("  Gas Giants: {0}", GasGiantCount);
@@ -3131,6 +3134,21 @@ namespace TravellerSystemGenerator
                             ringCount = moons.Count(m => m.Size == "R");
                             // If only R moons (rings), show "R", otherwise show count
                             sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
+
+                            // Add mass to notes with ⊕ symbol (Earth symbol), but after HZ if present
+                            int massInEarths = (int)(tp.Mass * 332946); // Convert solar masses to Earth masses
+                            if (massInEarths > 0)
+                            {
+                                if (!string.IsNullOrEmpty(notes))
+                                {
+                                    if (notes.StartsWith("HZ"))
+                                        notes = $"HZ, {massInEarths:N0}⊕" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                    else
+                                        notes = $"{massInEarths:N0}⊕, {notes}";
+                                }
+                                else
+                                    notes = $"{massInEarths:N0}⊕";
+                            }
                         }
                         else if (body is GasGiant gg)
                         {
@@ -3226,6 +3244,21 @@ namespace TravellerSystemGenerator
                                 ringCount = moons.Count(m => m.Size == "R");
                                 // If only R moons (rings), show "R", otherwise show count
                                 sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
+
+                                // Add mass to notes with ⊕ symbol (Earth symbol), but after HZ if present
+                                int massInEarths = (int)(tp.Mass * 332946); // Convert solar masses to Earth masses
+                                if (massInEarths > 0)
+                                {
+                                    if (!string.IsNullOrEmpty(notes))
+                                    {
+                                        if (notes.StartsWith("HZ"))
+                                            notes = $"HZ, {massInEarths:N0}⊕" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                        else
+                                            notes = $"{massInEarths:N0}⊕, {notes}";
+                                    }
+                                    else
+                                        notes = $"{massInEarths:N0}⊕";
+                                }
                             }
                             else if (body is GasGiant gg)
                             {
@@ -3399,6 +3432,221 @@ namespace TravellerSystemGenerator
             }
 
             Console.WriteLine();
+        }
+
+        private void GenerateHtmlOutput(List<StarDisplayData> starData, List<WorldDisplayData> worldData)
+        {
+            StringBuilder html = new StringBuilder();
+
+            // HTML header and CSS
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine($"    <title>Traveller Star System - Seed {Seed}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body {");
+            html.AppendLine("            font-family: 'Courier New', monospace;");
+            html.AppendLine("            margin: 20px;");
+            html.AppendLine("            background-color: #f5f5f5;");
+            html.AppendLine("        }");
+            html.AppendLine("        .container {");
+            html.AppendLine("            max-width: 1400px;");
+            html.AppendLine("            margin: 0 auto;");
+            html.AppendLine("            background-color: white;");
+            html.AppendLine("            padding: 20px;");
+            html.AppendLine("            border: 1px solid #ccc;");
+            html.AppendLine("        }");
+            html.AppendLine("        h1 {");
+            html.AppendLine("            text-align: center;");
+            html.AppendLine("            font-size: 18px;");
+            html.AppendLine("            margin-bottom: 20px;");
+            html.AppendLine("        }");
+            html.AppendLine("        h2 {");
+            html.AppendLine("            font-size: 14px;");
+            html.AppendLine("            font-weight: bold;");
+            html.AppendLine("            margin-top: 20px;");
+            html.AppendLine("            margin-bottom: 10px;");
+            html.AppendLine("        }");
+            html.AppendLine("        table {");
+            html.AppendLine("            width: 100%;");
+            html.AppendLine("            border-collapse: collapse;");
+            html.AppendLine("            margin-bottom: 20px;");
+            html.AppendLine("            font-size: 12px;");
+            html.AppendLine("        }");
+            html.AppendLine("        th, td {");
+            html.AppendLine("            border: 1px solid #000;");
+            html.AppendLine("            padding: 6px;");
+            html.AppendLine("            text-align: left;");
+            html.AppendLine("        }");
+            html.AppendLine("        th {");
+            html.AppendLine("            background-color: #e0e0e0;");
+            html.AppendLine("            font-weight: bold;");
+            html.AppendLine("        }");
+            html.AppendLine("        .numeric {");
+            html.AppendLine("            text-align: right;");
+            html.AppendLine("        }");
+            html.AppendLine("        .center {");
+            html.AppendLine("            text-align: center;");
+            html.AppendLine("        }");
+            html.AppendLine("        .stellar-table {");
+            html.AppendLine("            width: auto;");
+            html.AppendLine("        }");
+            html.AppendLine("        .stellar-table td {");
+            html.AppendLine("            padding: 4px 12px;");
+            html.AppendLine("        }");
+            html.AppendLine("        .notes, .comments {");
+            html.AppendLine("            margin-top: 10px;");
+            html.AppendLine("            font-size: 12px;");
+            html.AppendLine("        }");
+            html.AppendLine("        .italic {");
+            html.AppendLine("            font-style: italic;");
+            html.AppendLine("        }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+            html.AppendLine($"        <h1>TRAVELLER STAR SYSTEM GENERATION<br>Version {Version.VersionString}<br>Seed: {Seed}</h1>");
+
+            // STELLAR summary
+            int starCount = CountAllStars();
+            html.AppendLine("        <h2>Stellar</h2>");
+            html.AppendLine("        <table class=\"stellar-table\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Stellar</th>");
+            html.AppendLine("                <th>Gas Giants</th>");
+            html.AppendLine("                <th>Planetoid Belts</th>");
+            html.AppendLine("                <th>Terrestrials</th>");
+            html.AppendLine("                <th>Class III Status?</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td class=\"center\">{starCount}</td>");
+            html.AppendLine($"                <td class=\"center\">{GasGiantCount}</td>");
+            html.AppendLine($"                <td class=\"center\">{PlanetoidBeltCount}</td>");
+            html.AppendLine($"                <td class=\"center\">{TerrestrialPlanetCount}</td>");
+
+            // Determine Class III status (placeholder - always "Yes" for now)
+            string classIIIStatus = "Yes";
+            html.AppendLine($"                <td class=\"center\">{classIIIStatus}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // STARS table
+            if (starData.Count > 0)
+            {
+                html.AppendLine("        <h2>Stars</h2>");
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Component</th>");
+                html.AppendLine("                <th>Class</th>");
+                html.AppendLine("                <th>Mass</th>");
+                html.AppendLine("                <th>Temp</th>");
+                html.AppendLine("                <th>Diameter</th>");
+                html.AppendLine("                <th>Luminosity</th>");
+                html.AppendLine("                <th>Orbit#</th>");
+                html.AppendLine("                <th>AU</th>");
+                html.AppendLine("                <th>Ecc</th>");
+                html.AppendLine("                <th>Period</th>");
+                html.AppendLine("                <th>MAO</th>");
+                html.AppendLine("                <th>HZCO</th>");
+                html.AppendLine("            </tr>");
+
+                foreach (var star in starData)
+                {
+                    string component = star.Component;
+                    if (star.ParentDesignation != null)
+                        component += $" ({star.ParentDesignation})";
+
+                    string mass = star.Mass.ToString("F3");
+                    string temp = star.Temp > 0 ? star.Temp.ToString("N0") : "—";
+                    string diam = star.Diameter > 0 ? star.Diameter.ToString("F3") : "—";
+                    string lumin = star.Luminosity.ToString("F4");
+                    string orbit = star.Orbit.HasValue ? star.Orbit.Value.ToString("F2") : "—";
+                    string au = star.AU.HasValue ? star.AU.Value.ToString("F2") : "—";
+                    string ecc = star.Ecc.HasValue ? star.Ecc.Value.ToString("F2") : "—";
+                    string period = star.Period ?? "—";
+                    string mao = star.MAO > 0 ? star.MAO.ToString("F2") : "—";
+                    string hzco = star.HZCO > 0 ? star.HZCO.ToString("F2") : "—";
+
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td>{component}</td>");
+                    html.AppendLine($"                <td class=\"center\">{star.Class}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{mass}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{temp}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{diam}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{lumin}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{au}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
+                    html.AppendLine($"                <td>{period}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{mao}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{hzco}</td>");
+                    html.AppendLine("            </tr>");
+                }
+
+                html.AppendLine("        </table>");
+            }
+
+            // OBJECTS table
+            if (worldData.Count > 0)
+            {
+                html.AppendLine("        <h2>Objects</h2>");
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Primary</th>");
+                html.AppendLine("                <th>Object</th>");
+                html.AppendLine("                <th>Orbit#</th>");
+                html.AppendLine("                <th>AU</th>");
+                html.AppendLine("                <th>Ecc</th>");
+                html.AppendLine("                <th>Period</th>");
+                html.AppendLine("                <th>SAH/UWP</th>");
+                html.AppendLine("                <th>Sub</th>");
+                html.AppendLine("                <th>Notes</th>");
+                html.AppendLine("            </tr>");
+
+                var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
+                foreach (var group in groupedWorlds)
+                {
+                    foreach (var world in group.OrderBy(w => w.Orbit))
+                    {
+                        string orbit = world.Orbit.ToString("F2");
+                        string au = world.AU.ToString("F2");
+                        string ecc = world.Ecc.ToString("F3");
+
+                        html.AppendLine("            <tr>");
+                        html.AppendLine($"                <td>{world.Primary}</td>");
+                        html.AppendLine($"                <td>{world.Object}</td>");
+                        html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
+                        html.AppendLine($"                <td class=\"numeric\">{au}</td>");
+                        html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
+                        html.AppendLine($"                <td>{world.Period}</td>");
+                        html.AppendLine($"                <td class=\"center\">{world.Size}</td>");
+                        html.AppendLine($"                <td class=\"center\">{world.Sub}</td>");
+                        html.AppendLine($"                <td>{world.Notes}</td>");
+                        html.AppendLine("            </tr>");
+                    }
+                }
+
+                html.AppendLine("        </table>");
+            }
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            // Save HTML file
+            string filename = $"system_{Seed}.html";
+            try
+            {
+                System.IO.File.WriteAllText(filename, html.ToString());
+                Console.WriteLine($"\nHTML output saved to: {filename}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\nError saving HTML file: {ex.Message}");
+                DebugLogger.Log($"ERROR: Failed to save HTML file - {ex.Message}");
+            }
         }
 
         private int CountDStarsInSystem()
