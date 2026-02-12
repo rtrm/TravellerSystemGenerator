@@ -4292,7 +4292,7 @@ namespace TravellerSystemGenerator
                         {
                             WorldName = tp.Designation,
                             SAH_UWP = tp.Size + "??",
-                            PrimaryObject = primaryStar.Designation + ", orbiting (nothing)",
+                            PrimaryObject = primaryStar.Designation,
                             SystemAge = "", // Not yet implemented
                             OrbitNumber = bodyObj.orbit,
                             AU = bodyObj.orbitAU,
