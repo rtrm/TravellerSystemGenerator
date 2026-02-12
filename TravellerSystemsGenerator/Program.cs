@@ -10,14 +10,32 @@ namespace TravellerSystemGenerator
     {
         static void Main(string[] args)
         {
+            // Parse command line arguments
+            int? seed = null;
+            if (args.Length > 0)
+            {
+                if (int.TryParse(args[0], out int parsedSeed))
+                {
+                    seed = parsedSeed;
+                }
+                else
+                {
+                    Console.WriteLine($"Error: Invalid seed value '{args[0]}'. Seed must be an integer.");
+                    Console.WriteLine("Usage: TravellerSystemsGenerator [seed]");
+                    return;
+                }
+            }
+
             // Initialize debug logging
             DebugLogger.Initialize();
             DebugLogger.Log($"Starting {Version.GetFullVersionString()}");
             DebugLogger.Log($"Version: {Version.VersionString}");
+            if (seed.HasValue)
+                DebugLogger.Log($"Command line seed: {seed.Value}");
 
             try
             {
-                StarSystem starsystem = new StarSystem();
+                StarSystem starsystem = new StarSystem(seed);
                 DebugLogger.Log("System generation completed successfully");
             }
             catch (Exception ex)

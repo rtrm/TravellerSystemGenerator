@@ -46,11 +46,26 @@ namespace TravellerSystemGenerator
 
     internal class StarSystem
     {
-        
-        internal StarSystem()
+        private Random dice;
+        internal int Seed { get; private set; }
+
+        internal StarSystem(int? seed = null)
         {
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
-            Random dice = new Random();
+
+            // Generate or use provided seed
+            if (seed.HasValue)
+            {
+                Seed = seed.Value;
+                DebugLogger.Log($"Using provided seed: {Seed}");
+            }
+            else
+            {
+                Seed = Environment.TickCount;
+                DebugLogger.Log($"Generated seed: {Seed}");
+            }
+
+            dice = new Random(Seed);
             DebugLogger.Log("Random number generator initialized");
 
             DebugLogger.Log("");
@@ -139,6 +154,7 @@ namespace TravellerSystemGenerator
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
             Console.WriteLine("              TRAVELLER STAR SYSTEM GENERATION");
             Console.WriteLine($"                        Version {Version.VersionString}");
+            Console.WriteLine($"                          Seed: {Seed}");
             Console.WriteLine("═══════════════════════════════════════════════════════════════");
             Console.WriteLine();
 
@@ -4069,7 +4085,6 @@ namespace TravellerSystemGenerator
             DebugLogger.LogFormat("  Capped at worlds assigned to this star: {0}", maxInnerWorlds);
 
             // Randomly determine how many worlds to place in inner region (0 to maxInnerWorlds)
-            Random dice = new Random();
             int innerWorldCount = 0;
             if (maxInnerWorlds > 0)
             {
@@ -4099,7 +4114,6 @@ namespace TravellerSystemGenerator
             star.OuterZoneWorldCount = 0;
 
             // Roll 2D6
-            Random dice = new Random();
             int baseRoll = Starhelper.diceRoll(6, 2, dice);
             DebugLogger.LogDiceRoll(2, baseRoll, "System Baseline Number base roll");
 
@@ -4263,7 +4277,6 @@ namespace TravellerSystemGenerator
 
         private void CalculateBaselineOrbitScenario1(Star star, CelestrialObject starObj)
         {
-            Random dice = new Random();
             int diceRoll = Starhelper.diceRoll(6, 2, dice);
             DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
 
@@ -4295,7 +4308,6 @@ namespace TravellerSystemGenerator
 
         private void CalculateBaselineOrbitScenario2(Star star, CelestrialObject starObj)
         {
-            Random dice = new Random();
             int diceRoll = Starhelper.diceRoll(6, 2, dice);
             DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
 
@@ -4332,7 +4344,6 @@ namespace TravellerSystemGenerator
 
         private void CalculateBaselineOrbitScenario3(Star star, CelestrialObject starObj)
         {
-            Random dice = new Random();
             int diceRoll = Starhelper.diceRoll(6, 2, dice);
             DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
 
