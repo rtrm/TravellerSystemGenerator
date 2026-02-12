@@ -9,13 +9,13 @@ namespace TravellerSystemGenerator
     internal static class Version
     {
         // Version format: Major.Minor.Build
-        // Major: Always 0 (pre-release)
+        // Major: Increment for major releases
         // Minor: Increment with each feature addition
         // Build: Increment with each build
 
-        public const int Major = 0;
-        public const int Minor = 26;
-        public const int Build = 1;
+        public const int Major = 1;
+        public const int Minor = 0;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
