@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 0;
-        public const int Minor = 24;
+        public const int Minor = 25;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -49,5 +49,6 @@ namespace TravellerSystemGenerator
         // 0.22.x - Gas giant size determination (GS, GM, GL with diameter and mass)
         // 0.23.x - UWP formatting (SAH/UWP column, ?? suffix, ME suffix, improved HZ calculation)
         // 0.24.x - Random seed support (reproducible system generation via command line parameter)
+        // 0.25.x - Significant moons (moon count, sizing, Sub column, moon sizes in Notes)
     }
 }

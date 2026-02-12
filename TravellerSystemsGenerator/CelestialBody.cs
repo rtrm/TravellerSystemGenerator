@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace TravellerSystemGenerator
 {
@@ -13,6 +14,14 @@ namespace TravellerSystemGenerator
         }
     }
 
+    internal class Moon
+    {
+        public string Size { get; set; } = "";      // Size code: R, S, 0-9, A-F, GS, GM
+        public string Designation { get; set; } = ""; // a, b, c, etc.
+
+        public Moon() { }
+    }
+
     internal class GasGiant : CelestialBody
     {
         public float Mass { get; set; }           // Solar masses
@@ -22,6 +31,8 @@ namespace TravellerSystemGenerator
         public string Size { get; set; } = "";    // Size code: GS, GM, GL
         public int Diameter { get; set; }         // Diameter in Earth diameters (for ehex)
         public int GasGiantMass { get; set; }     // Mass in Earth masses
+        public List<Moon> Moons { get; set; } = new List<Moon>();
+        public int RingCount { get; set; } = 0;   // Number of planetary rings
 
         public GasGiant() : base(CelestialBodyType.GasGiant) { }
     }
@@ -33,6 +44,8 @@ namespace TravellerSystemGenerator
         public float? Inclination { get; set; }   // Degrees (for Eccentric anomalous)
         public string? TrojanPosition { get; set; } // "L4" or "L5"
         public string Size { get; set; } = "";    // Size code: 0, S, 1-9, A-F
+        public List<Moon> Moons { get; set; } = new List<Moon>();
+        public int RingCount { get; set; } = 0;   // Number of planetary rings
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }

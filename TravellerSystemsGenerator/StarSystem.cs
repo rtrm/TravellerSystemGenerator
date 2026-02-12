@@ -41,6 +41,7 @@ namespace TravellerSystemGenerator
         public float AU { get; set; }
         public float Ecc { get; set; }
         public string Period { get; set; } = "";
+        public string Sub { get; set; } = "";  // Significant moons count minus rings
         public string Notes { get; set; } = "";
     }
 
@@ -141,6 +142,9 @@ namespace TravellerSystemGenerator
 
             // Place worlds in orbits
             PlaceWorlds(dice);
+
+            // Generate moons for worlds
+            GenerateMoons(dice);
 
             // Assign world designations
             AssignWorldDesignations();
@@ -507,6 +511,317 @@ namespace TravellerSystemGenerator
 
             DebugLogger.Log("");
             DebugLogger.Log("World placement complete");
+        }
+
+        private void GenerateMoons(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Generating significant moons...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+
+            // Generate moons for primary star's worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is CelestialBody body)
+                    {
+                        if (body is TerrestrialPlanet || body is GasGiant)
+                        {
+                            GenerateWorldMoons(body, bodyObj, primaryStar, dice);
+                        }
+                    }
+                }
+            }
+
+            // Generate moons for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is CelestialBody body)
+                        {
+                            if (body is TerrestrialPlanet || body is GasGiant)
+                            {
+                                GenerateWorldMoons(body, bodyObj, companionStar, dice);
+                            }
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Moon generation complete");
+        }
+
+        private void GenerateWorldMoons(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)
+        {
+            int moonCount = DetermineMoonCount(body, bodyObj, parentStar, dice);
+
+            if (moonCount <= 0)
+            {
+                DebugLogger.LogFormat("  {0} has no significant moons", body.Designation);
+                return;
+            }
+
+            DebugLogger.LogFormat("  {0} has {1} significant moon(s)", body.Designation, moonCount);
+
+            // Generate moons
+            for (int i = 0; i < moonCount; i++)
+            {
+                Moon moon = new Moon();
+                moon.Designation = ((char)('a' + i)).ToString();
+                moon.Size = DetermineMoonSize(body, dice);
+
+                if (body is TerrestrialPlanet tp)
+                {
+                    tp.Moons.Add(moon);
+                }
+                else if (body is GasGiant gg)
+                {
+                    gg.Moons.Add(moon);
+                }
+
+                DebugLogger.LogFormat("    Moon {0}: Size {1}", moon.Designation, moon.Size);
+            }
+        }
+
+        private int DetermineMoonCount(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)
+        {
+            // Get world size for calculation
+            string worldSize = "";
+            if (body is TerrestrialPlanet tp)
+                worldSize = tp.Size;
+            else if (body is GasGiant gg)
+                worldSize = gg.Size;
+
+            if (string.IsNullOrEmpty(worldSize))
+                return 0;
+
+            int numDice = 0;
+            int modifier = 0;
+
+            // Determine base dice and modifier based on world size
+            if (body is TerrestrialPlanet)
+            {
+                int size = FromEhex(worldSize);
+                if (size >= 1 && size <= 2)
+                {
+                    numDice = 1;
+                    modifier = -5;
+                }
+                else if (size >= 3 && size <= 9)
+                {
+                    numDice = 2;
+                    modifier = -8;
+                }
+                else if (size >= 10) // A-F
+                {
+                    numDice = 2;
+                    modifier = -6;
+                }
+                else // 0, S, R
+                {
+                    return 0;
+                }
+            }
+            else if (body is GasGiant gg)
+            {
+                if (gg.Size == "GS")
+                {
+                    numDice = 3;
+                    modifier = -7;
+                }
+                else // GM or GL
+                {
+                    numDice = 4;
+                    modifier = -6;
+                }
+            }
+
+            // Apply modifiers for special conditions
+            int perDieModifier = 0;
+
+            // -1 per die if orbit < 1.0
+            if (bodyObj.orbit < 1.0f)
+                perDieModifier -= 1;
+
+            // -1 per die if planet is next to a companion star
+            if (IsNextToCompanionStar(bodyObj, parentStar))
+                perDieModifier -= 1;
+
+            // -1 per die if orbit within spread of unavailable range
+            if (IsWithinUnavailableSpread(bodyObj, parentStar))
+                perDieModifier -= 1;
+
+            // -1 per die if orbiting Close/Near/Far star and within spread of MAO
+            if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
+            {
+                if (IsWithinMAOSpread(bodyObj, parentStar))
+                    perDieModifier -= 1;
+            }
+
+            // Apply per-die modifier to total modifier
+            modifier += perDieModifier * numDice;
+
+            int roll = Starhelper.diceRoll(6, numDice, dice);
+            int moonCount = Math.Max(0, roll + modifier);
+
+            DebugLogger.LogFormat("  {0} moon count: {1}d6{2:+#;-#;+0} = {3} + {4} = {5}",
+                body.Designation, numDice, modifier, numDice, roll, modifier, moonCount);
+
+            return moonCount;
+        }
+
+        private bool IsNextToCompanionStar(CelestrialObject bodyObj, Star parentStar)
+        {
+            // Check if the world's orbit is adjacent to a companion star's orbit
+            // Get all companion stars
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star && obj.celestrialObject != parentStar)
+                .ToList();
+
+            foreach (var companionObj in companionStars)
+            {
+                // Check if this world's orbit is the next occupied orbit above or below the companion
+                float orbitDiff = Math.Abs(bodyObj.orbit - companionObj.orbit);
+                if (orbitDiff <= 1.0f) // Within one orbit step
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsWithinUnavailableSpread(CelestrialObject bodyObj, Star parentStar)
+        {
+            float spread = parentStar.SystemSpread;
+
+            foreach (var unavailableRange in parentStar.UnavailableOrbitRanges)
+            {
+                float rangeStart = unavailableRange.min;
+                float rangeEnd = unavailableRange.max;
+
+                // Check if world orbit is within spread distance of the unavailable range
+                if (bodyObj.orbit >= rangeStart - spread && bodyObj.orbit <= rangeEnd + spread)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsWithinMAOSpread(CelestrialObject bodyObj, Star parentStar)
+        {
+            float spread = parentStar.SystemSpread;
+            float mao = parentStar.MaxAllowableOrbit;
+
+            // Check if world orbit is within spread of MAO
+            return bodyObj.orbit >= mao - spread && bodyObj.orbit <= mao + spread;
+        }
+
+        private string DetermineMoonSize(CelestialBody parentBody, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 1, dice);
+
+            if (roll >= 1 && roll <= 3)
+            {
+                return "S";
+            }
+            else if (roll >= 4 && roll <= 5)
+            {
+                int sizeRoll = Starhelper.diceRoll(3, 1, dice) - 1;
+                return sizeRoll == 0 ? "R" : ToEhex(sizeRoll);
+            }
+            else // roll == 6
+            {
+                if (parentBody is TerrestrialPlanet tp)
+                {
+                    return DetermineTerrestrialMoonSize(tp, dice);
+                }
+                else if (parentBody is GasGiant gg)
+                {
+                    return DetermineGasGiantMoonSize(gg, dice);
+                }
+            }
+
+            return "S";
+        }
+
+        private string DetermineTerrestrialMoonSize(TerrestrialPlanet parent, Random dice)
+        {
+            int parentSize = FromEhex(parent.Size);
+
+            if (parentSize == 1)
+                return "S";
+
+            int moonSize = parentSize - 1 - Starhelper.diceRoll(6, 1, dice);
+
+            if (moonSize <= 0)
+                return "R";
+
+            // Check for special case where moon size is >= parent size - 2
+            if (moonSize >= parentSize - 2)
+            {
+                int specialRoll = Starhelper.diceRoll(6, 2, dice);
+                if (specialRoll == 2)
+                    moonSize = parentSize - 1;
+                else if (specialRoll == 12)
+                    moonSize = parentSize;
+            }
+
+            return ToEhex(moonSize);
+        }
+
+        private string DetermineGasGiantMoonSize(GasGiant parent, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 1, dice);
+
+            if (roll >= 1 && roll <= 3)
+            {
+                return ToEhex(Starhelper.diceRoll(6, 1, dice));
+            }
+            else if (roll >= 4 && roll <= 5)
+            {
+                return ToEhex(Starhelper.diceRoll(6, 2, dice) - 2);
+            }
+            else // roll == 6
+            {
+                int size = Starhelper.diceRoll(6, 2, dice) + 4;
+
+                if (size == 16)
+                {
+                    return "GS";
+                }
+                else if (parent.Size == "GL" && size >= 16)
+                {
+                    int gmRoll = Starhelper.diceRoll(6, 2, dice);
+                    if (gmRoll == 12)
+                        return "GM";
+                }
+
+                return ToEhex(size);
+            }
+        }
+
+        private int FromEhex(string ehex)
+        {
+            if (string.IsNullOrEmpty(ehex))
+                return 0;
+
+            if (int.TryParse(ehex, out int number))
+                return number;
+
+            char c = ehex.ToUpper()[0];
+            if (c >= 'A' && c <= 'Z')
+                return 10 + (c - 'A');
+
+            return 0;
         }
 
         private void PlaceEmptyOrbits(Random dice)
@@ -2804,13 +3119,24 @@ namespace TravellerSystemGenerator
 
                         // Determine size based on body type
                         string size = "";
+                        string sub = "";
+                        int ringCount = 0;
+                        List<Moon> moons = new List<Moon>();
+
                         if (body is TerrestrialPlanet tp)
                         {
                             size = tp.Size + "??";
+                            ringCount = tp.RingCount;
+                            moons = tp.Moons;
+                            sub = (moons.Count - ringCount).ToString();
                         }
                         else if (body is GasGiant gg)
                         {
                             size = $"{gg.Size}{ToEhex(gg.Diameter)}";
+                            ringCount = gg.RingCount;
+                            moons = gg.Moons;
+                            sub = (moons.Count - ringCount).ToString();
+
                             // Add mass to notes with ME suffix, but after HZ if present
                             if (!string.IsNullOrEmpty(notes))
                             {
@@ -2822,6 +3148,29 @@ namespace TravellerSystemGenerator
                             else
                                 notes = $"{gg.GasGiantMass}ME";
                         }
+                        else if (body is PlanetoidBelt)
+                        {
+                            sub = "?";
+                        }
+
+                        // Add ring count and moon sizes to notes
+                        if (ringCount > 0 || moons.Count > 0)
+                        {
+                            List<string> moonInfo = new List<string>();
+                            if (ringCount > 0)
+                                moonInfo.Add($"R0{ringCount}");
+
+                            foreach (var moon in moons)
+                            {
+                                moonInfo.Add(moon.Size);
+                            }
+
+                            string moonString = string.Join(", ", moonInfo);
+                            if (!string.IsNullOrEmpty(notes))
+                                notes = $"{notes}, {moonString}";
+                            else
+                                notes = moonString;
+                        }
 
                         worldData.Add(new WorldDisplayData
                         {
@@ -2832,6 +3181,7 @@ namespace TravellerSystemGenerator
                             AU = bodyObj.orbitAU,
                             Ecc = bodyObj.orbitEccentricity,
                             Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                            Sub = sub,
                             Notes = notes
                         });
                     }
@@ -2852,13 +3202,24 @@ namespace TravellerSystemGenerator
 
                             // Determine size based on body type
                             string size = "";
+                            string sub = "";
+                            int ringCount = 0;
+                            List<Moon> moons = new List<Moon>();
+
                             if (body is TerrestrialPlanet tp)
                             {
                                 size = tp.Size + "??";
+                                ringCount = tp.RingCount;
+                                moons = tp.Moons;
+                                sub = (moons.Count - ringCount).ToString();
                             }
                             else if (body is GasGiant gg)
                             {
                                 size = $"{gg.Size}{ToEhex(gg.Diameter)}";
+                                ringCount = gg.RingCount;
+                                moons = gg.Moons;
+                                sub = (moons.Count - ringCount).ToString();
+
                                 // Add mass to notes with ME suffix, but after HZ if present
                                 if (!string.IsNullOrEmpty(notes))
                                 {
@@ -2870,6 +3231,29 @@ namespace TravellerSystemGenerator
                                 else
                                     notes = $"{gg.GasGiantMass}ME";
                             }
+                            else if (body is PlanetoidBelt)
+                            {
+                                sub = "?";
+                            }
+
+                            // Add ring count and moon sizes to notes
+                            if (ringCount > 0 || moons.Count > 0)
+                            {
+                                List<string> moonInfo = new List<string>();
+                                if (ringCount > 0)
+                                    moonInfo.Add($"R0{ringCount}");
+
+                                foreach (var moon in moons)
+                                {
+                                    moonInfo.Add(moon.Size);
+                                }
+
+                                string moonString = string.Join(", ", moonInfo);
+                                if (!string.IsNullOrEmpty(notes))
+                                    notes = $"{notes}, {moonString}";
+                                else
+                                    notes = moonString;
+                            }
 
                             worldData.Add(new WorldDisplayData
                             {
@@ -2880,6 +3264,7 @@ namespace TravellerSystemGenerator
                                 AU = bodyObj.orbitAU,
                                 Ecc = bodyObj.orbitEccentricity,
                                 Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Sub = sub,
                                 Notes = notes
                             });
                         }
@@ -2969,10 +3354,11 @@ namespace TravellerSystemGenerator
             int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
             int eccWidth = Math.Max("Ecc".Length, worldData.Max(w => w.Ecc.ToString("F3").Length));
             int periodWidth = Math.Max("Period".Length, worldData.Max(w => w.Period.Length));
+            int subWidth = Math.Max("Sub".Length, worldData.Any(w => w.Sub.Length > 0) ? worldData.Max(w => w.Sub.Length) : 1);
             int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
 
-            // Print header - moved Size after Period, changed heading to SAH/UWP, added extra spacing
-            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Notes".PadRight(notesWidth)}");
+            // Print header - moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
+            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
 
             // Group by primary and print
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
@@ -2984,7 +3370,7 @@ namespace TravellerSystemGenerator
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
-                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Notes}");
+                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
                 }
             }
 
