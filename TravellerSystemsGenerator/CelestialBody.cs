@@ -64,6 +64,17 @@ namespace TravellerSystemGenerator
 
     internal class PlanetoidBelt : CelestialBody
     {
+        public float BeltSpan { get; set; } = 0;         // Orbital width in AU
+        public int MType { get; set; } = 0;              // Metallic percentage (0-100)
+        public int SType { get; set; } = 0;              // Silicate percentage (0-100)
+        public int CType { get; set; } = 0;              // Carbonaceous percentage (0-100)
+        public int Other { get; set; } = 0;              // Other composition percentage (0-100)
+        public int Bulk { get; set; } = 0;               // Belt mass/density rating
+        public int ResourceRating { get; set; } = 0;     // Mining value rating
+        public int Size1Bodies { get; set; } = 0;        // Number of size 1 asteroids
+        public int SizeSBodies { get; set; } = 0;        // Number of size S asteroids
+        public string BeltProfile { get; set; } = "";    // Profile string for display
+
         public PlanetoidBelt() : base(CelestialBodyType.PlanetoidBelt) { }
     }
 

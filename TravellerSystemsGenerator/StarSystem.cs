@@ -1507,11 +1507,360 @@ namespace TravellerSystemGenerator
                 // Calculate orbital period
                 CalculateOrbitalPeriod(cobj);
 
+                // Calculate belt characteristics
+                CalculateBeltCharacteristics(belt, cobj, parentStar, dice);
+
                 DebugLogger.LogFormat("  Placed Planetoid Belt at orbit {0:F3} (e:{1:F3}, P:{2})",
                     cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+                DebugLogger.LogFormat("    Belt Profile: {0}", belt.BeltProfile);
             }
 
             DebugLogger.Log("  Planetoid Belt placement complete");
+        }
+
+        private bool HasAdjacentOrbit(Star parentStar, float beltOrbit)
+        {
+            // Find the CelestrialObject that contains this star's orbits
+            List<CelestrialObject> orbits = new List<CelestrialObject>();
+
+            // Check if this is the primary star
+            if (primaryObject.celestrialObject is Star primary && primary == parentStar)
+            {
+                orbits = primaryObject.celestrialObjectOrbits;
+            }
+            else
+            {
+                // Search for companion star
+                foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (companionObj.celestrialObject is Star companion && companion == parentStar)
+                    {
+                        orbits = companionObj.celestrialObjectOrbits;
+                        break;
+                    }
+                }
+            }
+
+            // Check if any orbit exists within ±1 of beltOrbit
+            foreach (var obj in orbits)
+            {
+                if (obj.celestrialObject == null) continue;
+
+                float orbitDiff = Math.Abs(obj.orbit - beltOrbit);
+                if (orbitDiff > 0.01f && orbitDiff <= 1.0f) // Not the same orbit, but within 1
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsOutermostOrbit(Star parentStar, float beltOrbit)
+        {
+            // Find the CelestrialObject that contains this star's orbits
+            List<CelestrialObject> orbits = new List<CelestrialObject>();
+
+            // Check if this is the primary star
+            if (primaryObject.celestrialObject is Star primary && primary == parentStar)
+            {
+                orbits = primaryObject.celestrialObjectOrbits;
+            }
+            else
+            {
+                // Search for companion star
+                foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (companionObj.celestrialObject is Star companion && companion == parentStar)
+                    {
+                        orbits = companionObj.celestrialObjectOrbits;
+                        break;
+                    }
+                }
+            }
+
+            // Find maximum orbit number
+            float maxOrbit = 0;
+            foreach (var obj in orbits)
+            {
+                if (obj.celestrialObject != null && obj.orbit > maxOrbit)
+                {
+                    maxOrbit = obj.orbit;
+                }
+            }
+
+            return Math.Abs(beltOrbit - maxOrbit) < 0.01f; // Belt is at outermost orbit
+        }
+
+        private float CalculateBeltSpan(PlanetoidBelt belt, float beltOrbit, Star parentStar, Random dice)
+        {
+            // Calculate base span: (parentStar.SystemSpread × 2d6) / 10
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float baseSpan = (parentStar.SystemSpread * roll) / 10.0f;
+
+            DebugLogger.Log($"    Belt Span base: SystemSpread={parentStar.SystemSpread:F2}, 2d6={roll}, base={(parentStar.SystemSpread * roll) / 10.0f:F2}");
+
+            // Check adjacent orbits (+1 if next higher or lower exists)
+            if (HasAdjacentOrbit(parentStar, beltOrbit))
+            {
+                baseSpan += 1.0f;
+                DebugLogger.Log($"    Belt Span: +1 for adjacent orbit");
+            }
+
+            // Check outermost orbit (+3 if belt is outermost)
+            if (IsOutermostOrbit(parentStar, beltOrbit))
+            {
+                baseSpan += 3.0f;
+                DebugLogger.Log($"    Belt Span: +3 for outermost orbit");
+            }
+
+            DebugLogger.Log($"    Belt Span final: {baseSpan:F2} AU");
+            return baseSpan;
+        }
+
+        private void CalculateBeltComposition(PlanetoidBelt belt, float beltOrbit, float parentStarHZCO, Random dice)
+        {
+            // Roll 2d6 with HZCO modifiers
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+            int modifier = 0;
+
+            if (beltOrbit < parentStarHZCO)
+            {
+                modifier = -4;
+            }
+            else if (beltOrbit > parentStarHZCO + 2)
+            {
+                modifier = 4;
+            }
+
+            int result = baseRoll + modifier;
+
+            DebugLogger.Log($"    Composition: 2d6={baseRoll}, modifier={modifier}, result={result}");
+
+            // Lookup m-type, s-type, c-type from table
+            int mType = 0, sType = 0, cType = 0;
+
+            if (result <= 0)
+            {
+                mType = 10 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = Starhelper.diceRoll(6, 1, dice) * 5;
+                cType = 0;
+            }
+            else if (result == 1)
+            {
+                mType = 50 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(3, 1, dice);
+            }
+            else if (result == 2)
+            {
+                mType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 15 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (result == 3)
+            {
+                mType = 25 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 30 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (result == 4)
+            {
+                mType = 15 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 35 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 5 + Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (result == 5)
+            {
+                mType = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 5 + (Starhelper.diceRoll(6, 1, dice) * 2);
+            }
+            else if (result == 6)
+            {
+                mType = Starhelper.diceRoll(6, 1, dice) * 5;
+                sType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(6, 1, dice) * 5;
+            }
+            else if (result == 7)
+            {
+                mType = 5 + (Starhelper.diceRoll(6, 1, dice) * 2);
+                sType = 35 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 10 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 8)
+            {
+                mType = 5 + Starhelper.diceRoll(6, 1, dice);
+                sType = 30 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 20 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 9)
+            {
+                mType = Starhelper.diceRoll(6, 1, dice);
+                sType = 15 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 10)
+            {
+                mType = Starhelper.diceRoll(6, 1, dice);
+                sType = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 50 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 11)
+            {
+                mType = Starhelper.diceRoll(3, 1, dice);
+                sType = 5 + (Starhelper.diceRoll(6, 1, dice) * 2);
+                cType = 60 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else // >= 12
+            {
+                mType = 0;
+                sType = Starhelper.diceRoll(6, 1, dice);
+                cType = 70 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+
+            // Normalize to 100%
+            int total = mType + sType + cType;
+            int other = 0;
+
+            if (total > 100)
+            {
+                // Reduce m-type and s-type proportionally until total = 100
+                int excess = total - 100;
+                int mReduction = Math.Min(mType, excess / 2);
+                int sReduction = Math.Min(sType, excess - mReduction);
+                mType -= mReduction;
+                sType -= sReduction;
+                total = mType + sType + cType;
+            }
+
+            if (total < 100)
+            {
+                other = 100 - total;
+            }
+
+            belt.MType = mType;
+            belt.SType = sType;
+            belt.CType = cType;
+            belt.Other = other;
+
+            DebugLogger.Log($"    Composition: M={mType}%, S={sType}%, C={cType}%, Other={other}%");
+        }
+
+        private int CalculateBeltBulk(int cType, float systemAge, Random dice)
+        {
+            // Roll 2d6
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+
+            // Apply age modifier (always negative)
+            int ageModifier = -(int)Math.Abs(systemAge / 2.0f);
+
+            // Apply c-type modifier
+            int cTypeModifier = cType / 10;
+
+            int bulk = baseRoll + ageModifier + cTypeModifier;
+
+            DebugLogger.Log($"    Bulk: 2d6={baseRoll}, age mod={ageModifier}, c-type mod={cTypeModifier}, total={bulk}");
+
+            return bulk;
+        }
+
+        private int CalculateBeltResourceRating(int bulk, int mType, int cType, Random dice)
+        {
+            // Roll 2d6 - 7
+            int baseRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+
+            // Add bulk
+            int rating = baseRoll + bulk;
+
+            // Add m-type / 10
+            rating += mType / 10;
+
+            // Add c-type / 10
+            rating += cType / 10;
+
+            DebugLogger.Log($"    Resource Rating: 2d6-7={baseRoll}, +bulk={bulk}, +m/10={mType / 10}, +c/10={cType / 10}, total={rating}");
+
+            return rating;
+        }
+
+        private void CalculateSignificantBodies(PlanetoidBelt belt, float beltOrbit, float beltSpan,
+                                                float parentStarHZCO, int bulk, Random dice)
+        {
+            // Calculate Size 1 Bodies
+            int size1 = Starhelper.diceRoll(6, 2, dice) - 12 + bulk;
+
+            // Apply modifiers
+            if (beltOrbit > parentStarHZCO + 3)
+            {
+                size1 += 2;
+            }
+
+            if (beltSpan < 0.1f)
+            {
+                size1 -= 4;
+            }
+
+            // Treat negative as 0
+            size1 = Math.Max(0, size1);
+
+            // Calculate Size S Bodies
+            int dm = 0;
+
+            if (beltOrbit >= parentStarHZCO + 2 && beltOrbit <= parentStarHZCO + 3)
+            {
+                dm += 1;
+            }
+            else if (beltOrbit > parentStarHZCO + 3)
+            {
+                dm += 3;
+            }
+
+            if (beltSpan > 1.0f)
+            {
+                dm += 1;
+            }
+
+            int sizeS = Starhelper.diceRoll(6, 2, dice) - 10 + ((dm + 1) * (bulk + 1));
+
+            // Treat negative as 0
+            sizeS = Math.Max(0, sizeS);
+
+            belt.Size1Bodies = size1;
+            belt.SizeSBodies = sizeS;
+
+            DebugLogger.Log($"    Significant Bodies: Size 1={size1}, Size S={sizeS}");
+        }
+
+        private string GenerateBeltProfile(PlanetoidBelt belt)
+        {
+            // Format: S-Cm.Cs.Cc.Co-B-R-#-s
+            return $"{belt.BeltSpan:F1}-{belt.MType:D2}.{belt.SType:D2}.{belt.CType:D2}.{belt.Other:D2}-" +
+                   $"{belt.Bulk}-{belt.ResourceRating}-{belt.Size1Bodies}-{belt.SizeSBodies}";
+        }
+
+        private void CalculateBeltCharacteristics(PlanetoidBelt belt, CelestrialObject beltObj,
+                                                  Star parentStar, Random dice)
+        {
+            DebugLogger.Log($"  Calculating belt characteristics for orbit {beltObj.orbit:F3}...");
+
+            // 1. Calculate Belt Span
+            belt.BeltSpan = CalculateBeltSpan(belt, beltObj.orbit, parentStar, dice);
+
+            // 2. Calculate Belt Composition
+            CalculateBeltComposition(belt, beltObj.orbit, parentStar.HZCO, dice);
+
+            // 3. Calculate Belt Bulk
+            belt.Bulk = CalculateBeltBulk(belt.CType, parentStar.age, dice);
+
+            // 4. Calculate Belt Resource Rating
+            belt.ResourceRating = CalculateBeltResourceRating(belt.Bulk, belt.MType, belt.CType, dice);
+
+            // 5. Calculate Significant Bodies
+            CalculateSignificantBodies(belt, beltObj.orbit, belt.BeltSpan, parentStar.HZCO, belt.Bulk, dice);
+
+            // 6. Generate Belt Profile
+            belt.BeltProfile = GenerateBeltProfile(belt);
         }
 
         private void HandleTrojanOrbits(Random dice)
@@ -2913,6 +3262,12 @@ namespace TravellerSystemGenerator
                     if (!notes.Contains("HZ"))
                         notes.Insert(0, "HZ");
                 }
+            }
+
+            // Add belt profile to notes
+            if (body is PlanetoidBelt planetoidBelt && !string.IsNullOrEmpty(planetoidBelt.BeltProfile))
+            {
+                notes.Add(planetoidBelt.BeltProfile);
             }
 
             return string.Join(", ", notes);
