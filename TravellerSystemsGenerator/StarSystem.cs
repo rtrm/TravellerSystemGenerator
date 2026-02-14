@@ -5846,6 +5846,8 @@ namespace TravellerSystemGenerator
                                 Gravity = tp.Gravity,
                                 Mass = tp.WorldMass,
                                 EscapeVelocity = tp.EscapeVelocity,
+                                Atmosphere = tp.Atmosphere,
+                                AtmosphereComposition = GetAtmosphereComposition(tp.Atmosphere),
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
