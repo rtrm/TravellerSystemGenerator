@@ -3855,13 +3855,7 @@ namespace TravellerSystemGenerator
             float hours = moon.OrbitalPeriod;
             string period;
 
-            if (hours < 1.0f)
-            {
-                // Less than 1 hour - show in minutes
-                float minutes = hours * 60;
-                period = $"{minutes:F1}m";
-            }
-            else if (hours < 24.0f)
+            if (hours < 24.0f)
             {
                 // Less than 1 day - show in hours
                 period = $"{hours:F2}h";
@@ -4959,18 +4953,53 @@ namespace TravellerSystemGenerator
             html.AppendLine("        </table>");
 
             // Orbit Information
+            // Detect if this is a moon (WorldName contains space + lowercase letter like "A IX a")
+            bool isMoon = data.WorldName.Contains(" ") &&
+                          data.WorldName.Length > 0 &&
+                          char.IsLower(data.WorldName[data.WorldName.Length - 1]);
+
             html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>ORBIT</th>");
             html.AppendLine("                <th>O#</th>");
-            html.AppendLine("                <th colspan=\"2\">AU</th>");
+
+            // For moons, show "Distance" instead of "AU"
+            if (isMoon)
+            {
+                html.AppendLine("                <th colspan=\"2\">Distance</th>");
+            }
+            else
+            {
+                html.AppendLine("                <th colspan=\"2\">AU</th>");
+            }
+
             html.AppendLine("                <th>Eccentricity</th>");
             html.AppendLine("                <th colspan=\"2\">Period</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td><strong>Notes:</strong></td>");
             html.AppendLine($"                <td>{data.OrbitNumber:F2}</td>");
-            html.AppendLine($"                <td colspan=\"2\">{data.AU:F2}</td>");
+
+            // For moons, show distance in km or Mkm; for planets, show AU
+            if (isMoon)
+            {
+                // data.AU contains km value for moons
+                float distanceKm = data.AU;
+                if (distanceKm >= 1000000)
+                {
+                    float distanceMkm = distanceKm / 1000000.0f;
+                    html.AppendLine($"                <td colspan=\"2\">{distanceMkm:F2} Mkm</td>");
+                }
+                else
+                {
+                    html.AppendLine($"                <td colspan=\"2\">{distanceKm:F0} km</td>");
+                }
+            }
+            else
+            {
+                html.AppendLine($"                <td colspan=\"2\">{data.AU:F2}</td>");
+            }
+
             html.AppendLine($"                <td>{data.Eccentricity:F3}</td>");
             html.AppendLine($"                <td colspan=\"2\">{data.Period}</td>");
             html.AppendLine("            </tr>");
@@ -5289,7 +5318,7 @@ namespace TravellerSystemGenerator
                                 PrimaryObject = $"{tp.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
-                                AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
                                 Eccentricity = moon.Eccentricity,
                                 Period = FormatMoonOrbitalPeriod(moon),
                                 Diameter = moon.Diameter,
@@ -5316,7 +5345,7 @@ namespace TravellerSystemGenerator
                                 PrimaryObject = $"{gg.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
-                                AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
                                 Eccentricity = moon.Eccentricity,
                                 Period = FormatMoonOrbitalPeriod(moon),
                                 Diameter = moon.Diameter,
@@ -5374,7 +5403,7 @@ namespace TravellerSystemGenerator
                                     PrimaryObject = $"{tp.Designation}",
                                     SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
-                                    AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                    AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
                                     Eccentricity = moon.Eccentricity,
                                     Period = FormatMoonOrbitalPeriod(moon),
                                     Diameter = moon.Diameter,
@@ -5401,7 +5430,7 @@ namespace TravellerSystemGenerator
                                     PrimaryObject = $"{gg.Designation}",
                                     SystemAge = "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
-                                    AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                    AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
                                     Eccentricity = moon.Eccentricity,
                                     Period = FormatMoonOrbitalPeriod(moon),
                                     Diameter = moon.Diameter,
