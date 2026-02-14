@@ -620,6 +620,324 @@ namespace TravellerSystemGenerator
 
                 DebugLogger.LogFormat("    Moon {0}: Size {1}, Diameter {2}km", moon.Designation, moon.Size, moon.Diameter);
             }
+
+            // Calculate Hill Sphere for the world
+            CalculateWorldHillSphere(body, bodyObj, parentStar, dice);
+
+            // Apply moon removal logic
+            bool moonsRemoved = ApplyMoonRemovalLogic(body);
+
+            if (!moonsRemoved)
+            {
+                // Get the world's moon list
+                List<Moon> moons = new List<Moon>();
+                if (body is TerrestrialPlanet tp2)
+                    moons = tp2.Moons;
+                else if (body is GasGiant gg2)
+                    moons = gg2.Moons;
+
+                if (moons.Count > 0)
+                {
+                    // Assign orbits to moons
+                    AssignMoonOrbits(body, dice);
+
+                    // Calculate orbital periods
+                    CalculateMoonOrbitalPeriods(body);
+                }
+            }
+        }
+
+        private float GetWorldDiameterInKm(CelestialBody world)
+        {
+            if (world is TerrestrialPlanet tp)
+            {
+                return tp.Diameter; // Already in km
+            }
+            else if (world is GasGiant gg)
+            {
+                return gg.Diameter * 12742.0f; // Convert Earth diameters to km
+            }
+            return 0;
+        }
+
+        private float GetWorldMassInEarthMasses(CelestialBody world)
+        {
+            if (world is TerrestrialPlanet tp)
+            {
+                return tp.WorldMass; // Already in Earth masses
+            }
+            else if (world is GasGiant gg)
+            {
+                return gg.GasGiantMass; // Already in Earth masses
+            }
+            return 0;
+        }
+
+        private void CalculateWorldHillSphere(CelestialBody world, CelestrialObject worldObj, Star parentStar, Random dice)
+        {
+            // Get world properties
+            float worldMassEarth = GetWorldMassInEarthMasses(world);
+            float worldDiameterKm = GetWorldDiameterInKm(world);
+            float orbitAU = worldObj.orbitAU;
+            float eccentricity = worldObj.orbitEccentricity;
+
+            // Get total mass of stars the world orbits (in solar masses)
+            float totalStarMass = CalculateTotalOrbitedMassForPlanet(worldObj);
+
+            // Calculate Hill Sphere (in AU)
+            // Formula: Hill Sphere = Orbit AU * (1 - eccentricity) * sqrt((World Mass * 0.000003) / (3 * Total Star Mass))
+            float hillSphere = orbitAU * (1.0f - eccentricity) *
+                               (float)Math.Sqrt((worldMassEarth * 0.000003) / (3.0 * totalStarMass));
+
+            // Calculate Hill Sphere in Planetary Diameters
+            // Formula: Hill Sphere PD = Hill Sphere * (149597870.9 / World Diameter)
+            float hillSpherePD = hillSphere * (149597870.9f / worldDiameterKm);
+
+            // Calculate Hill Sphere Moon Limit
+            float hillSphereMoonLimit = hillSpherePD / 2.0f;
+
+            // Calculate Roche Limit (in planetary diameters)
+            float rocheLimit = 1.537f;
+
+            // Set properties on world
+            if (world is TerrestrialPlanet tp)
+            {
+                tp.HillSphere = hillSphere;
+                tp.HillSpherePD = hillSpherePD;
+                tp.HillSphereMoonLimit = hillSphereMoonLimit;
+                tp.RocheLimit = rocheLimit;
+            }
+            else if (world is GasGiant gg)
+            {
+                gg.HillSphere = hillSphere;
+                gg.HillSpherePD = hillSpherePD;
+                gg.HillSphereMoonLimit = hillSphereMoonLimit;
+                gg.RocheLimit = rocheLimit;
+            }
+
+            DebugLogger.LogFormat("  Hill Sphere: {0:F4} AU, {1:F2} PD, Moon Limit: {2:F2}, Roche: {3:F2}",
+                hillSphere, hillSpherePD, hillSphereMoonLimit, rocheLimit);
+        }
+
+        private bool ApplyMoonRemovalLogic(CelestialBody world)
+        {
+            float hillSphereMoonLimit = 0;
+            float rocheLimit = 0;
+
+            if (world is TerrestrialPlanet tp)
+            {
+                hillSphereMoonLimit = tp.HillSphereMoonLimit;
+                rocheLimit = tp.RocheLimit;
+            }
+            else if (world is GasGiant gg)
+            {
+                hillSphereMoonLimit = gg.HillSphereMoonLimit;
+                rocheLimit = gg.RocheLimit;
+            }
+
+            if (hillSphereMoonLimit < rocheLimit)
+            {
+                if (hillSphereMoonLimit < 0.5f) // Hill Sphere Moon Limit < (World Diameter * 0.5), where diameter = 1.0 in world units
+                {
+                    // Remove all moons and rings
+                    if (world is TerrestrialPlanet tpRemove)
+                    {
+                        tpRemove.Moons.Clear();
+                        tpRemove.RingCount = 0;
+                    }
+                    else if (world is GasGiant ggRemove)
+                    {
+                        ggRemove.Moons.Clear();
+                        ggRemove.RingCount = 0;
+                    }
+                    DebugLogger.Log("  Removed all moons and rings (Hill Sphere Moon Limit < 0.5)");
+                    return true;
+                }
+                else
+                {
+                    // Add one ring, remove all moons
+                    if (world is TerrestrialPlanet tpRing)
+                    {
+                        tpRing.Moons.Clear();
+                        tpRing.RingCount = 1;
+                    }
+                    else if (world is GasGiant ggRing)
+                    {
+                        ggRing.Moons.Clear();
+                        ggRing.RingCount = 1;
+                    }
+                    DebugLogger.Log("  Removed all moons, added 1 ring (Hill Sphere Moon Limit < Roche Limit)");
+                    return true;
+                }
+            }
+
+            return false; // Moons not removed
+        }
+
+        private float CalculateMOR(float hillSphereMoonLimit)
+        {
+            float mor = (float)Math.Floor(hillSphereMoonLimit) - 2.0f;
+            if (mor > 200.0f)
+                mor = 200.0f;
+            return mor;
+        }
+
+        private float DetermineMoonOrbit(float mor, Random dice)
+        {
+            // Roll 1d6 (+1 if MOR < 60)
+            int roll = Starhelper.diceRoll(6, 1, dice);
+            if (mor < 60.0f)
+                roll += 1;
+
+            float orbit = 0;
+
+            if (roll >= 1 && roll <= 3)
+            {
+                // (2d6 - 2) * MOR / 60 + 2
+                int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                orbit = diceRoll * mor / 60.0f + 2.0f;
+            }
+            else if (roll >= 4 && roll <= 5)
+            {
+                // (2d6 - 2) * MOR / 30 + MOR / 6 + 3
+                int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                orbit = diceRoll * mor / 30.0f + mor / 6.0f + 3.0f;
+            }
+            else // roll >= 6
+            {
+                // (2d6 - 2) * MOR / 20 + MOR / 2 + 4
+                int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                orbit = diceRoll * mor / 20.0f + mor / 2.0f + 4.0f;
+            }
+
+            return orbit;
+        }
+
+        private void AssignMoonOrbits(CelestialBody world, Random dice)
+        {
+            List<Moon> moons = new List<Moon>();
+            if (world is TerrestrialPlanet tp)
+                moons = tp.Moons;
+            else if (world is GasGiant gg)
+                moons = gg.Moons;
+
+            if (moons.Count == 0)
+                return;
+
+            // Get Hill Sphere Moon Limit
+            float hillSphereMoonLimit = 0;
+            if (world is TerrestrialPlanet tpLimit)
+                hillSphereMoonLimit = tpLimit.HillSphereMoonLimit;
+            else if (world is GasGiant ggLimit)
+                hillSphereMoonLimit = ggLimit.HillSphereMoonLimit;
+
+            // Calculate MOR
+            float mor = CalculateMOR(hillSphereMoonLimit);
+
+            if (mor <= 0)
+            {
+                DebugLogger.Log("  MOR <= 0, cannot assign moon orbits");
+                return;
+            }
+
+            DebugLogger.LogFormat("  MOR = {0:F2}", mor);
+
+            // Assign orbits to each moon
+            foreach (var moon in moons)
+            {
+                moon.Orbit = DetermineMoonOrbit(mor, dice);
+                DebugLogger.LogFormat("    Moon {0}: Orbit {1:F2} diameters", moon.Designation, moon.Orbit);
+            }
+
+            // Resolve orbit conflicts
+            ResolveOrbitConflicts(moons, dice);
+
+            // Sort moons by orbit (closest to furthest)
+            moons.Sort((a, b) => a.Orbit.CompareTo(b.Orbit));
+
+            // Reassign designations based on orbital order
+            for (int i = 0; i < moons.Count; i++)
+            {
+                moons[i].Designation = ((char)('a' + i)).ToString();
+            }
+
+            DebugLogger.Log("  Moons sorted by orbital distance");
+        }
+
+        private void ResolveOrbitConflicts(List<Moon> moons, Random dice)
+        {
+            if (moons.Count <= 1)
+                return;
+
+            bool hasConflicts = true;
+            int maxIterations = 100; // Prevent infinite loops
+            int iteration = 0;
+
+            while (hasConflicts && iteration < maxIterations)
+            {
+                hasConflicts = false;
+                iteration++;
+
+                for (int i = 0; i < moons.Count; i++)
+                {
+                    for (int j = i + 1; j < moons.Count; j++)
+                    {
+                        // Check if orbits are too close (within 0.1 diameter units)
+                        if (Math.Abs(moons[i].Orbit - moons[j].Orbit) < 0.1f)
+                        {
+                            // Randomly adjust one moon's orbit by +0.5 to +1.5
+                            float adjustment = 0.5f + (float)(dice.NextDouble() * 1.0);
+                            moons[j].Orbit += adjustment;
+                            hasConflicts = true;
+
+                            DebugLogger.LogFormat("    Resolved orbit conflict: Moon {0} adjusted to {1:F2}",
+                                moons[j].Designation, moons[j].Orbit);
+                        }
+                    }
+                }
+            }
+
+            if (iteration >= maxIterations)
+            {
+                DebugLogger.Log("  Warning: Max iterations reached in orbit conflict resolution");
+            }
+        }
+
+        private void CalculateMoonOrbitalPeriods(CelestialBody world)
+        {
+            List<Moon> moons = new List<Moon>();
+            float worldMass = GetWorldMassInEarthMasses(world);
+
+            if (world is TerrestrialPlanet tp)
+            {
+                moons = tp.Moons;
+                // For terrestrial planets: 0.176927 * sqrt(((Moon Orbit * World Size)²) / World Mass)
+                // World Size = Size property converted to numeric value
+                int worldSize = GetSizeValue(tp.Size);
+
+                foreach (var moon in moons)
+                {
+                    float orbitalPeriod = 0.176927f * (float)Math.Sqrt(
+                        Math.Pow(moon.Orbit * worldSize, 2) / worldMass);
+                    moon.OrbitalPeriod = orbitalPeriod;
+
+                    DebugLogger.LogFormat("    Moon {0}: Orbital Period {1:F2} hours", moon.Designation, orbitalPeriod);
+                }
+            }
+            else if (world is GasGiant gg)
+            {
+                moons = gg.Moons;
+                // For gas giants: 0.176927 * sqrt(((Moon Orbit * 1.0)²) / Gas Giant Mass)
+
+                foreach (var moon in moons)
+                {
+                    float orbitalPeriod = 0.176927f * (float)Math.Sqrt(
+                        Math.Pow(moon.Orbit * 1.0, 2) / worldMass);
+                    moon.OrbitalPeriod = orbitalPeriod;
+
+                    DebugLogger.LogFormat("    Moon {0}: Orbital Period {1:F2} hours", moon.Designation, orbitalPeriod);
+                }
+            }
         }
 
         private int DetermineMoonCount(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)

@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 1;
-        public const int Minor = 3;
+        public const int Minor = 4;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -54,5 +54,7 @@ namespace TravellerSystemGenerator
         // 1.0.0 - First major release
         // 1.1.x - World and moon diameter calculations (Size-based with random variation)
         // 1.2.x - IISS Class IV Survey forms (HTML forms for terrestrial worlds and moons, clickable links)
+        // 1.3.x - Planetoid belt characteristics (composition, bulk, resource rating, profile)
+        // 1.4.x - Moon orbital characteristics (Hill Sphere, moon removal logic, orbits, orbital periods)
     }
 }

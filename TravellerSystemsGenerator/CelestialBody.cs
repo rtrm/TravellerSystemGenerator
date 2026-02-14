@@ -24,6 +24,8 @@ namespace TravellerSystemGenerator
         public float Gravity { get; set; } = 0;     // In Earth gravities
         public float Mass { get; set; } = 0;        // In Earth masses
         public float EscapeVelocity { get; set; } = 0; // In km/s
+        public float Orbit { get; set; } = 0;           // In parent world diameters
+        public float OrbitalPeriod { get; set; } = 0;   // In hours
 
         public Moon() { }
     }
@@ -39,6 +41,10 @@ namespace TravellerSystemGenerator
         public int GasGiantMass { get; set; }     // Mass in Earth masses
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public int RingCount { get; set; } = 0;   // Number of planetary rings
+        public float HillSphere { get; set; } = 0;          // In AU
+        public float HillSpherePD { get; set; } = 0;        // In planetary diameters
+        public float HillSphereMoonLimit { get; set; } = 0; // In planetary diameters
+        public float RocheLimit { get; set; } = 0;          // In planetary diameters
 
         public GasGiant() : base(CelestialBodyType.GasGiant) { }
     }
@@ -58,6 +64,10 @@ namespace TravellerSystemGenerator
         public float Gravity { get; set; } = 0;   // In Earth gravities
         public float WorldMass { get; set; } = 0; // In Earth masses
         public float EscapeVelocity { get; set; } = 0; // In km/s
+        public float HillSphere { get; set; } = 0;          // In AU
+        public float HillSpherePD { get; set; } = 0;        // In planetary diameters
+        public float HillSphereMoonLimit { get; set; } = 0; // In planetary diameters
+        public float RocheLimit { get; set; } = 0;          // In planetary diameters
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
