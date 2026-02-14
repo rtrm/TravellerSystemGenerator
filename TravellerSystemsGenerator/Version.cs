@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 1;
-        public const int Minor = 4;
-        public const int Build = 2;
+        public const int Minor = 5;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -56,5 +56,6 @@ namespace TravellerSystemGenerator
         // 1.2.x - IISS Class IV Survey forms (HTML forms for terrestrial worlds and moons, clickable links)
         // 1.3.x - Planetoid belt characteristics (composition, bulk, resource rating, profile)
         // 1.4.x - Moon orbital characteristics (Hill Sphere, moon removal logic, orbits, orbital periods)
+        // 1.5.x - Non-HZ atmosphere generation (exotic atmospheres for worlds outside habitable zone)
     }
 }

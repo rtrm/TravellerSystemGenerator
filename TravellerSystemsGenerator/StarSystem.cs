@@ -43,6 +43,7 @@ namespace TravellerSystemGenerator
         public string Period { get; set; } = "";
         public string Sub { get; set; } = "";  // Significant moons count minus rings
         public string Notes { get; set; } = "";
+        public List<Moon> Moons { get; set; } = new List<Moon>();
     }
 
     // Helper class for IISS Class IV Survey data
@@ -62,6 +63,8 @@ namespace TravellerSystemGenerator
         public float Gravity { get; set; } = 0;
         public float Mass { get; set; } = 0;
         public float EscapeVelocity { get; set; } = 0;
+        public string Atmosphere { get; set; } = "";
+        public string AtmosphereComposition { get; set; } = "";
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -643,6 +646,9 @@ namespace TravellerSystemGenerator
 
                     // Calculate orbital periods
                     CalculateMoonOrbitalPeriods(body);
+
+                    // Generate atmospheres
+                    GenerateMoonAtmospheres(body, bodyObj.orbit, parentStar, dice);
                 }
             }
         }
@@ -864,11 +870,9 @@ namespace TravellerSystemGenerator
             // Sort moons by orbit (closest to furthest)
             moons.Sort((a, b) => a.Orbit.CompareTo(b.Orbit));
 
-            // Reassign designations based on orbital order
-            for (int i = 0; i < moons.Count; i++)
-            {
-                moons[i].Designation = ((char)('a' + i)).ToString();
-            }
+            // Don't reassign designations - keep original designations from generation
+            // This ensures that moon 'a' always refers to the first generated moon,
+            // regardless of orbital position, and R-sized moons remain in their original designations
 
             DebugLogger.Log("  Moons sorted by orbital distance");
 
@@ -1002,22 +1006,42 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private void GenerateMoonAtmospheres(CelestialBody world, float worldOrbitNumber, Star parentStar, Random dice)
+        {
+            List<Moon> moons = new List<Moon>();
+            if (world is TerrestrialPlanet tp)
+                moons = tp.Moons;
+            else if (world is GasGiant gg)
+                moons = gg.Moons;
+
+            if (moons.Count == 0)
+                return;
+
+            // Calculate habitable zone boundaries
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+
+            // Generate atmosphere for each moon
+            foreach (var moon in moons)
+            {
+                GenerateAtmosphere(moon, worldOrbitNumber, hzMin, hzMax, parentStar, dice);
+            }
+        }
+
         private void CalculateMoonOrbitalPeriods(CelestialBody world)
         {
             List<Moon> moons = new List<Moon>();
             float worldMass = GetWorldMassInEarthMasses(world);
+            float worldDiameterKm = GetWorldDiameterInKm(world);
 
             if (world is TerrestrialPlanet tp)
             {
                 moons = tp.Moons;
-                // For terrestrial planets: 0.176927 * sqrt(((Moon Orbit * World Size)²) / World Mass)
-                // World Size = Size property converted to numeric value
-                int worldSize = GetSizeValue(tp.Size);
+                // Period (hours) = sqrt((orbit_in_diameters × planet_diameter_km)³ / planet_mass_earths) / 361730
 
                 foreach (var moon in moons)
                 {
-                    float orbitalPeriod = 0.176927f * (float)Math.Sqrt(
-                        Math.Pow(moon.Orbit * worldSize, 2) / worldMass);
+                    float orbitalPeriod = (float)Math.Sqrt(
+                        Math.Pow(moon.Orbit * worldDiameterKm, 3) / worldMass) / 361730f;
                     moon.OrbitalPeriod = orbitalPeriod;
 
                     DebugLogger.LogFormat("    Moon {0}: Orbital Period {1:F2} hours", moon.Designation, orbitalPeriod);
@@ -1026,12 +1050,12 @@ namespace TravellerSystemGenerator
             else if (world is GasGiant gg)
             {
                 moons = gg.Moons;
-                // For gas giants: 0.176927 * sqrt(((Moon Orbit * 1.0)²) / Gas Giant Mass)
+                // Period (hours) = sqrt((orbit_in_diameters × planet_diameter_km)³ / planet_mass_earths) / 361730
 
                 foreach (var moon in moons)
                 {
-                    float orbitalPeriod = 0.176927f * (float)Math.Sqrt(
-                        Math.Pow(moon.Orbit * 1.0, 2) / worldMass);
+                    float orbitalPeriod = (float)Math.Sqrt(
+                        Math.Pow(moon.Orbit * worldDiameterKm, 3) / worldMass) / 361730f;
                     moon.OrbitalPeriod = orbitalPeriod;
 
                     DebugLogger.LogFormat("    Moon {0}: Orbital Period {1:F2} hours", moon.Designation, orbitalPeriod);
@@ -1597,6 +1621,431 @@ namespace TravellerSystemGenerator
             moon.EscapeVelocity = escapeVelocity;
 
             DebugLogger.Log($"    Moon {moon.Designation}: Comp={composition}, Density={density:F2}, Mass={mass:F2}⊕, Gravity={gravity:F2}g, EscV={escapeVelocity:F2}km/s");
+        }
+
+        private string GetAtmosphereComposition(string atmosphereCode)
+        {
+            return atmosphereCode switch
+            {
+                "0" => "None",
+                "1" => "Trace",
+                "2" => "Very Thin, Tainted",
+                "3" => "Very Thin",
+                "4" => "Thin, Tainted",
+                "5" => "Thin",
+                "6" => "Standard",
+                "7" => "Standard, Tainted",
+                "8" => "Dense",
+                "9" => "Dense, Tainted",
+                "A" => "Exotic",
+                "B" => "Corrosive",
+                "C" => "Insidious",
+                "D" => "Very Dense",
+                "E" => "Low",
+                "F" => "Unusual",
+                "G" => "Gas, Helium",
+                "H" => "Gas, Hydrogen",
+                _ => "Unknown"
+            };
+        }
+
+        private (float hzMin, float hzMax) CalculateHabitableZone(Star parentStar)
+        {
+            float hzMin, hzMax;
+
+            if (parentStar.HZCO <= 0)
+            {
+                // No habitable zone
+                return (0, 0);
+            }
+
+            // Calculate lower bound
+            if (parentStar.HZCO >= 2.0f)
+            {
+                // Range doesn't cross below 1.0
+                hzMin = parentStar.HZCO - 1.0f;
+            }
+            else if (parentStar.HZCO >= 1.0f)
+            {
+                // Range crosses below 1.0
+                hzMin = 1.0f - (2.0f - parentStar.HZCO) * 0.1f;
+            }
+            else
+            {
+                // HZCO is below 1.0
+                hzMin = Math.Max(0, parentStar.HZCO - 0.1f);
+            }
+
+            // Calculate upper bound
+            if (parentStar.HZCO >= 1.0f)
+            {
+                hzMax = parentStar.HZCO + 1.0f;
+            }
+            else
+            {
+                // HZCO is below 1.0
+                float effectiveDistToOne = (1.0f - parentStar.HZCO) * 10.0f;
+                if (effectiveDistToOne >= 1.0f)
+                {
+                    hzMax = 1.0f;
+                }
+                else
+                {
+                    float remaining = 1.0f - effectiveDistToOne;
+                    hzMax = 1.0f + remaining;
+                }
+            }
+
+            return (hzMin, hzMax);
+        }
+
+        private string DetermineWorldType(float orbitNumber, float hzco)
+        {
+            // Round HZCO to ensure we get a result
+            float roundedHzco = (float)Math.Round(hzco);
+            float deviation = orbitNumber - roundedHzco;
+
+            if (deviation >= 1.1f) return "Frozen";
+            if (deviation >= 0.5f) return "Cold";
+            if (deviation >= -0.49f) return "Temperate";
+            if (deviation >= -1.09f) return "Hot";
+            return "Boiling";
+        }
+
+        private string GenerateNonHZAtmosphere(float orbitNumber, float hzco, int sizeValue, float gravity, Random dice)
+        {
+            // For worlds outside the habitable zone, use special atmosphere table
+            // Roll 2d6-7 + Size
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + sizeValue;
+
+            // Modify for small worlds with low gravity
+            if (sizeValue >= 2 && sizeValue <= 4)
+            {
+                if (gravity < 0.4f)
+                    roll -= 2;
+                else if (gravity >= 0.4f && gravity <= 0.5f)
+                    roll -= 1;
+            }
+
+            // Calculate deviation from HZCO
+            float deviation = orbitNumber - hzco;
+
+            // Determine column thresholds based on HZCO value
+            float innerColdThreshold, outerColdThreshold, innerHotThreshold, outerHotThreshold;
+
+            if (hzco < 1.0f)
+            {
+                // For HZCO < 1.0, use smaller increments (divided by 10)
+                // Change back to normal once past orbit 1.0
+                if (orbitNumber < 1.0f)
+                {
+                    innerColdThreshold = -0.201f;
+                    outerColdThreshold = -0.101f;
+                    innerHotThreshold = 0.101f;
+                    outerHotThreshold = 0.301f;
+                }
+                else
+                {
+                    // Past orbit 1.0, use proportional scaling back to normal
+                    // Transition smoothly from small to normal increments
+                    float transitionFactor = (orbitNumber - 1.0f) / (2.0f - 1.0f); // 0 at orbit 1.0, 1 at orbit 2.0
+                    if (transitionFactor > 1.0f) transitionFactor = 1.0f;
+
+                    innerColdThreshold = -0.201f + transitionFactor * (-2.01f - (-0.201f));
+                    outerColdThreshold = -0.101f + transitionFactor * (-1.01f - (-0.101f));
+                    innerHotThreshold = 0.101f + transitionFactor * (1.01f - 0.101f);
+                    outerHotThreshold = 0.301f + transitionFactor * (3.0f - 0.301f);
+                }
+            }
+            else
+            {
+                // Normal thresholds
+                innerColdThreshold = -2.01f;
+                outerColdThreshold = -1.01f;
+                innerHotThreshold = 1.01f;
+                outerHotThreshold = 3.01f;
+            }
+
+            // Determine which column to use
+            int column;
+            if (deviation <= innerColdThreshold)
+                column = 0; // HZCO -2.01 or less
+            else if (deviation <= outerColdThreshold)
+                column = 1; // HZCO -1.01 to -2.0
+            else if (deviation <= innerHotThreshold)
+                column = 2; // HZCO +1.01 to +3.0
+            else
+                column = 3; // HZCO +3.01 or more
+
+            // Non-HZ Atmosphere Table
+            // [roll, column 0, column 1, column 2, column 3]
+            string[,] atmosphereTable = new string[,]
+            {
+                { "0", "0", "0", "0" },      // <=0
+                { "0", "1", "1", "1" },      // 1
+                { "1", "A", "1", "1" },      // 2
+                { "1", "A", "A", "A" },      // 3
+                { "A", "A", "A", "A" },      // 4
+                { "A", "A", "A", "A" },      // 5
+                { "A", "A", "A", "A" },      // 6
+                { "A", "A", "A", "A" },      // 7
+                { "A", "A", "A", "A" },      // 8
+                { "B", "A", "A", "A" },      // 9
+                { "B", "B", "B", "B" },      // 10
+                { "B", "B", "B", "B" },      // 11
+                { "C", "C", "C", "C" },      // 12
+                { "B", "B", "D", "G" },      // 13
+                { "C", "C", "B", "H" },      // 14
+                { "F", "F", "F", "F" },      // 15
+                { "G", "G", "G", "H" },      // 16
+                { "H", "H", "H", "H" }       // >=17
+            };
+
+            // Clamp roll to table range
+            int tableRow = roll;
+            if (tableRow < 0) tableRow = 0;
+            if (tableRow > 17) tableRow = 17;
+
+            string result = atmosphereTable[tableRow, column];
+
+            // Special rule for very cold worlds (< HZCO - 3)
+            if (deviation < -3.0f && roll >= 4 && roll <= 8)
+            {
+                int modRoll = Starhelper.diceRoll(6, 1, dice);
+                if (modRoll == 1)
+                    result = "1";
+                else if (modRoll >= 3 && modRoll <= 5)
+                    result = "B";
+                else if (modRoll >= 6)
+                    result = "C";
+                // modRoll == 2 means no change
+            }
+
+            return result;
+        }
+
+        private void GenerateAtmosphere(TerrestrialPlanet planet, float orbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
+        {
+            // Determine world type
+            planet.WorldType = DetermineWorldType(orbitNumber, parentStar.HZCO);
+
+            // Check if in habitable zone
+            bool inHZ = orbitNumber >= hzMin && orbitNumber <= hzMax;
+
+            // Get size value for atmosphere generation
+            int sizeValue = GetSizeValue(planet.Size);
+
+            if (!inHZ)
+            {
+                // Outside HZ - use non-HZ atmosphere generation
+                // If size is S, 0 or 1, atmosphere is 0
+                if (planet.Size == "S" || sizeValue == 0 || sizeValue == 1)
+                {
+                    planet.Atmosphere = "0";
+                    DebugLogger.Log($"  {planet.Designation}: Outside HZ, Size {planet.Size}, Atmosphere = 0, WorldType = {planet.WorldType}");
+                    return;
+                }
+
+                planet.Atmosphere = GenerateNonHZAtmosphere(orbitNumber, parentStar.HZCO, sizeValue, planet.Gravity, dice);
+                DebugLogger.Log($"  {planet.Designation}: Outside HZ, Atmosphere = {planet.Atmosphere}, WorldType = {planet.WorldType}");
+                return;
+            }
+
+            // Inside HZ - generate atmosphere
+
+            // If size is S, 0 or 1, atmosphere is 0
+            if (planet.Size == "S" || sizeValue == 0 || sizeValue == 1)
+            {
+                planet.Atmosphere = "0";
+                DebugLogger.Log($"  {planet.Designation}: Size {planet.Size}, Atmosphere = 0, WorldType = {planet.WorldType}");
+                return;
+            }
+
+            // Roll 2d6-7 + Size Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + sizeValue;
+
+            // Modify for small worlds with low gravity
+            if (sizeValue >= 2 && sizeValue <= 4)
+            {
+                if (planet.Gravity < 0.4f)
+                    roll -= 2;
+                else if (planet.Gravity >= 0.4f && planet.Gravity <= 0.5f)
+                    roll -= 1;
+            }
+
+            // Clamp to valid range
+            if (roll < 0) roll = 0;
+            if (roll > 17) roll = 17; // 0-9, A-H (0-17)
+
+            // Convert to atmosphere code
+            string atmosphereCode = roll <= 9 ? roll.ToString() : ((char)('A' + (roll - 10))).ToString();
+            planet.Atmosphere = atmosphereCode;
+
+            DebugLogger.Log($"  {planet.Designation}: Initial Atmosphere = {atmosphereCode}, WorldType = {planet.WorldType}");
+
+            // Check for hot/boiling world atmosphere changes
+            if ((planet.WorldType == "Hot" || planet.WorldType == "Boiling") &&
+                (roll >= 2 && roll <= 15))  // Codes 2-F
+            {
+                int changeRoll = Starhelper.diceRoll(6, 2, dice);
+
+                // Add modifiers
+                int systemAgeYears = (int)Math.Ceiling(parentStar.age);
+                changeRoll += systemAgeYears;  // +1 for each billion years
+
+                if (planet.WorldType == "Boiling")
+                    changeRoll += 4;
+
+                if (changeRoll >= 12)
+                {
+                    // Check if already A, B, C, or F+
+                    int atmosphereValue = roll;
+                    if (atmosphereValue >= 10 && (atmosphereValue == 10 || atmosphereValue == 11 || atmosphereValue == 12 || atmosphereValue >= 15))
+                    {
+                        // Change world type to Hot if not already
+                        if (planet.WorldType != "Hot")
+                        {
+                            planet.WorldType = "Hot";
+                            DebugLogger.Log($"  {planet.Designation}: Atmosphere change - WorldType now Hot");
+                        }
+                    }
+                    else
+                    {
+                        // Roll for new atmosphere
+                        int newAtmRoll = Starhelper.diceRoll(6, 1, dice);
+
+                        // Adjust roll
+                        if (sizeValue >= 2 && sizeValue <= 5)
+                            newAtmRoll -= 2;
+
+                        bool wasTainted = atmosphereCode == "2" || atmosphereCode == "4" || atmosphereCode == "7" || atmosphereCode == "9";
+                        if (wasTainted)
+                            newAtmRoll += 1;
+
+                        // Determine new atmosphere
+                        if (newAtmRoll <= 1)
+                            planet.Atmosphere = "A";
+                        else if (newAtmRoll >= 2 && newAtmRoll <= 4)
+                            planet.Atmosphere = "B";
+                        else
+                            planet.Atmosphere = "C";
+
+                        DebugLogger.Log($"  {planet.Designation}: Hot/Boiling change - New Atmosphere = {planet.Atmosphere}");
+                    }
+                }
+            }
+        }
+
+        private void GenerateAtmosphere(Moon moon, float worldOrbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
+        {
+            // Determine world type based on the parent world's orbit
+            moon.WorldType = DetermineWorldType(worldOrbitNumber, parentStar.HZCO);
+
+            // Check if in habitable zone (based on parent world's orbit)
+            bool inHZ = worldOrbitNumber >= hzMin && worldOrbitNumber <= hzMax;
+
+            // Get size value for atmosphere generation
+            int sizeValue = GetSizeValue(moon.Size);
+
+            if (!inHZ)
+            {
+                // Outside HZ - use non-HZ atmosphere generation
+                // If size is S, 0 or 1, atmosphere is 0
+                if (moon.Size == "S" || sizeValue == 0 || sizeValue == 1)
+                {
+                    moon.Atmosphere = "0";
+                    DebugLogger.Log($"    Moon {moon.Designation}: Outside HZ, Size {moon.Size}, Atmosphere = 0, WorldType = {moon.WorldType}");
+                    return;
+                }
+
+                moon.Atmosphere = GenerateNonHZAtmosphere(worldOrbitNumber, parentStar.HZCO, sizeValue, moon.Gravity, dice);
+                DebugLogger.Log($"    Moon {moon.Designation}: Outside HZ, Atmosphere = {moon.Atmosphere}, WorldType = {moon.WorldType}");
+                return;
+            }
+
+            // Inside HZ - generate atmosphere
+
+            // If size is S, 0 or 1, atmosphere is 0
+            if (moon.Size == "S" || sizeValue == 0 || sizeValue == 1)
+            {
+                moon.Atmosphere = "0";
+                DebugLogger.Log($"    Moon {moon.Designation}: Size {moon.Size}, Atmosphere = 0, WorldType = {moon.WorldType}");
+                return;
+            }
+
+            // Roll 2d6-7 + Size Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + sizeValue;
+
+            // Modify for small worlds with low gravity
+            if (sizeValue >= 2 && sizeValue <= 4)
+            {
+                if (moon.Gravity < 0.4f)
+                    roll -= 2;
+                else if (moon.Gravity >= 0.4f && moon.Gravity <= 0.5f)
+                    roll -= 1;
+            }
+
+            // Clamp to valid range
+            if (roll < 0) roll = 0;
+            if (roll > 17) roll = 17; // 0-9, A-H (0-17)
+
+            // Convert to atmosphere code
+            string atmosphereCode = roll <= 9 ? roll.ToString() : ((char)('A' + (roll - 10))).ToString();
+            moon.Atmosphere = atmosphereCode;
+
+            DebugLogger.Log($"    Moon {moon.Designation}: Initial Atmosphere = {atmosphereCode}, WorldType = {moon.WorldType}");
+
+            // Check for hot/boiling world atmosphere changes
+            if ((moon.WorldType == "Hot" || moon.WorldType == "Boiling") &&
+                (roll >= 2 && roll <= 15))  // Codes 2-F
+            {
+                int changeRoll = Starhelper.diceRoll(6, 2, dice);
+
+                // Add modifiers
+                int systemAgeYears = (int)Math.Ceiling(parentStar.age);
+                changeRoll += systemAgeYears;  // +1 for each billion years
+
+                if (moon.WorldType == "Boiling")
+                    changeRoll += 4;
+
+                if (changeRoll >= 12)
+                {
+                    // Check if already A, B, C, or F+
+                    int atmosphereValue = roll;
+                    if (atmosphereValue >= 10 && (atmosphereValue == 10 || atmosphereValue == 11 || atmosphereValue == 12 || atmosphereValue >= 15))
+                    {
+                        // Change world type to Hot if not already
+                        if (moon.WorldType != "Hot")
+                        {
+                            moon.WorldType = "Hot";
+                            DebugLogger.Log($"    Moon {moon.Designation}: Atmosphere change - WorldType now Hot");
+                        }
+                    }
+                    else
+                    {
+                        // Roll for new atmosphere
+                        int newAtmRoll = Starhelper.diceRoll(6, 1, dice);
+
+                        // Adjust roll
+                        if (sizeValue >= 2 && sizeValue <= 5)
+                            newAtmRoll -= 2;
+
+                        bool wasTainted = atmosphereCode == "2" || atmosphereCode == "4" || atmosphereCode == "7" || atmosphereCode == "9";
+                        if (wasTainted)
+                            newAtmRoll += 1;
+
+                        // Determine new atmosphere
+                        if (newAtmRoll <= 1)
+                            moon.Atmosphere = "A";
+                        else if (newAtmRoll >= 2 && newAtmRoll <= 4)
+                            moon.Atmosphere = "B";
+                        else
+                            moon.Atmosphere = "C";
+
+                        DebugLogger.Log($"    Moon {moon.Designation}: Hot/Boiling change - New Atmosphere = {moon.Atmosphere}");
+                    }
+                }
+            }
         }
 
         private void PlaceEmptyOrbits(Random dice)
@@ -2444,6 +2893,10 @@ namespace TravellerSystemGenerator
 
                 // Calculate physical properties
                 CalculatePhysicalProperties(planet, cobj.orbit, parentStar, dice);
+
+                // Generate atmosphere
+                var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+                GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
 
                 DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
                     cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
@@ -4294,7 +4747,7 @@ namespace TravellerSystemGenerator
 
                         if (body is TerrestrialPlanet tp)
                         {
-                            size = tp.Size + "??";
+                            size = tp.Size + tp.Atmosphere + "?";
                             moons = tp.Moons;
                             // R-sized moons are rings
                             ringCount = moons.Count(m => m.Size == "R");
@@ -4378,7 +4831,8 @@ namespace TravellerSystemGenerator
                             Ecc = bodyObj.orbitEccentricity,
                             Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
                             Sub = sub,
-                            Notes = notes
+                            Notes = notes,
+                            Moons = moons
                         });
                     }
                 }
@@ -4404,7 +4858,7 @@ namespace TravellerSystemGenerator
 
                             if (body is TerrestrialPlanet tp)
                             {
-                                size = tp.Size + "??";
+                                size = tp.Size + tp.Atmosphere + "?";
                                 moons = tp.Moons;
                                 // R-sized moons are rings
                                 ringCount = moons.Count(m => m.Size == "R");
@@ -4488,7 +4942,8 @@ namespace TravellerSystemGenerator
                                 Ecc = bodyObj.orbitEccentricity,
                                 Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
                                 Sub = sub,
-                                Notes = notes
+                                Notes = notes,
+                                Moons = moons
                             });
                         }
                     }
@@ -4600,7 +5055,7 @@ namespace TravellerSystemGenerator
             Console.WriteLine();
         }
 
-        private string AddMoonLinksToNotes(string notes, string parentWorldDesignation)
+        private string AddMoonLinksToNotes(string notes, string parentWorldDesignation, List<Moon> moons)
         {
             if (string.IsNullOrEmpty(notes))
                 return notes;
@@ -4608,6 +5063,10 @@ namespace TravellerSystemGenerator
             // Split notes by comma and space
             string[] parts = notes.Split(new[] { ", " }, StringSplitOptions.None);
             List<string> processedParts = new List<string>();
+
+            // Get list of non-R moons (only these have survey forms)
+            List<Moon> nonRMoons = moons.Where(m => m.Size != "R").ToList();
+            int moonIndex = 0;
 
             foreach (string part in parts)
             {
@@ -4622,20 +5081,14 @@ namespace TravellerSystemGenerator
                         isMoonSize = true;
                 }
 
-                if (isMoonSize)
+                if (isMoonSize && moonIndex < nonRMoons.Count)
                 {
-                    // Find the moon designation (a, b, c, etc.) - we need to track moon count
-                    // For now, we'll use a simple approach: search for matching moon files
-                    // The moon designation is lowercase a, b, c, etc. based on the order
-                    // We need to find which moon this is by counting previous moon sizes
-
-                    // Count how many moons we've seen so far in this notes string
-                    int moonIndex = processedParts.Count(p => p.Contains("href=\"surveys/"));
-                    char moonLetter = (char)('a' + moonIndex);
-
-                    string moonFilename = $"{parentWorldDesignation.Replace(" ", "_")}_{moonLetter}";
+                    // Use the actual moon's designation from the moon list
+                    Moon moon = nonRMoons[moonIndex];
+                    string moonFilename = $"{parentWorldDesignation.Replace(" ", "_")}_{moon.Designation}";
                     string linkedPart = $"<a href=\"surveys/{moonFilename}.html\">{part}</a>";
                     processedParts.Add(linkedPart);
+                    moonIndex++;
                 }
                 else
                 {
@@ -4826,16 +5279,16 @@ namespace TravellerSystemGenerator
                         string au = world.AU.ToString("F2");
                         string ecc = world.Ecc.ToString("F3");
 
-                        // Add clickable link for terrestrial planets (Size ends with "??")
+                        // Add clickable link for terrestrial planets (Size ends with "?")
                         string objectCell = world.Object;
-                        if (world.Size.EndsWith("??"))
+                        if (world.Size.Length == 3 && world.Size.EndsWith("?"))
                         {
                             string surveyFilename = world.Object.Replace(" ", "_");
                             objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
                         }
 
                         // Add clickable links for moons in Notes field
-                        string notesCell = AddMoonLinksToNotes(world.Notes, world.Object);
+                        string notesCell = AddMoonLinksToNotes(world.Notes, world.Object, world.Moons);
 
                         html.AppendLine("            <tr>");
                         html.AppendLine($"                <td>{world.Primary}</td>");
@@ -5036,24 +5489,23 @@ namespace TravellerSystemGenerator
             // Atmosphere
             html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th rowspan=\"2\">ATMOSPHERE</th>");
-            html.AppendLine("                <th colspan=\"2\">Pressure (bar)</th>");
-            html.AppendLine("                <th colspan=\"3\">Composition</th>");
+            html.AppendLine("                <th>ATMOSPHERE</th>");
+            html.AppendLine("                <th>Pressure (bar)</th>");
+            html.AppendLine("                <th>Composition</th>");
             html.AppendLine("                <th>O<sub>2</sub> (bar)</th>");
-            html.AppendLine("            </tr>");
-            html.AppendLine("            <tr>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
-            html.AppendLine("                <td colspan=\"3\"></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("            </tr>");
-            html.AppendLine("            <tr>");
             html.AppendLine("                <th>Taints</th>");
-            html.AppendLine("                <td colspan=\"5\"></td>");
             html.AppendLine("                <th>Scale Height</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th>Notes</th>");
-            html.AppendLine("                <td colspan=\"6\"></td>");
+            html.AppendLine("                <td style=\"background-color: #d3d3d3; border-top: none;\"></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.AtmosphereComposition}</td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"6\"><strong>Notes:</strong></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
@@ -5290,7 +5742,7 @@ namespace TravellerSystemGenerator
                         SurveyData surveyData = new SurveyData
                         {
                             WorldName = tp.Designation,
-                            SAH_UWP = tp.Size + "??",
+                            SAH_UWP = tp.Size + tp.Atmosphere + "?",
                             PrimaryObject = primaryStar.Designation,
                             SystemAge = primaryStar.age.ToString("F2"),
                             OrbitNumber = bodyObj.orbit,
@@ -5303,6 +5755,8 @@ namespace TravellerSystemGenerator
                             Gravity = tp.Gravity,
                             Mass = tp.WorldMass,
                             EscapeVelocity = tp.EscapeVelocity,
+                            Atmosphere = tp.Atmosphere,
+                            AtmosphereComposition = GetAtmosphereComposition(tp.Atmosphere),
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -5314,7 +5768,7 @@ namespace TravellerSystemGenerator
                             SurveyData moonSurvey = new SurveyData
                             {
                                 WorldName = $"{tp.Designation} {moon.Designation}",
-                                SAH_UWP = moon.Size,
+                                SAH_UWP = moon.Size + moon.Atmosphere,
                                 PrimaryObject = $"{tp.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -5327,6 +5781,8 @@ namespace TravellerSystemGenerator
                                 Gravity = moon.Gravity,
                                 Mass = moon.Mass,
                                 EscapeVelocity = moon.EscapeVelocity,
+                                Atmosphere = moon.Atmosphere,
+                                AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -5341,7 +5797,7 @@ namespace TravellerSystemGenerator
                             SurveyData moonSurvey = new SurveyData
                             {
                                 WorldName = $"{gg.Designation} {moon.Designation}",
-                                SAH_UWP = moon.Size,
+                                SAH_UWP = moon.Size + moon.Atmosphere,
                                 PrimaryObject = $"{gg.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -5354,6 +5810,8 @@ namespace TravellerSystemGenerator
                                 Gravity = moon.Gravity,
                                 Mass = moon.Mass,
                                 EscapeVelocity = moon.EscapeVelocity,
+                                Atmosphere = moon.Atmosphere,
+                                AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -5375,7 +5833,7 @@ namespace TravellerSystemGenerator
                             SurveyData surveyData = new SurveyData
                             {
                                 WorldName = tp.Designation,
-                                SAH_UWP = tp.Size + "??",
+                                SAH_UWP = tp.Size + tp.Atmosphere + "?",
                                 PrimaryObject = companionStar.Designation + ", orbiting " + (primaryObject.celestrialObject as Star)?.Designation,
                                 SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                 OrbitNumber = bodyObj.orbit,
@@ -5399,7 +5857,7 @@ namespace TravellerSystemGenerator
                                 SurveyData moonSurvey = new SurveyData
                                 {
                                     WorldName = $"{tp.Designation} {moon.Designation}",
-                                    SAH_UWP = moon.Size,
+                                    SAH_UWP = moon.Size + moon.Atmosphere,
                                     PrimaryObject = $"{tp.Designation}",
                                     SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -5412,6 +5870,8 @@ namespace TravellerSystemGenerator
                                     Gravity = moon.Gravity,
                                     Mass = moon.Mass,
                                     EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
                                     Moons = new List<Moon>(),
                                     Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
@@ -5426,7 +5886,7 @@ namespace TravellerSystemGenerator
                                 SurveyData moonSurvey = new SurveyData
                                 {
                                     WorldName = $"{gg.Designation} {moon.Designation}",
-                                    SAH_UWP = moon.Size,
+                                    SAH_UWP = moon.Size + moon.Atmosphere,
                                     PrimaryObject = $"{gg.Designation}",
                                     SystemAge = "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -5439,6 +5899,8 @@ namespace TravellerSystemGenerator
                                     Gravity = moon.Gravity,
                                     Mass = moon.Mass,
                                     EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
                                     Moons = new List<Moon>(),
                                     Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };

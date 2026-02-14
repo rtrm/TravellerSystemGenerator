@@ -29,13 +29,15 @@ namespace TravellerSystemGenerator
         public float Eccentricity { get; set; } = 0;    // Orbital eccentricity (0-1)
         public bool IsRetrograde { get; set; } = false; // True if retrograde orbit
         public float OrbitDistanceKm { get; set; } = 0; // Orbital distance in km
+        public string Atmosphere { get; set; } = "";    // Atmosphere code: 0-9, A-H
+        public string WorldType { get; set; } = "";     // Frozen, Cold, Temperate, Hot, Boiling
 
         public Moon() { }
     }
 
     internal class GasGiant : CelestialBody
     {
-        public float Mass { get; set; }           // Solar masses
+        public float Mass { get; set; }           // Earth masses (stored in GasGiantMass)
         public float Radius { get; set; }         // Earth radii
         public float? Inclination { get; set; }   // Degrees (for Eccentric anomalous)
         public string? TrojanPosition { get; set; } // "L4" or "L5"
@@ -54,7 +56,7 @@ namespace TravellerSystemGenerator
 
     internal class TerrestrialPlanet : CelestialBody
     {
-        public float Mass { get; set; }           // Solar masses
+        public float Mass { get; set; }           // Solar masses (for orbital calculations)
         public float Radius { get; set; }         // Earth radii
         public float? Inclination { get; set; }   // Degrees (for Eccentric anomalous)
         public string? TrojanPosition { get; set; } // "L4" or "L5"
@@ -71,6 +73,8 @@ namespace TravellerSystemGenerator
         public float HillSpherePD { get; set; } = 0;        // In planetary diameters
         public float HillSphereMoonLimit { get; set; } = 0; // In planetary diameters
         public float RocheLimit { get; set; } = 0;          // In planetary diameters
+        public string Atmosphere { get; set; } = "";        // Atmosphere code: 0-9, A-H
+        public string WorldType { get; set; } = "";         // Frozen, Cold, Temperate, Hot, Boiling
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
