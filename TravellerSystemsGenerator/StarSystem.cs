@@ -782,7 +782,7 @@ namespace TravellerSystemGenerator
             return mor;
         }
 
-        private float DetermineMoonOrbit(float mor, Random dice)
+        private (float orbit, int tier) DetermineMoonOrbit(float mor, Random dice)
         {
             // Roll 1d6 (+1 if MOR < 60)
             int roll = Starhelper.diceRoll(6, 1, dice);
@@ -790,27 +790,31 @@ namespace TravellerSystemGenerator
                 roll += 1;
 
             float orbit = 0;
+            int tier = 0; // Track which tier for eccentricity/retrograde modifiers
 
             if (roll >= 1 && roll <= 3)
             {
                 // (2d6 - 2) * MOR / 60 + 2
                 int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
                 orbit = diceRoll * mor / 60.0f + 2.0f;
+                tier = 1; // Close orbit
             }
             else if (roll >= 4 && roll <= 5)
             {
                 // (2d6 - 2) * MOR / 30 + MOR / 6 + 3
                 int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
                 orbit = diceRoll * mor / 30.0f + mor / 6.0f + 3.0f;
+                tier = 2; // Medium orbit
             }
             else // roll >= 6
             {
                 // (2d6 - 2) * MOR / 20 + MOR / 2 + 4
                 int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
                 orbit = diceRoll * mor / 20.0f + mor / 2.0f + 4.0f;
+                tier = 3; // Far orbit
             }
 
-            return orbit;
+            return (orbit, tier);
         }
 
         private void AssignMoonOrbits(CelestialBody world, Random dice)
@@ -842,10 +846,15 @@ namespace TravellerSystemGenerator
 
             DebugLogger.LogFormat("  MOR = {0:F2}", mor);
 
+            // Track tier for each moon (for eccentricity/retrograde calculations)
+            Dictionary<Moon, int> moonTiers = new Dictionary<Moon, int>();
+
             // Assign orbits to each moon
             foreach (var moon in moons)
             {
-                moon.Orbit = DetermineMoonOrbit(mor, dice);
+                var (orbit, tier) = DetermineMoonOrbit(mor, dice);
+                moon.Orbit = orbit;
+                moonTiers[moon] = tier;
                 DebugLogger.LogFormat("    Moon {0}: Orbit {1:F2} diameters", moon.Designation, moon.Orbit);
             }
 
@@ -862,6 +871,96 @@ namespace TravellerSystemGenerator
             }
 
             DebugLogger.Log("  Moons sorted by orbital distance");
+
+            // Get world diameter in km for orbital distance calculations
+            float worldDiameterKm = GetWorldDiameterInKm(world);
+
+            // Calculate eccentricity, retrograde, and orbital distance for each moon
+            foreach (var moon in moons)
+            {
+                int tier = moonTiers[moon];
+                CalculateMoonEccentricity(moon, tier, mor, dice);
+                CalculateMoonRetrograde(moon, tier, mor, dice);
+                moon.OrbitDistanceKm = moon.Orbit * worldDiameterKm;
+
+                DebugLogger.LogFormat("    Moon {0}: Ecc {1:F3}, Retrograde {2}, Distance {3:F0}km",
+                    moon.Designation, moon.Eccentricity, moon.IsRetrograde ? "Yes" : "No", moon.OrbitDistanceKm);
+            }
+        }
+
+        private void CalculateMoonEccentricity(Moon moon, int tier, float mor, Random dice)
+        {
+            // Eccentricity table (same as used for planets/stars)
+            float[,] eccValues = {
+                {5, 7, 9, 10, 11, 12 },
+                {-0.001F, 0, 0.03F, 0.05F, 0.05F, 0.3F },
+                {1, 1, 1, 1, 2, 1 },
+                {1000, 200, 100, 20, 20, 20 }
+            };
+
+            // Calculate modifier based on tier and if orbit exceeds MOR + 6
+            int modifier = 0;
+            if (tier == 1) // Close orbit (roll 1-3)
+                modifier = -1;
+            else if (tier == 2) // Medium orbit (roll 4-5)
+                modifier = 1;
+            else if (tier == 3) // Far orbit (roll >= 6)
+                modifier = 4;
+
+            // Additional modifier if orbit exceeds MOR + 6
+            if (moon.Orbit > mor + 6)
+                modifier += 4;
+
+            // Roll 2d6 + modifier
+            int roll1 = Starhelper.diceRoll(6, 2, dice) + modifier;
+            if (roll1 > 12)
+                roll1 = 12;
+            if (roll1 < 0)
+                roll1 = 0;
+
+            // Find the column in the eccentricity table
+            int x = 0;
+            while (x < 6 && (int)eccValues[0, x] < roll1)
+            {
+                x++;
+            }
+            if (x >= 6)
+                x = 5;
+
+            // Calculate eccentricity
+            float eccBase = eccValues[1, x];
+            int numDice = (int)eccValues[2, x];
+            float divisor = eccValues[3, x];
+
+            float eccentricity = eccBase;
+            if (numDice > 0)
+            {
+                eccentricity += Starhelper.diceRoll(6, numDice, dice) / divisor;
+            }
+
+            moon.Eccentricity = eccentricity;
+        }
+
+        private void CalculateMoonRetrograde(Moon moon, int tier, float mor, Random dice)
+        {
+            // Calculate modifier based on tier and if orbit exceeds MOR + 6
+            int modifier = 0;
+            if (tier == 1) // Close orbit (roll 1-3)
+                modifier = -1;
+            else if (tier == 2) // Medium orbit (roll 4-5)
+                modifier = 1;
+            else if (tier == 3) // Far orbit (roll >= 6)
+                modifier = 4;
+
+            // Additional modifier if orbit exceeds MOR + 6
+            if (moon.Orbit > mor + 6)
+                modifier += 4;
+
+            // Roll 2d6 + modifier
+            int roll = Starhelper.diceRoll(6, 2, dice) + modifier;
+
+            // If result >= 10, orbit is retrograde
+            moon.IsRetrograde = (roll >= 10);
         }
 
         private void ResolveOrbitConflicts(List<Moon> moons, Random dice)
@@ -3751,6 +3850,45 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private string FormatMoonOrbitalPeriod(Moon moon)
+        {
+            float hours = moon.OrbitalPeriod;
+            string period;
+
+            if (hours < 1.0f)
+            {
+                // Less than 1 hour - show in minutes
+                float minutes = hours * 60;
+                period = $"{minutes:F1}m";
+            }
+            else if (hours < 24.0f)
+            {
+                // Less than 1 day - show in hours
+                period = $"{hours:F2}h";
+            }
+            else if (hours < 168.0f) // Less than 1 week (7 days)
+            {
+                // Show in days and hours
+                float days = hours / 24.0f;
+                float remainderHours = hours - ((int)days * 24);
+                period = $"{(int)days}d {remainderHours:F1}h";
+            }
+            else
+            {
+                // Show in days only
+                float days = hours / 24.0f;
+                period = $"{days:F1}d";
+            }
+
+            // Add retrograde indicator if applicable
+            if (moon.IsRetrograde)
+            {
+                period += " R";
+            }
+
+            return period;
+        }
+
         private int CountStarsInSystem()
         {
             int count = 1; // Primary star
@@ -5150,10 +5288,10 @@ namespace TravellerSystemGenerator
                                 SAH_UWP = moon.Size,
                                 PrimaryObject = $"{tp.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
-                                OrbitNumber = bodyObj.orbit,
-                                AU = bodyObj.orbitAU,
-                                Eccentricity = 0, // Moon orbital data not yet calculated
-                                Period = "", // Moon orbital data not yet calculated
+                                OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                Eccentricity = moon.Eccentricity,
+                                Period = FormatMoonOrbitalPeriod(moon),
                                 Diameter = moon.Diameter,
                                 Composition = moon.Composition,
                                 Density = moon.Density,
@@ -5177,10 +5315,10 @@ namespace TravellerSystemGenerator
                                 SAH_UWP = moon.Size,
                                 PrimaryObject = $"{gg.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
-                                OrbitNumber = bodyObj.orbit,
-                                AU = bodyObj.orbitAU,
-                                Eccentricity = 0, // Moon orbital data not yet calculated
-                                Period = "", // Moon orbital data not yet calculated
+                                OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                Eccentricity = moon.Eccentricity,
+                                Period = FormatMoonOrbitalPeriod(moon),
                                 Diameter = moon.Diameter,
                                 Composition = moon.Composition,
                                 Density = moon.Density,
@@ -5235,10 +5373,10 @@ namespace TravellerSystemGenerator
                                     SAH_UWP = moon.Size,
                                     PrimaryObject = $"{tp.Designation}",
                                     SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
-                                    OrbitNumber = bodyObj.orbit,
-                                    AU = bodyObj.orbitAU,
-                                    Eccentricity = 0,
-                                    Period = "",
+                                    OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                    AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
                                     Diameter = moon.Diameter,
                                     Composition = moon.Composition,
                                     Density = moon.Density,
@@ -5262,10 +5400,10 @@ namespace TravellerSystemGenerator
                                     SAH_UWP = moon.Size,
                                     PrimaryObject = $"{gg.Designation}",
                                     SystemAge = "",
-                                    OrbitNumber = bodyObj.orbit,
-                                    AU = bodyObj.orbitAU,
-                                    Eccentricity = 0, // Moon orbital data not yet calculated
-                                    Period = "", // Moon orbital data not yet calculated
+                                    OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                    AU = moon.OrbitDistanceKm / 149597870.7f, // Convert km to AU
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
                                     Diameter = moon.Diameter,
                                     Composition = moon.Composition,
                                     Density = moon.Density,

@@ -26,6 +26,9 @@ namespace TravellerSystemGenerator
         public float EscapeVelocity { get; set; } = 0; // In km/s
         public float Orbit { get; set; } = 0;           // In parent world diameters
         public float OrbitalPeriod { get; set; } = 0;   // In hours
+        public float Eccentricity { get; set; } = 0;    // Orbital eccentricity (0-1)
+        public bool IsRetrograde { get; set; } = false; // True if retrograde orbit
+        public float OrbitDistanceKm { get; set; } = 0; // Orbital distance in km
 
         public Moon() { }
     }
