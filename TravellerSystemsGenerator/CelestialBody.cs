@@ -43,6 +43,23 @@ namespace TravellerSystemGenerator
         public float AxialTilt { get; set; } = 0;            // Axial tilt in degrees
         public string TidalLockStatus { get; set; } = "";    // Tidal lock status (e.g., "Locked to planet", "3:2 lock", etc.)
         public bool IsRetrogradeSpin { get; set; } = false;  // True if rotation is retrograde (from tidal lock)
+        public float Albedo { get; set; } = 0;               // Reflectivity (0-1)
+        public float Greenhouse { get; set; } = 0;           // Greenhouse effect factor
+        public string SurfaceDistribution { get; set; } = "";  // Surface water distribution
+        public float AxialTiltFactor { get; set; } = 0;      // sin(axial tilt)
+        public float RotationFactor { get; set; } = 0;       // Based on solar day length
+        public float GeographicFactor { get; set; } = 0;     // Based on hydrographics
+        public float VarianceFactors { get; set; } = 0;      // Sum of tilt, rotation, geographic (0-1)
+        public float AtmosphericFactor { get; set; } = 0;    // 1 + atmospheric pressure
+        public float LuminosityModifier { get; set; } = 0;   // Variance / Atmospheric (0-1)
+        public float HighLuminosity { get; set; } = 0;       // Luminosity * (1 + modifier)
+        public float LowLuminosity { get; set; } = 0;        // Luminosity * (1 - modifier)
+        public float NearAU { get; set; } = 0;               // Orbit * (1 - eccentricity)
+        public float FarAU { get; set; } = 0;                // Orbit * (1 + eccentricity)
+        public int HighTemperatureK { get; set; } = 0;       // High temperature in Kelvin
+        public int LowTemperatureK { get; set; } = 0;        // Low temperature in Kelvin
+        public int HighTemperatureC { get; set; } = 0;       // High temperature in Celsius
+        public int LowTemperatureC { get; set; } = 0;        // Low temperature in Celsius
 
         public Moon() { }
     }
@@ -65,6 +82,7 @@ namespace TravellerSystemGenerator
         public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period in hours (decimal)
         public float SolarDaysInLocalYear { get; set; } = 0;    // Number of solar days per orbital period
         public float SolarDayHours { get; set; } = 0;           // Length of a solar day in hours
+        public float Albedo { get; set; } = 0;               // Reflectivity (0-1)
 
         public GasGiant() : base(CelestialBodyType.GasGiant) { }
     }
@@ -102,6 +120,23 @@ namespace TravellerSystemGenerator
         public float AxialTilt { get; set; } = 0;               // Axial tilt in degrees
         public string TidalLockStatus { get; set; } = "";       // Tidal lock status (e.g., "Locked to star", "3:2 lock", etc.)
         public bool IsRetrogradeSpin { get; set; } = false;     // True if rotation is retrograde (from tidal lock)
+        public float Albedo { get; set; } = 0;               // Reflectivity (0-1)
+        public float Greenhouse { get; set; } = 0;           // Greenhouse effect factor
+        public string SurfaceDistribution { get; set; } = "";  // Surface water distribution
+        public float AxialTiltFactor { get; set; } = 0;      // sin(axial tilt)
+        public float RotationFactor { get; set; } = 0;       // Based on solar day length
+        public float GeographicFactor { get; set; } = 0;     // Based on hydrographics
+        public float VarianceFactors { get; set; } = 0;      // Sum of tilt, rotation, geographic (0-1)
+        public float AtmosphericFactor { get; set; } = 0;    // 1 + atmospheric pressure
+        public float LuminosityModifier { get; set; } = 0;   // Variance / Atmospheric (0-1)
+        public float HighLuminosity { get; set; } = 0;       // Luminosity * (1 + modifier)
+        public float LowLuminosity { get; set; } = 0;        // Luminosity * (1 - modifier)
+        public float NearAU { get; set; } = 0;               // Orbit * (1 - eccentricity)
+        public float FarAU { get; set; } = 0;                // Orbit * (1 + eccentricity)
+        public int HighTemperatureK { get; set; } = 0;       // High temperature in Kelvin
+        public int LowTemperatureK { get; set; } = 0;        // Low temperature in Kelvin
+        public int HighTemperatureC { get; set; } = 0;       // High temperature in Celsius
+        public int LowTemperatureC { get; set; } = 0;        // Low temperature in Celsius
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }

@@ -70,6 +70,13 @@ namespace TravellerSystemGenerator
         public int MeanTemperatureC { get; set; } = 0;
         public float HydrographicsCoverage { get; set; } = 0;
         public string HydrographicsCode { get; set; } = "";
+        public string SurfaceDistribution { get; set; } = "";
+        public float Albedo { get; set; } = 0;
+        public float Greenhouse { get; set; } = 0;
+        public int HighTemperatureK { get; set; } = 0;
+        public int HighTemperatureC { get; set; } = 0;
+        public int LowTemperatureK { get; set; } = 0;
+        public int LowTemperatureC { get; set; } = 0;
         public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period
         public float SolarDaysInLocalYear { get; set; } = 0;    // Solar days per year
         public float SolarDayHours { get; set; } = 0;           // Solar day length
@@ -606,6 +613,14 @@ namespace TravellerSystemGenerator
             CalculateTidalLocks(dice);
             DebugLogger.Log("");
             DebugLogger.Log("Tidal lock calculation complete");
+
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating temperatures...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAllTemperatures();
+            DebugLogger.Log("");
+            DebugLogger.Log("Temperature calculation complete");
         }
 
         private void GenerateWorldMoons(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)
@@ -1047,11 +1062,15 @@ namespace TravellerSystemGenerator
             {
                 GenerateAtmosphere(moon, worldOrbitNumber, hzMin, hzMax, parentStar, dice);
 
-                // Calculate atmospheric pressure, oxygen, temperature, and hydrographics
+                // Calculate atmospheric pressure, oxygen, and hydrographics
                 CalculateAtmosphericPressure(moon, dice);
                 CalculateOxygenFraction(moon, parentStar.age, dice);
-                CalculateMeanTemperature(moon, worldOrbitNumber, parentStar.HZCO, dice);
                 CalculateHydrographics(moon, dice);
+
+                // Calculate surface distribution, albedo, and greenhouse
+                CalculateSurfaceDistribution(moon, dice);
+                CalculateAlbedo(moon, worldOrbitNumber, parentStar.HZCO, dice);
+                CalculateGreenhouse(moon, dice);
 
                 // Calculate rotation and day length
                 CalculateBasicRotationRate(moon, parentStar.age, dice);
@@ -2172,6 +2191,521 @@ namespace TravellerSystemGenerator
             // Determine hydrographics code
             if (roll < 0) roll = 0;
             moon.HydrographicsCode = roll > 9 ? "A" : roll.ToString();
+        }
+
+        // Surface Distribution Calculations
+
+        private void CalculateSurfaceDistribution(TerrestrialPlanet planet, Random dice)
+        {
+            // Only calculate if there is hydrographics
+            if (planet.HydrographicsCode == "0" || planet.HydrographicsCoverage == 0)
+            {
+                planet.SurfaceDistribution = "N/A";
+                return;
+            }
+
+            // Roll 2d6 - 2
+            int roll = Starhelper.diceRoll(6, 2, dice) - 2;
+
+            planet.SurfaceDistribution = roll switch
+            {
+                0 => "Extremely Dispersed",
+                1 => "Very Dispersed",
+                2 => "Dispersed",
+                3 => "Scattered",
+                4 => "Slightly Scattered",
+                5 => "Mixed",
+                6 => "Slightly Skewed",
+                7 => "Skewed",
+                8 => "Concentrated",
+                9 => "Very Concentrated",
+                >= 10 => "Extremely Concentrated",
+                _ => "Mixed"
+            };
+        }
+
+        private void CalculateSurfaceDistribution(Moon moon, Random dice)
+        {
+            // Only calculate if there is hydrographics
+            if (moon.HydrographicsCode == "0" || moon.HydrographicsCoverage == 0)
+            {
+                moon.SurfaceDistribution = "N/A";
+                return;
+            }
+
+            // Roll 2d6 - 2
+            int roll = Starhelper.diceRoll(6, 2, dice) - 2;
+
+            moon.SurfaceDistribution = roll switch
+            {
+                0 => "Extremely Dispersed",
+                1 => "Very Dispersed",
+                2 => "Dispersed",
+                3 => "Scattered",
+                4 => "Slightly Scattered",
+                5 => "Mixed",
+                6 => "Slightly Skewed",
+                7 => "Skewed",
+                8 => "Concentrated",
+                9 => "Very Concentrated",
+                >= 10 => "Extremely Concentrated",
+                _ => "Mixed"
+            };
+        }
+
+        // Albedo Calculations
+
+        private void CalculateAlbedo(TerrestrialPlanet planet, float orbitNumber, float hzco, Random dice)
+        {
+            float albedo = 0;
+
+            // Base albedo calculation based on density
+            if (planet.Density > 0.5f)
+            {
+                // Albedo = 0.04 + (2d6-2) * 0.02
+                albedo = 0.04f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f);
+            }
+            else if (orbitNumber <= hzco + 2)
+            {
+                // Albedo = 0.2 + (2d6-3) * 0.05
+                albedo = 0.2f + ((Starhelper.diceRoll(6, 2, dice) - 3) * 0.05f);
+            }
+            else
+            {
+                // Albedo = 0.25 + (2d6-2) * 0.07
+                albedo = 0.25f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.07f);
+                if (albedo < 0.4f)
+                {
+                    albedo = albedo - ((Starhelper.diceRoll(6, 1, dice) - 1) * 0.05f);
+                }
+            }
+
+            // Apply atmosphere modifiers
+            if (planet.Atmosphere == "1" || planet.Atmosphere == "2" || planet.Atmosphere == "3" || planet.Atmosphere == "E")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 3) * 0.01f;
+            }
+            else if (planet.Atmosphere == "4" || planet.Atmosphere == "5" || planet.Atmosphere == "6" ||
+                     planet.Atmosphere == "7" || planet.Atmosphere == "8" || planet.Atmosphere == "9")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.01f;
+            }
+            else if (planet.Atmosphere == "A" || planet.Atmosphere == "B" || planet.Atmosphere == "C" ||
+                     planet.Atmosphere == "F" || planet.Atmosphere == "G" || planet.Atmosphere == "H")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.05f;
+            }
+            else if (planet.Atmosphere == "D")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.03f;
+            }
+
+            // Apply hydrographics modifiers
+            int hydroValue = GetSizeValue(planet.HydrographicsCode);
+            if (hydroValue >= 2 && hydroValue <= 5)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f;
+            }
+            else if (hydroValue >= 6)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 4) * 0.03f;
+            }
+
+            planet.Albedo = Math.Clamp(albedo, 0f, 1f);
+        }
+
+        private void CalculateAlbedo(Moon moon, float parentOrbitNumber, float hzco, Random dice)
+        {
+            float albedo = 0;
+
+            // Base albedo calculation based on density
+            if (moon.Density > 0.5f)
+            {
+                // Albedo = 0.04 + (2d6-2) * 0.02
+                albedo = 0.04f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f);
+            }
+            else if (parentOrbitNumber <= hzco + 2)
+            {
+                // Albedo = 0.2 + (2d6-3) * 0.05
+                albedo = 0.2f + ((Starhelper.diceRoll(6, 2, dice) - 3) * 0.05f);
+            }
+            else
+            {
+                // Albedo = 0.25 + (2d6-2) * 0.07
+                albedo = 0.25f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.07f);
+                if (albedo < 0.4f)
+                {
+                    albedo = albedo - ((Starhelper.diceRoll(6, 1, dice) - 1) * 0.05f);
+                }
+            }
+
+            // Apply atmosphere modifiers
+            if (moon.Atmosphere == "1" || moon.Atmosphere == "2" || moon.Atmosphere == "3" || moon.Atmosphere == "E")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 3) * 0.01f;
+            }
+            else if (moon.Atmosphere == "4" || moon.Atmosphere == "5" || moon.Atmosphere == "6" ||
+                     moon.Atmosphere == "7" || moon.Atmosphere == "8" || moon.Atmosphere == "9")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.01f;
+            }
+            else if (moon.Atmosphere == "A" || moon.Atmosphere == "B" || moon.Atmosphere == "C" ||
+                     moon.Atmosphere == "F" || moon.Atmosphere == "G" || moon.Atmosphere == "H")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.05f;
+            }
+            else if (moon.Atmosphere == "D")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.03f;
+            }
+
+            // Apply hydrographics modifiers
+            int hydroValue = GetSizeValue(moon.HydrographicsCode);
+            if (hydroValue >= 2 && hydroValue <= 5)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f;
+            }
+            else if (hydroValue >= 6)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 4) * 0.03f;
+            }
+
+            moon.Albedo = Math.Clamp(albedo, 0f, 1f);
+        }
+
+        private void CalculateAlbedo(GasGiant gasGiant, Random dice)
+        {
+            // Gas Giant: Albedo = 0.05 + (2d6) * 0.05
+            float albedo = 0.05f + (Starhelper.diceRoll(6, 2, dice) * 0.05f);
+            gasGiant.Albedo = Math.Clamp(albedo, 0f, 1f);
+        }
+
+        // Greenhouse Calculations
+
+        private void CalculateGreenhouse(TerrestrialPlanet planet, Random dice)
+        {
+            // Greenhouse = 0.5 * sqrt(AtmosphericPressure)
+            float greenhouse = 0.5f * (float)Math.Sqrt(planet.AtmosphericPressure);
+
+            // Apply modifiers based on atmosphere type
+            if (planet.Atmosphere == "1" || planet.Atmosphere == "2" || planet.Atmosphere == "3" ||
+                planet.Atmosphere == "4" || planet.Atmosphere == "5" || planet.Atmosphere == "6" ||
+                planet.Atmosphere == "7" || planet.Atmosphere == "8" || planet.Atmosphere == "9" ||
+                planet.Atmosphere == "D" || planet.Atmosphere == "E")
+            {
+                greenhouse += Starhelper.diceRoll(6, 3, dice) * 0.01f;
+            }
+            else if (planet.Atmosphere == "A" || planet.Atmosphere == "F")
+            {
+                greenhouse = greenhouse * (Starhelper.diceRoll(6, 1, dice) - 1);
+                if (greenhouse < 0.5f)
+                    greenhouse = 0.5f;
+            }
+            else if (planet.Atmosphere == "B" || planet.Atmosphere == "C" || planet.Atmosphere == "G" || planet.Atmosphere == "H")
+            {
+                int roll = Starhelper.diceRoll(6, 1, dice);
+                if (roll >= 1 && roll <= 5)
+                {
+                    greenhouse = greenhouse * roll;
+                }
+                else if (roll == 6)
+                {
+                    greenhouse = greenhouse * (3 * roll);
+                }
+            }
+
+            planet.Greenhouse = greenhouse;
+        }
+
+        private void CalculateGreenhouse(Moon moon, Random dice)
+        {
+            // Greenhouse = 0.5 * sqrt(AtmosphericPressure)
+            float greenhouse = 0.5f * (float)Math.Sqrt(moon.AtmosphericPressure);
+
+            // Apply modifiers based on atmosphere type
+            if (moon.Atmosphere == "1" || moon.Atmosphere == "2" || moon.Atmosphere == "3" ||
+                moon.Atmosphere == "4" || moon.Atmosphere == "5" || moon.Atmosphere == "6" ||
+                moon.Atmosphere == "7" || moon.Atmosphere == "8" || moon.Atmosphere == "9" ||
+                moon.Atmosphere == "D" || moon.Atmosphere == "E")
+            {
+                greenhouse += Starhelper.diceRoll(6, 3, dice) * 0.01f;
+            }
+            else if (moon.Atmosphere == "A" || moon.Atmosphere == "F")
+            {
+                greenhouse = greenhouse * (Starhelper.diceRoll(6, 1, dice) - 1);
+                if (greenhouse < 0.5f)
+                    greenhouse = 0.5f;
+            }
+            else if (moon.Atmosphere == "B" || moon.Atmosphere == "C" || moon.Atmosphere == "G" || moon.Atmosphere == "H")
+            {
+                int roll = Starhelper.diceRoll(6, 1, dice);
+                if (roll >= 1 && roll <= 5)
+                {
+                    greenhouse = greenhouse * roll;
+                }
+                else if (roll == 6)
+                {
+                    greenhouse = greenhouse * (3 * roll);
+                }
+            }
+
+            moon.Greenhouse = greenhouse;
+        }
+
+        // Temperature Factor Calculations
+
+        private void CalculateTemperatureFactors(TerrestrialPlanet planet)
+        {
+            // 1. Axial Tilt Factor = sin(axial tilt in radians)
+            float axialTiltRadians = planet.AxialTilt * (float)(Math.PI / 180.0);
+            planet.AxialTiltFactor = (float)Math.Abs(Math.Sin(axialTiltRadians));
+
+            // 2. Rotation Factor
+            if (planet.SolarDayHours > 2500 || planet.TidalLockStatus.Contains("1:1"))
+            {
+                planet.RotationFactor = 1.0f;
+            }
+            else
+            {
+                planet.RotationFactor = (float)Math.Sqrt(Math.Abs(planet.SolarDayHours) / 50.0);
+            }
+
+            // 3. Geographic Factor
+            int hydroValue = GetSizeValue(planet.HydrographicsCode);
+            float geographicFactor = ((10 - hydroValue) / 20.0f);
+
+            // Apply surface concentration modifier
+            int concentrationRoll = planet.SurfaceDistribution switch
+            {
+                "Extremely Concentrated" => 10,
+                "Very Concentrated" => 9,
+                "Concentrated" => 8,
+                "Extremely Dispersed" => 0,
+                "Very Dispersed" => 1,
+                "Dispersed" => 2,
+                _ => 5 // Default for middle values
+            };
+
+            if (concentrationRoll >= 9)
+                geographicFactor += 0.1f;
+            else if (concentrationRoll <= 1)
+                geographicFactor -= 0.1f;
+
+            planet.GeographicFactor = geographicFactor;
+
+            // 4. Variance Factors (sum, clamped to 0-1)
+            float variance = planet.AxialTiltFactor + planet.RotationFactor + planet.GeographicFactor;
+            planet.VarianceFactors = Math.Clamp(variance, 0f, 1f);
+
+            // 5. Atmospheric Factor = 1 + AtmosphericPressure
+            planet.AtmosphericFactor = 1.0f + planet.AtmosphericPressure;
+
+            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-1)
+            if (planet.AtmosphericFactor > 0)
+            {
+                planet.LuminosityModifier = Math.Clamp(planet.VarianceFactors / planet.AtmosphericFactor, 0f, 1f);
+            }
+            else
+            {
+                planet.LuminosityModifier = 0f;
+            }
+        }
+
+        private void CalculateTemperatureFactors(Moon moon)
+        {
+            // 1. Axial Tilt Factor = sin(axial tilt in radians)
+            float axialTiltRadians = moon.AxialTilt * (float)(Math.PI / 180.0);
+            moon.AxialTiltFactor = (float)Math.Abs(Math.Sin(axialTiltRadians));
+
+            // 2. Rotation Factor
+            if (moon.SolarDayHours > 2500 || moon.TidalLockStatus.Contains("1:1"))
+            {
+                moon.RotationFactor = 1.0f;
+            }
+            else
+            {
+                moon.RotationFactor = (float)Math.Sqrt(Math.Abs(moon.SolarDayHours) / 50.0);
+            }
+
+            // 3. Geographic Factor
+            int hydroValue = GetSizeValue(moon.HydrographicsCode);
+            float geographicFactor = ((10 - hydroValue) / 20.0f);
+
+            // Apply surface concentration modifier
+            int concentrationRoll = moon.SurfaceDistribution switch
+            {
+                "Extremely Concentrated" => 10,
+                "Very Concentrated" => 9,
+                "Concentrated" => 8,
+                "Extremely Dispersed" => 0,
+                "Very Dispersed" => 1,
+                "Dispersed" => 2,
+                _ => 5 // Default for middle values
+            };
+
+            if (concentrationRoll >= 9)
+                geographicFactor += 0.1f;
+            else if (concentrationRoll <= 1)
+                geographicFactor -= 0.1f;
+
+            moon.GeographicFactor = geographicFactor;
+
+            // 4. Variance Factors (sum, clamped to 0-1)
+            float variance = moon.AxialTiltFactor + moon.RotationFactor + moon.GeographicFactor;
+            moon.VarianceFactors = Math.Clamp(variance, 0f, 1f);
+
+            // 5. Atmospheric Factor = 1 + AtmosphericPressure
+            moon.AtmosphericFactor = 1.0f + moon.AtmosphericPressure;
+
+            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-1)
+            if (moon.AtmosphericFactor > 0)
+            {
+                moon.LuminosityModifier = Math.Clamp(moon.VarianceFactors / moon.AtmosphericFactor, 0f, 1f);
+            }
+            else
+            {
+                moon.LuminosityModifier = 0f;
+            }
+        }
+
+        // Calculate all temperatures after tidal locks are complete
+
+        private void CalculateAllTemperatures()
+        {
+            // Process primary star's worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                ProcessStarTemperatures(primaryStar, primaryObject.celestrialObjectOrbits);
+            }
+
+            // Process companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    ProcessStarTemperatures(companionStar, companionObj.celestrialObjectOrbits);
+                }
+            }
+        }
+
+        private void ProcessStarTemperatures(Star parentStar, List<CelestrialObject> orbits)
+        {
+            foreach (var bodyObj in orbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    // Calculate total luminosity of all stars this planet orbits
+                    float totalLuminosity = CalculateTotalLuminosity(parentStar);
+
+                    // Calculate temperature factors and temperatures
+                    CalculateTemperatureFactors(planet);
+                    CalculateTemperatures(planet, bodyObj.orbitAU, bodyObj.orbitEccentricity, totalLuminosity);
+
+                    DebugLogger.LogFormat("  {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Albedo={4:F2}, Greenhouse={5:F2}",
+                        planet.Designation, planet.MeanTemperatureK, planet.HighTemperatureK, planet.LowTemperatureK,
+                        planet.Albedo, planet.Greenhouse);
+
+                    // Process moons
+                    foreach (var moon in planet.Moons)
+                    {
+                        CalculateTemperatureFactors(moon);
+                        // For moons, convert moon orbit from planetary diameters to AU
+                        float moonOrbitKm = moon.Orbit * planet.Diameter; // Moon orbit in km
+                        float moonOrbitAU = moonOrbitKm / 149597870.7f; // Convert km to AU
+                        CalculateTemperatures(moon, bodyObj.orbitAU, moonOrbitAU, moon.Eccentricity, totalLuminosity);
+
+                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K",
+                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK);
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gasGiant)
+                {
+                    // Calculate total luminosity for gas giant moons
+                    float totalLuminosity = CalculateTotalLuminosity(parentStar);
+
+                    // Process gas giant moons
+                    foreach (var moon in gasGiant.Moons)
+                    {
+                        CalculateTemperatureFactors(moon);
+                        // For moons, convert moon orbit from gas giant diameters to AU
+                        float gasGiantDiameterKm = gasGiant.Diameter * 12742f; // Convert Earth diameters to km
+                        float moonOrbitKm = moon.Orbit * gasGiantDiameterKm; // Moon orbit in km
+                        float moonOrbitAU = moonOrbitKm / 149597870.7f; // Convert km to AU
+                        CalculateTemperatures(moon, bodyObj.orbitAU, moonOrbitAU, moon.Eccentricity, totalLuminosity);
+
+                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K",
+                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK);
+                    }
+                }
+            }
+        }
+
+        private float CalculateTotalLuminosity(Star star)
+        {
+            float totalLuminosity = star.luminosity;
+
+            // If this star has companions in the same system, add their luminosity
+            // For now, just return the single star's luminosity
+            // TODO: Handle multiple stars in the same orbit properly
+
+            return totalLuminosity;
+        }
+
+        // Temperature Calculations
+
+        private void CalculateTemperatures(TerrestrialPlanet planet, float orbitAU, float eccentricity, float totalLuminosity)
+        {
+            // Calculate High and Low Luminosity
+            planet.HighLuminosity = totalLuminosity * (1.0f + planet.LuminosityModifier);
+            planet.LowLuminosity = totalLuminosity * (1.0f - planet.LuminosityModifier);
+
+            // Calculate Near and Far AU based on eccentricity
+            planet.NearAU = orbitAU * (1.0f - eccentricity);
+            planet.FarAU = orbitAU * (1.0f + eccentricity);
+
+            // Calculate Mean Temperature (K) = 279 * ((Luminosity * (1 - Albedo) * (1 + Greenhouse)) / (AU^2))^0.25
+            float meanTempCalc = totalLuminosity * (1.0f - planet.Albedo) * (1.0f + planet.Greenhouse) / (orbitAU * orbitAU);
+            planet.MeanTemperatureK = (int)(279.0f * (float)Math.Pow(meanTempCalc, 0.25));
+            planet.MeanTemperatureC = planet.MeanTemperatureK - 273;
+
+            // Calculate High Temperature (K)
+            float highTempCalc = planet.HighLuminosity * (1.0f - planet.Albedo) * (1.0f + planet.Greenhouse) / (planet.NearAU * planet.NearAU);
+            planet.HighTemperatureK = (int)(279.0f * (float)Math.Pow(highTempCalc, 0.25));
+            planet.HighTemperatureC = planet.HighTemperatureK - 273;
+
+            // Calculate Low Temperature (K)
+            float lowTempCalc = planet.LowLuminosity * (1.0f - planet.Albedo) * (1.0f + planet.Greenhouse) / (planet.FarAU * planet.FarAU);
+            planet.LowTemperatureK = (int)(279.0f * (float)Math.Pow(lowTempCalc, 0.25));
+            planet.LowTemperatureC = planet.LowTemperatureK - 273;
+        }
+
+        private void CalculateTemperatures(Moon moon, float parentOrbitAU, float moonOrbitAU, float eccentricity, float totalLuminosity)
+        {
+            // For moons, use the parent planet's orbit
+            float effectiveOrbitAU = parentOrbitAU;
+
+            // Calculate High and Low Luminosity
+            moon.HighLuminosity = totalLuminosity * (1.0f + moon.LuminosityModifier);
+            moon.LowLuminosity = totalLuminosity * (1.0f - moon.LuminosityModifier);
+
+            // Calculate Near and Far AU based on eccentricity (of moon's orbit around parent)
+            moon.NearAU = moonOrbitAU * (1.0f - eccentricity);
+            moon.FarAU = moonOrbitAU * (1.0f + eccentricity);
+
+            // Calculate Mean Temperature using parent's orbit
+            float meanTempCalc = totalLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (effectiveOrbitAU * effectiveOrbitAU);
+            moon.MeanTemperatureK = (int)(279.0f * (float)Math.Pow(meanTempCalc, 0.25));
+            moon.MeanTemperatureC = moon.MeanTemperatureK - 273;
+
+            // Calculate High Temperature
+            float highTempCalc = moon.HighLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (moon.NearAU * moon.NearAU);
+            moon.HighTemperatureK = (int)(279.0f * (float)Math.Pow(highTempCalc, 0.25));
+            moon.HighTemperatureC = moon.HighTemperatureK - 273;
+
+            // Calculate Low Temperature
+            float lowTempCalc = moon.LowLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (moon.FarAU * moon.FarAU);
+            moon.LowTemperatureK = (int)(279.0f * (float)Math.Pow(lowTempCalc, 0.25));
+            moon.LowTemperatureC = moon.LowTemperatureK - 273;
         }
 
         // Rotation and Day Length Calculations
@@ -3419,6 +3953,9 @@ namespace TravellerSystemGenerator
                 // Determine gas giant size
                 DetermineGasGiantSize(gasGiant, dice);
 
+                // Calculate albedo
+                CalculateAlbedo(gasGiant, dice);
+
                 // Calculate rotation and day length
                 CalculateBasicRotationRate(gasGiant, parentStar.age, dice);
                 CalculateSolarDays(gasGiant, cobj.OrbitalPeriodYears);
@@ -4088,11 +4625,15 @@ namespace TravellerSystemGenerator
                 var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
                 GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
 
-                // Calculate atmospheric pressure, oxygen, temperature, and hydrographics
+                // Calculate atmospheric pressure, oxygen, and hydrographics
                 CalculateAtmosphericPressure(planet, dice);
                 CalculateOxygenFraction(planet, parentStar.age, dice);
-                CalculateMeanTemperature(planet, cobj.orbit, parentStar.HZCO, dice);
                 CalculateHydrographics(planet, dice);
+
+                // Calculate surface distribution, albedo, and greenhouse
+                CalculateSurfaceDistribution(planet, dice);
+                CalculateAlbedo(planet, cobj.orbit, parentStar.HZCO, dice);
+                CalculateGreenhouse(planet, dice);
 
                 // Calculate rotation and day length
                 CalculateBasicRotationRate(planet, parentStar.age, dice);
@@ -6788,7 +7329,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            <tr>");
             html.AppendLine($"                <td colspan=\"2\">{(data.HydrographicsCoverage > 0 ? data.HydrographicsCoverage.ToString("F1") + "%" : "")}</td>");
             html.AppendLine("                <td colspan=\"2\"></td>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.SurfaceDistribution}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Major bodies</th>");
@@ -6845,7 +7386,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            <tr>");
             html.AppendLine("                <th rowspan=\"3\">TEMPERATURE</th>");
             html.AppendLine("                <th>High</th>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(data.HighTemperatureK > 0 ? $"{data.HighTemperatureK}K ({data.HighTemperatureC}°C)" : "")}</td>");
             html.AppendLine("                <th colspan=\"2\">Luminosity</th>");
             html.AppendLine("                <th colspan=\"2\"><strong>Notes:</strong></th>");
             html.AppendLine("            </tr>");
@@ -6853,13 +7394,13 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th>Mean</th>");
             html.AppendLine($"                <td>{(data.MeanTemperatureK > 0 ? $"{data.MeanTemperatureK}K ({data.MeanTemperatureC}°C)" : "")}</td>");
             html.AppendLine("                <th colspan=\"2\">Albedo</th>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine($"                <td colspan=\"2\">{(data.Albedo > 0 ? data.Albedo.ToString("F2") : "")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Low</th>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(data.LowTemperatureK > 0 ? $"{data.LowTemperatureK}K ({data.LowTemperatureC}°C)" : "")}</td>");
             html.AppendLine("                <th colspan=\"2\">Greenhouse</th>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine($"                <td colspan=\"2\">{(data.Greenhouse > 0 ? data.Greenhouse.ToString("F2") : "")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
@@ -7043,6 +7584,13 @@ namespace TravellerSystemGenerator
                             MeanTemperatureC = tp.MeanTemperatureC,
                             HydrographicsCoverage = tp.HydrographicsCoverage,
                             HydrographicsCode = tp.HydrographicsCode,
+                            SurfaceDistribution = tp.SurfaceDistribution,
+                            Albedo = tp.Albedo,
+                            Greenhouse = tp.Greenhouse,
+                            HighTemperatureK = tp.HighTemperatureK,
+                            HighTemperatureC = tp.HighTemperatureC,
+                            LowTemperatureK = tp.LowTemperatureK,
+                            LowTemperatureC = tp.LowTemperatureC,
                             BasicRotationRateHours = tp.BasicRotationRateHours,
                             SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
                             SolarDayHours = tp.SolarDayHours,
@@ -7170,6 +7718,13 @@ namespace TravellerSystemGenerator
                                 MeanTemperatureC = tp.MeanTemperatureC,
                                 HydrographicsCoverage = tp.HydrographicsCoverage,
                                 HydrographicsCode = tp.HydrographicsCode,
+                                SurfaceDistribution = tp.SurfaceDistribution,
+                                Albedo = tp.Albedo,
+                                Greenhouse = tp.Greenhouse,
+                                HighTemperatureK = tp.HighTemperatureK,
+                                HighTemperatureC = tp.HighTemperatureC,
+                                LowTemperatureK = tp.LowTemperatureK,
+                                LowTemperatureC = tp.LowTemperatureC,
                                 BasicRotationRateHours = tp.BasicRotationRateHours,
                                 SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
                                 SolarDayHours = tp.SolarDayHours,
