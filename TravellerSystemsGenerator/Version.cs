@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 1;
-        public const int Minor = 6;
+        public const int Minor = 7;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -58,5 +58,6 @@ namespace TravellerSystemGenerator
         // 1.4.x - Moon orbital characteristics (Hill Sphere, moon removal logic, orbits, orbital periods)
         // 1.5.x - Non-HZ atmosphere generation (exotic atmospheres for worlds outside habitable zone)
         // 1.6.x - Atmospheric pressure, oxygen fraction, temperature, and hydrographics calculations
+        // 1.7.x - Rotation and day length (sidereal period, solar days per year, solar day length)
     }
 }

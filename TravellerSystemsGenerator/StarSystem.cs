@@ -70,6 +70,9 @@ namespace TravellerSystemGenerator
         public int MeanTemperatureC { get; set; } = 0;
         public float HydrographicsCoverage { get; set; } = 0;
         public string HydrographicsCode { get; set; } = "";
+        public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period
+        public float SolarDaysInLocalYear { get; set; } = 0;    // Solar days per year
+        public float SolarDayHours { get; set; } = 0;           // Solar day length
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -653,7 +656,7 @@ namespace TravellerSystemGenerator
                     CalculateMoonOrbitalPeriods(body);
 
                     // Generate atmospheres
-                    GenerateMoonAtmospheres(body, bodyObj.orbit, parentStar, dice);
+                    GenerateMoonAtmospheres(body, bodyObj.orbit, parentStar, bodyObj.OrbitalPeriodYears, dice);
                 }
             }
         }
@@ -1011,7 +1014,7 @@ namespace TravellerSystemGenerator
             }
         }
 
-        private void GenerateMoonAtmospheres(CelestialBody world, float worldOrbitNumber, Star parentStar, Random dice)
+        private void GenerateMoonAtmospheres(CelestialBody world, float worldOrbitNumber, Star parentStar, float parentWorldOrbitalPeriodYears, Random dice)
         {
             List<Moon> moons = new List<Moon>();
             if (world is TerrestrialPlanet tp)
@@ -1025,6 +1028,9 @@ namespace TravellerSystemGenerator
             // Calculate habitable zone boundaries
             var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
 
+            // Convert parent world's orbital period to hours for moon solar day calculations
+            float parentWorldOrbitalPeriodHours = parentWorldOrbitalPeriodYears * 365.25f * 24f;
+
             // Generate atmosphere for each moon
             foreach (var moon in moons)
             {
@@ -1035,6 +1041,10 @@ namespace TravellerSystemGenerator
                 CalculateOxygenFraction(moon, parentStar.age, dice);
                 CalculateMeanTemperature(moon, worldOrbitNumber, parentStar.HZCO, dice);
                 CalculateHydrographics(moon, dice);
+
+                // Calculate rotation and day length
+                CalculateBasicRotationRate(moon, parentStar.age, dice);
+                CalculateSolarDays(moon, parentWorldOrbitalPeriodHours);
             }
         }
 
@@ -2150,6 +2160,135 @@ namespace TravellerSystemGenerator
             moon.HydrographicsCode = roll > 9 ? "A" : roll.ToString();
         }
 
+        // Rotation and Day Length Calculations
+
+        private void CalculateBasicRotationRate(TerrestrialPlanet planet, float systemAge, Random dice)
+        {
+            int dm = (int)(systemAge / 2); // +1 per two Gyrs, round down
+
+            // Basic Rotation Rate = ((2d6) * 2) + 2 + (1d6) + DM
+            int basicRate = (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // If result > 40, roll 1d6 and if 5-6, repeat and add
+            while (basicRate > 40 && Starhelper.diceRoll(6, 1, dice) >= 5)
+            {
+                basicRate += (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+            }
+
+            // Add random minutes (0-59)
+            float randomMinutes = Starhelper.diceRoll(60, 1, dice) - 1;
+            planet.BasicRotationRateHours = basicRate + (randomMinutes / 60f);
+        }
+
+        private void CalculateBasicRotationRate(GasGiant gasGiant, float systemAge, Random dice)
+        {
+            int dm = (int)(systemAge / 2); // +1 per two Gyrs, round down
+
+            // Gas giants use same formula: ((2d6) * 2) + 2 + (1d6) + DM
+            int basicRate = (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // If result > 40, roll 1d6 and if 5-6, repeat and add
+            while (basicRate > 40 && Starhelper.diceRoll(6, 1, dice) >= 5)
+            {
+                basicRate += (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+            }
+
+            // Add random minutes (0-59)
+            float randomMinutes = Starhelper.diceRoll(60, 1, dice) - 1;
+            gasGiant.BasicRotationRateHours = basicRate + (randomMinutes / 60f);
+        }
+
+        private void CalculateBasicRotationRate(Moon moon, float systemAge, Random dice)
+        {
+            int dm = (int)(systemAge / 2); // +1 per two Gyrs, round down
+
+            // Moons use same formula: ((2d6) * 2) + 2 + (1d6) + DM
+            int basicRate = (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // If result > 40, roll 1d6 and if 5-6, repeat and add
+            while (basicRate > 40 && Starhelper.diceRoll(6, 1, dice) >= 5)
+            {
+                basicRate += (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+            }
+
+            // Add random minutes (0-59)
+            float randomMinutes = Starhelper.diceRoll(60, 1, dice) - 1;
+            moon.BasicRotationRateHours = basicRate + (randomMinutes / 60f);
+        }
+
+        private void CalculateSolarDays(TerrestrialPlanet planet, float orbitalPeriodYears)
+        {
+            // Convert orbital period from years to hours
+            float orbitalPeriodHours = orbitalPeriodYears * 365.25f * 24f;
+
+            if (planet.BasicRotationRateHours <= 0)
+            {
+                planet.SolarDaysInLocalYear = 0;
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            planet.SolarDaysInLocalYear = (orbitalPeriodHours / planet.BasicRotationRateHours) - 1;
+
+            if (planet.SolarDaysInLocalYear <= 0)
+            {
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            planet.SolarDayHours = orbitalPeriodHours / planet.SolarDaysInLocalYear;
+        }
+
+        private void CalculateSolarDays(GasGiant gasGiant, float orbitalPeriodYears)
+        {
+            // Convert orbital period from years to hours
+            float orbitalPeriodHours = orbitalPeriodYears * 365.25f * 24f;
+
+            if (gasGiant.BasicRotationRateHours <= 0)
+            {
+                gasGiant.SolarDaysInLocalYear = 0;
+                gasGiant.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            gasGiant.SolarDaysInLocalYear = (orbitalPeriodHours / gasGiant.BasicRotationRateHours) - 1;
+
+            if (gasGiant.SolarDaysInLocalYear <= 0)
+            {
+                gasGiant.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            gasGiant.SolarDayHours = orbitalPeriodHours / gasGiant.SolarDaysInLocalYear;
+        }
+
+        private void CalculateSolarDays(Moon moon, float parentOrbitalPeriodHours)
+        {
+            // For moons, use the parent world's orbital period (already in hours)
+            if (moon.BasicRotationRateHours <= 0)
+            {
+                moon.SolarDaysInLocalYear = 0;
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            moon.SolarDaysInLocalYear = (parentOrbitalPeriodHours / moon.BasicRotationRateHours) - 1;
+
+            if (moon.SolarDaysInLocalYear <= 0)
+            {
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            moon.SolarDayHours = parentOrbitalPeriodHours / moon.SolarDaysInLocalYear;
+        }
+
         private void GenerateAtmosphere(TerrestrialPlanet planet, float orbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
         {
             // Determine world type
@@ -2558,6 +2697,10 @@ namespace TravellerSystemGenerator
 
                 // Determine gas giant size
                 DetermineGasGiantSize(gasGiant, dice);
+
+                // Calculate rotation and day length
+                CalculateBasicRotationRate(gasGiant, parentStar.age, dice);
+                CalculateSolarDays(gasGiant, cobj.OrbitalPeriodYears);
 
                 DebugLogger.LogFormat("  Placed Gas Giant at orbit {0:F3} (Size:{1}-{2}, Mass:{3}, e:{4:F3}, P:{5})",
                     cobj.orbit, gasGiant.Size, ToEhex(gasGiant.Diameter), gasGiant.GasGiantMass,
@@ -3229,6 +3372,10 @@ namespace TravellerSystemGenerator
                 CalculateOxygenFraction(planet, parentStar.age, dice);
                 CalculateMeanTemperature(planet, cobj.orbit, parentStar.HZCO, dice);
                 CalculateHydrographics(planet, dice);
+
+                // Calculate rotation and day length
+                CalculateBasicRotationRate(planet, parentStar.age, dice);
+                CalculateSolarDays(planet, cobj.OrbitalPeriodYears);
 
                 DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
                     cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
@@ -4635,6 +4782,31 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private string FormatRotationPeriod(float hours)
+        {
+            if (hours <= 0)
+                return "";
+
+            if (hours < 24.0f)
+            {
+                // Less than 1 day - show in hours
+                return $"{hours:F2}h";
+            }
+            else if (hours < 168.0f) // Less than 1 week (7 days)
+            {
+                // Show in days and hours
+                float days = hours / 24.0f;
+                float remainderHours = hours - ((int)days * 24);
+                return $"{(int)days}d {remainderHours:F1}h";
+            }
+            else
+            {
+                // Show in days only
+                float days = hours / 24.0f;
+                return $"{days:F1}d";
+            }
+        }
+
         private string FormatMoonOrbitalPeriod(Moon moon)
         {
             float hours = moon.OrbitalPeriod;
@@ -5876,9 +6048,9 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th>Axial Tilt</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td colspan=\"2\">{FormatRotationPeriod(data.BasicRotationRateHours)}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{FormatRotationPeriod(data.SolarDayHours)}</td>");
+            html.AppendLine($"                <td>{(data.SolarDaysInLocalYear > 0 ? data.SolarDaysInLocalYear.ToString("F2") : "")}</td>");
             html.AppendLine("                <td></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
@@ -6096,6 +6268,9 @@ namespace TravellerSystemGenerator
                             MeanTemperatureC = tp.MeanTemperatureC,
                             HydrographicsCoverage = tp.HydrographicsCoverage,
                             HydrographicsCode = tp.HydrographicsCode,
+                            BasicRotationRateHours = tp.BasicRotationRateHours,
+                            SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
+                            SolarDayHours = tp.SolarDayHours,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -6129,6 +6304,9 @@ namespace TravellerSystemGenerator
                                 MeanTemperatureC = moon.MeanTemperatureC,
                                 HydrographicsCoverage = moon.HydrographicsCoverage,
                                 HydrographicsCode = moon.HydrographicsCode,
+                                BasicRotationRateHours = moon.BasicRotationRateHours,
+                                SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                SolarDayHours = moon.SolarDayHours,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -6165,6 +6343,9 @@ namespace TravellerSystemGenerator
                                 MeanTemperatureC = moon.MeanTemperatureC,
                                 HydrographicsCoverage = moon.HydrographicsCoverage,
                                 HydrographicsCode = moon.HydrographicsCode,
+                                BasicRotationRateHours = moon.BasicRotationRateHours,
+                                SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                SolarDayHours = moon.SolarDayHours,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -6208,6 +6389,9 @@ namespace TravellerSystemGenerator
                                 MeanTemperatureC = tp.MeanTemperatureC,
                                 HydrographicsCoverage = tp.HydrographicsCoverage,
                                 HydrographicsCode = tp.HydrographicsCode,
+                                BasicRotationRateHours = tp.BasicRotationRateHours,
+                                SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
+                                SolarDayHours = tp.SolarDayHours,
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };

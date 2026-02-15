@@ -37,6 +37,9 @@ namespace TravellerSystemGenerator
         public int MeanTemperatureC { get; set; } = 0;       // In Celsius
         public float HydrographicsCoverage { get; set; } = 0; // Percentage (0-100)
         public string HydrographicsCode { get; set; } = "";  // Code: 0-9, A
+        public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period in hours (decimal)
+        public float SolarDaysInLocalYear { get; set; } = 0;    // Number of solar days per orbital period
+        public float SolarDayHours { get; set; } = 0;           // Length of a solar day in hours
 
         public Moon() { }
     }
@@ -56,6 +59,9 @@ namespace TravellerSystemGenerator
         public float HillSpherePD { get; set; } = 0;        // In planetary diameters
         public float HillSphereMoonLimit { get; set; } = 0; // In planetary diameters
         public float RocheLimit { get; set; } = 0;          // In planetary diameters
+        public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period in hours (decimal)
+        public float SolarDaysInLocalYear { get; set; } = 0;    // Number of solar days per orbital period
+        public float SolarDayHours { get; set; } = 0;           // Length of a solar day in hours
 
         public GasGiant() : base(CelestialBodyType.GasGiant) { }
     }
@@ -87,6 +93,9 @@ namespace TravellerSystemGenerator
         public int MeanTemperatureC { get; set; } = 0;          // In Celsius
         public float HydrographicsCoverage { get; set; } = 0;   // Percentage (0-100)
         public string HydrographicsCode { get; set; } = "";     // Code: 0-9, A
+        public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period in hours (decimal)
+        public float SolarDaysInLocalYear { get; set; } = 0;    // Number of solar days per orbital period
+        public float SolarDayHours { get; set; } = 0;           // Length of a solar day in hours
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
