@@ -2500,10 +2500,10 @@ namespace TravellerSystemGenerator
             // 5. Atmospheric Factor = 1 + AtmosphericPressure
             planet.AtmosphericFactor = 1.0f + planet.AtmosphericPressure;
 
-            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-1)
+            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-0.99 to prevent zero low luminosity)
             if (planet.AtmosphericFactor > 0)
             {
-                planet.LuminosityModifier = Math.Clamp(planet.VarianceFactors / planet.AtmosphericFactor, 0f, 1f);
+                planet.LuminosityModifier = Math.Clamp(planet.VarianceFactors / planet.AtmosphericFactor, 0f, 0.99f);
             }
             else
             {
@@ -2557,10 +2557,10 @@ namespace TravellerSystemGenerator
             // 5. Atmospheric Factor = 1 + AtmosphericPressure
             moon.AtmosphericFactor = 1.0f + moon.AtmosphericPressure;
 
-            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-1)
+            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-0.99 to prevent zero low luminosity)
             if (moon.AtmosphericFactor > 0)
             {
-                moon.LuminosityModifier = Math.Clamp(moon.VarianceFactors / moon.AtmosphericFactor, 0f, 1f);
+                moon.LuminosityModifier = Math.Clamp(moon.VarianceFactors / moon.AtmosphericFactor, 0f, 0.99f);
             }
             else
             {
