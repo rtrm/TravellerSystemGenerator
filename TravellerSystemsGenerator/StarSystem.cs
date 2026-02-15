@@ -5079,7 +5079,7 @@ namespace TravellerSystemGenerator
 
                         if (body is TerrestrialPlanet tp)
                         {
-                            size = tp.Size + tp.Atmosphere + "?";
+                            size = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
                             moons = tp.Moons;
                             // R-sized moons are rings
                             ringCount = moons.Count(m => m.Size == "R");
@@ -5190,7 +5190,7 @@ namespace TravellerSystemGenerator
 
                             if (body is TerrestrialPlanet tp)
                             {
-                                size = tp.Size + tp.Atmosphere + "?";
+                                size = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
                                 moons = tp.Moons;
                                 // R-sized moons are rings
                                 ringCount = moons.Count(m => m.Size == "R");
@@ -6074,7 +6074,7 @@ namespace TravellerSystemGenerator
                         SurveyData surveyData = new SurveyData
                         {
                             WorldName = tp.Designation,
-                            SAH_UWP = tp.Size + tp.Atmosphere + "?",
+                            SAH_UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode,
                             PrimaryObject = primaryStar.Designation,
                             SystemAge = primaryStar.age.ToString("F2"),
                             OrbitNumber = bodyObj.orbit,
@@ -6107,7 +6107,7 @@ namespace TravellerSystemGenerator
                             SurveyData moonSurvey = new SurveyData
                             {
                                 WorldName = $"{tp.Designation} {moon.Designation}",
-                                SAH_UWP = moon.Size + moon.Atmosphere,
+                                SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
                                 PrimaryObject = $"{tp.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -6143,7 +6143,7 @@ namespace TravellerSystemGenerator
                             SurveyData moonSurvey = new SurveyData
                             {
                                 WorldName = $"{gg.Designation} {moon.Designation}",
-                                SAH_UWP = moon.Size + moon.Atmosphere,
+                                SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
                                 PrimaryObject = $"{gg.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -6186,7 +6186,7 @@ namespace TravellerSystemGenerator
                             SurveyData surveyData = new SurveyData
                             {
                                 WorldName = tp.Designation,
-                                SAH_UWP = tp.Size + tp.Atmosphere + "?",
+                                SAH_UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode,
                                 PrimaryObject = companionStar.Designation + ", orbiting " + (primaryObject.celestrialObject as Star)?.Designation,
                                 SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                 OrbitNumber = bodyObj.orbit,
@@ -6219,7 +6219,7 @@ namespace TravellerSystemGenerator
                                 SurveyData moonSurvey = new SurveyData
                                 {
                                     WorldName = $"{tp.Designation} {moon.Designation}",
-                                    SAH_UWP = moon.Size + moon.Atmosphere,
+                                    SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
                                     PrimaryObject = $"{tp.Designation}",
                                     SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -6248,7 +6248,7 @@ namespace TravellerSystemGenerator
                                 SurveyData moonSurvey = new SurveyData
                                 {
                                     WorldName = $"{gg.Designation} {moon.Designation}",
-                                    SAH_UWP = moon.Size + moon.Atmosphere,
+                                    SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
                                     PrimaryObject = $"{gg.Designation}",
                                     SystemAge = "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
