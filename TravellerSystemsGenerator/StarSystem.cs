@@ -5531,6 +5531,46 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private string FormatRotationPeriodDetailed(float hours)
+        {
+            if (hours <= 0)
+                return "";
+
+            // For periods >= 7 days (168 hours), show in days format
+            if (hours >= 168.0f)
+            {
+                float days = hours / 24.0f;
+                int wholeDays = (int)days;
+                float remainderHours = (days - wholeDays) * 24;
+                int wholeHours = (int)remainderHours;
+                float remainderMinutes = (remainderHours - wholeHours) * 60;
+                int minutes = (int)remainderMinutes;
+
+                return $"{wholeDays}d {wholeHours}h {minutes}m ({days:F2})";
+            }
+            else
+            {
+                int totalHours = (int)hours;
+                float remainderMinutes = (hours - totalHours) * 60;
+                int minutes = (int)remainderMinutes;
+                int seconds = (int)((remainderMinutes - minutes) * 60);
+
+                return $"{totalHours}h {minutes}m {seconds}s ({hours:F2})";
+            }
+        }
+
+        private string FormatAxialTiltDetailed(float degrees)
+        {
+            if (degrees <= 0)
+                return "";
+
+            int wholeDegrees = (int)degrees;
+            float remainderMinutes = (degrees - wholeDegrees) * 60;
+            int minutes = (int)remainderMinutes;
+
+            return $"{wholeDegrees}° {minutes}' ({degrees:F2}°)";
+        }
+
         private string FormatMoonOrbitalPeriod(Moon moon)
         {
             float hours = moon.OrbitalPeriod;
@@ -6766,26 +6806,35 @@ namespace TravellerSystemGenerator
             html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th rowspan=\"2\">ROTATION</th>");
-            html.AppendLine("                <th colspan=\"2\">Sidereal</th>");
-            html.AppendLine("                <th colspan=\"2\">Solar</th>");
+            html.AppendLine("                <th>Sidereal</th>");
+            html.AppendLine("                <td style=\"background-color: white;\">" + FormatRotationPeriodDetailed(data.BasicRotationRateHours) + "</td>");
+            html.AppendLine("                <th>Solar</th>");
+            html.AppendLine("                <td style=\"background-color: white;\">" + FormatRotationPeriodDetailed(data.SolarDayHours) + "</td>");
             html.AppendLine("                <th>Solar days/year</th>");
+            html.AppendLine($"                <td style=\"background-color: white;\">{(data.SolarDaysInLocalYear > 0 ? data.SolarDaysInLocalYear.ToString("F4") : "")}</td>");
             html.AppendLine("                <th>Axial Tilt</th>");
+            html.AppendLine($"                <td style=\"background-color: white;\">{FormatAxialTiltDetailed(data.AxialTilt)}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine($"                <td colspan=\"2\">{FormatRotationPeriod(data.BasicRotationRateHours)}</td>");
-            html.AppendLine($"                <td colspan=\"2\">{FormatRotationPeriod(data.SolarDayHours)}</td>");
-            html.AppendLine($"                <td>{(data.SolarDaysInLocalYear > 0 ? data.SolarDaysInLocalYear.ToString("F2") : "")}</td>");
-            html.AppendLine($"                <td>{(data.AxialTilt > 0 ? data.AxialTilt.ToString("F1") + "°" : "")}</td>");
+            html.AppendLine("                <th>Tidal lock?</th>");
+            // Only show "Yes" for 1:1 or 3:2 locks
+            string tidalLockDisplay = "No";
+            if (!string.IsNullOrEmpty(data.TidalLockStatus))
+            {
+                if (data.TidalLockStatus.Contains("1:1") || data.TidalLockStatus.Contains("3:2"))
+                    tidalLockDisplay = "Yes";
+            }
+            html.AppendLine($"                <td style=\"background-color: white;\">{tidalLockDisplay}</td>");
+            html.AppendLine("                <th>Tides</th>");
+            html.AppendLine("                <td colspan=\"5\" style=\"background-color: white;\"></td>");
             html.AppendLine("            </tr>");
-            html.AppendLine("            <tr>");
-            html.AppendLine("                <th></th>");
-            html.AppendLine("                <th colspan=\"2\">Tidal lock?</th>");
-            html.AppendLine("                <th colspan=\"3\">Tides</th>");
-            html.AppendLine($"                <td>{(string.IsNullOrEmpty(data.TidalLockStatus) ? "No" : "Yes")}</td>");
-            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Notes</th>");
-            html.AppendLine($"                <td colspan=\"6\">{data.TidalLockStatus}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{data.TidalLockStatus}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
