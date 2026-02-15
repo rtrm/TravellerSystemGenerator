@@ -597,6 +597,15 @@ namespace TravellerSystemGenerator
 
             DebugLogger.Log("");
             DebugLogger.Log("Moon generation complete");
+
+            // Calculate tidal locks after all worlds and moons are generated
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating tidal locks...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateTidalLocks(dice);
+            DebugLogger.Log("");
+            DebugLogger.Log("Tidal lock calculation complete");
         }
 
         private void GenerateWorldMoons(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)
@@ -2424,6 +2433,581 @@ namespace TravellerSystemGenerator
             }
 
             moon.AxialTilt = axialTilt;
+        }
+
+        // Tidal Lock Calculations
+
+        private class TidalLockCandidate
+        {
+            public object Body { get; set; } = null!; // TerrestrialPlanet or Moon
+            public string LockType { get; set; } = ""; // "ToStar", "ToWorld", "ToMoon"
+            public object? LockTarget { get; set; } // Star, CelestialBody (world), or Moon
+            public int TotalDM { get; set; }
+            public float OrbitNumber { get; set; } // For worlds orbiting stars
+            public float Eccentricity { get; set; } // Orbital eccentricity
+            public float OrbitalPeriodYears { get; set; } // For recalculating solar days
+            public Moon? TargetMoon { get; set; } // For world-to-moon locks
+            public int Priority { get; set; } // For tie-breaking (0=highest priority)
+        }
+
+        private void CalculateTidalLocks(Random dice)
+        {
+            var candidates = new List<TidalLockCandidate>();
+
+            // Process primary star's bodies
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CollectTidalLockCandidates(primaryObject.celestrialObjectOrbits, primaryStar, candidates);
+            }
+
+            // Process companion stars' bodies
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    CollectTidalLockCandidates(companionObj.celestrialObjectOrbits, companionStar, candidates);
+                }
+            }
+
+            // Sort by DM (highest first), then by priority (lowest first)
+            candidates = candidates.OrderByDescending(c => c.TotalDM)
+                                 .ThenBy(c => c.Priority)
+                                 .ToList();
+
+            // Process each candidate
+            foreach (var candidate in candidates)
+            {
+                // Skip world-to-moon locks if the moon isn't locked to the world
+                if (candidate.LockType == "ToMoon" && candidate.TargetMoon != null)
+                {
+                    if (string.IsNullOrEmpty(candidate.TargetMoon.TidalLockStatus))
+                        continue; // Moon not locked, skip this candidate
+                }
+
+                // Check if body is already locked
+                if (candidate.Body is TerrestrialPlanet planet)
+                {
+                    if (!string.IsNullOrEmpty(planet.TidalLockStatus))
+                        continue; // Already locked
+                }
+                else if (candidate.Body is Moon moon)
+                {
+                    if (!string.IsNullOrEmpty(moon.TidalLockStatus))
+                        continue; // Already locked
+                }
+
+                // Apply tidal lock effect
+                ApplyTidalLockEffect(candidate, dice);
+            }
+        }
+
+        private void CollectTidalLockCandidates(List<CelestrialObject> orbits, Star parentStar, List<TidalLockCandidate> candidates)
+        {
+            foreach (var cobj in orbits)
+            {
+                if (cobj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    // World to star lock
+                    int dm = CalculateWorldToStarDM(tp, cobj.orbit, cobj.orbitEccentricity, parentStar);
+                    if (dm > -10) // Can only lock if DM > -10
+                    {
+                        candidates.Add(new TidalLockCandidate
+                        {
+                            Body = tp,
+                            LockType = "ToStar",
+                            LockTarget = parentStar,
+                            TotalDM = dm,
+                            OrbitNumber = cobj.orbit,
+                            Eccentricity = cobj.orbitEccentricity,
+                            OrbitalPeriodYears = cobj.OrbitalPeriodYears,
+                            Priority = 1 // Lower priority than moon-to-world
+                        });
+                    }
+
+                    // Moon to world locks
+                    for (int i = 0; i < tp.Moons.Count; i++)
+                    {
+                        var moon = tp.Moons[i];
+                        int moonDM = CalculateMoonToWorldDM(moon, tp, parentStar.age);
+                        if (moonDM > -10)
+                        {
+                            candidates.Add(new TidalLockCandidate
+                            {
+                                Body = moon,
+                                LockType = "ToWorld",
+                                LockTarget = tp,
+                                TotalDM = moonDM,
+                                Eccentricity = moon.Eccentricity,
+                                OrbitalPeriodYears = cobj.OrbitalPeriodYears, // Parent world's period for solar days
+                                Priority = 0 // Highest priority (moon-to-world checked first)
+                            });
+                        }
+                    }
+
+                    // World to moon locks (only check after moon-to-world is resolved)
+                    for (int i = 0; i < tp.Moons.Count; i++)
+                    {
+                        var moon = tp.Moons[i];
+                        int worldToMoonDM = CalculateWorldToMoonDM(tp, moon, cobj.orbitEccentricity, parentStar.age);
+                        if (worldToMoonDM > -10)
+                        {
+                            candidates.Add(new TidalLockCandidate
+                            {
+                                Body = tp,
+                                LockType = "ToMoon",
+                                LockTarget = tp,
+                                TotalDM = worldToMoonDM,
+                                TargetMoon = moon,
+                                Eccentricity = cobj.orbitEccentricity,
+                                OrbitalPeriodYears = cobj.OrbitalPeriodYears,
+                                Priority = 2 // Lowest priority (checked last)
+                            });
+                        }
+                    }
+                }
+                else if (cobj.celestrialObject is GasGiant gg)
+                {
+                    // Moon to gas giant locks
+                    for (int i = 0; i < gg.Moons.Count; i++)
+                    {
+                        var moon = gg.Moons[i];
+                        int moonDM = CalculateMoonToWorldDM(moon, gg, parentStar.age);
+                        if (moonDM > -10)
+                        {
+                            candidates.Add(new TidalLockCandidate
+                            {
+                                Body = moon,
+                                LockType = "ToWorld",
+                                LockTarget = gg,
+                                TotalDM = moonDM,
+                                Eccentricity = moon.Eccentricity,
+                                OrbitalPeriodYears = cobj.OrbitalPeriodYears,
+                                Priority = 0
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        private int CalculateWorldToStarDM(TerrestrialPlanet planet, float orbitNumber, float eccentricity, Star parentStar)
+        {
+            int dm = -4; // Base DM
+
+            // Common DMs
+            dm += GetCommonDMs(planet.Size, eccentricity, planet.AxialTilt, planet.AtmosphericPressure, parentStar.age);
+
+            // Orbit-based DMs
+            if (orbitNumber < 1.0f)
+            {
+                dm += 4 + (10 * (int)(1.0f - orbitNumber));
+            }
+            else if (orbitNumber >= 1.0f && orbitNumber < 2.0f)
+            {
+                dm += 4;
+            }
+            else if (orbitNumber >= 2.0f && orbitNumber < 3.0f)
+            {
+                dm += 1;
+            }
+            else if (orbitNumber > 3.0f)
+            {
+                dm -= (int)orbitNumber * 2;
+            }
+
+            // Star mass DMs
+            float starMass = parentStar.mass;
+            if (starMass < 0.5f)
+                dm -= 2;
+            else if (starMass > 0.5f && starMass <= 1.0f)
+                dm += 1;
+            else if (starMass > 5.0f)
+                dm += 2;
+
+            // Moon DMs
+            int totalMoonSize = 0;
+            foreach (var moon in planet.Moons)
+            {
+                int moonSizeValue = GetSizeValue(moon.Size);
+                if (moonSizeValue >= 1)
+                    totalMoonSize += moonSizeValue;
+            }
+            if (totalMoonSize > 0)
+                dm -= totalMoonSize;
+
+            return dm;
+        }
+
+        private int CalculateMoonToWorldDM(Moon moon, CelestialBody world, float systemAge)
+        {
+            int dm = 6; // Base DM
+
+            // Common DMs
+            dm += GetCommonDMs(moon.Size, moon.Eccentricity, moon.AxialTilt, moon.AtmosphericPressure, systemAge);
+
+            // Orbit distance DM
+            if (moon.Orbit > 20.0f)
+            {
+                dm -= (int)(moon.Orbit / 20.0f);
+            }
+
+            // Retrograde DM
+            if (moon.IsRetrograde)
+                dm -= 2;
+
+            // World mass DMs
+            float worldMass = GetWorldMassInEarthMasses(world);
+            if (worldMass >= 1.0f && worldMass < 10.0f)
+                dm += 2;
+            else if (worldMass >= 10.0f && worldMass < 100.0f)
+                dm += 4;
+            else if (worldMass >= 100.0f && worldMass < 1000.0f)
+                dm += 6;
+            else if (worldMass > 1000.0f)
+                dm += 8;
+
+            return dm;
+        }
+
+        private int CalculateWorldToMoonDM(TerrestrialPlanet planet, Moon targetMoon, float planetEccentricity, float systemAge)
+        {
+            int dm = -10; // Base DM
+
+            // Common DMs
+            dm += GetCommonDMs(planet.Size, planetEccentricity, planet.AxialTilt, planet.AtmosphericPressure, systemAge);
+
+            // Moon size DM
+            int moonSizeValue = GetSizeValue(targetMoon.Size);
+            if (moonSizeValue >= 1)
+                dm += moonSizeValue;
+
+            // Moon orbit DMs
+            if (targetMoon.Orbit < 5.0f)
+            {
+                dm += 5 + (int)Math.Ceiling((5.0f - targetMoon.Orbit) * 5.0f);
+            }
+            else if (targetMoon.Orbit >= 5.0f && targetMoon.Orbit < 10.0f)
+            {
+                dm += 4;
+            }
+            else if (targetMoon.Orbit >= 10.0f && targetMoon.Orbit < 20.0f)
+            {
+                dm += 2;
+            }
+            else if (targetMoon.Orbit >= 20.0f && targetMoon.Orbit < 40.0f)
+            {
+                dm += 1;
+            }
+            else if (targetMoon.Orbit > 60.0f)
+            {
+                dm -= 6;
+            }
+
+            // Count moons size >= 1
+            int moonCount = 0;
+            foreach (var moon in planet.Moons)
+            {
+                int sizeValue = GetSizeValue(moon.Size);
+                if (sizeValue >= 1)
+                    moonCount++;
+            }
+            if (moonCount > 0)
+                dm -= 2 * moonCount;
+
+            return dm;
+        }
+
+        private int GetCommonDMs(string size, float eccentricity, float axialTilt, float atmosphericPressure, float systemAge)
+        {
+            int dm = 0;
+
+            // Size DM
+            int sizeValue = GetSizeValue(size);
+            if (sizeValue > 1)
+            {
+                dm += (int)Math.Ceiling(sizeValue / 3.0f);
+            }
+
+            // Eccentricity DM
+            if (eccentricity > 0.1f)
+            {
+                dm -= (int)(eccentricity * 10.0f);
+            }
+
+            // Axial tilt DMs
+            bool oldSystem = systemAge > 10.0f;
+            int tiltModifier = oldSystem ? 1 : -1; // Positive for old systems, negative otherwise
+
+            if (axialTilt > 30.0f)
+                dm += tiltModifier * 2;
+
+            if (axialTilt >= 60.0f && axialTilt <= 120.0f)
+                dm += tiltModifier * 4;
+
+            if (axialTilt >= 80.0f && axialTilt <= 100.0f)
+                dm += tiltModifier * 4; // Additional modifier
+
+            // Atmospheric pressure DM
+            if (atmosphericPressure > 2.5f)
+                dm -= 2;
+
+            // System age DMs
+            if (systemAge < 1.0f)
+                dm -= 2;
+            else if (systemAge >= 5.0f && systemAge <= 10.0f)
+                dm += 2;
+            else if (systemAge > 10.0f)
+                dm += 4;
+
+            return dm;
+        }
+
+        private void ApplyTidalLockEffect(TidalLockCandidate candidate, Random dice)
+        {
+            int totalDM = candidate.TotalDM;
+
+            // Auto-lock if DM >= 10
+            int roll = 0;
+            if (totalDM >= 10)
+            {
+                roll = 12;
+            }
+            else
+            {
+                roll = Starhelper.diceRoll(6, 2, dice) + totalDM;
+            }
+
+            // Apply effect based on roll
+            if (roll <= 2)
+            {
+                // No effect
+                return;
+            }
+
+            if (candidate.Body is TerrestrialPlanet planet)
+            {
+                ApplyTidalEffectToPlanet(planet, roll, candidate.LockType, candidate.TargetMoon, candidate.OrbitalPeriodYears, dice);
+            }
+            else if (candidate.Body is Moon moon)
+            {
+                float parentWorldOrbitalPeriodHours = candidate.OrbitalPeriodYears * 365.25f * 24f;
+                ApplyTidalEffectToMoon(moon, roll, candidate.LockType, parentWorldOrbitalPeriodHours, dice);
+            }
+        }
+
+        private void ApplyTidalEffectToPlanet(TerrestrialPlanet planet, int roll, string lockType, Moon? targetMoon, float orbitalPeriodYears, Random dice)
+        {
+            if (roll == 3)
+            {
+                planet.BasicRotationRateHours *= 1.5f;
+                planet.TidalLockStatus = "Slowed (1.5x)";
+            }
+            else if (roll == 4)
+            {
+                planet.BasicRotationRateHours *= 2.0f;
+                planet.TidalLockStatus = "Slowed (2x)";
+            }
+            else if (roll == 5)
+            {
+                planet.BasicRotationRateHours *= 3.0f;
+                planet.TidalLockStatus = "Slowed (3x)";
+            }
+            else if (roll == 6)
+            {
+                planet.BasicRotationRateHours *= 5.0f;
+                planet.TidalLockStatus = "Slowed (5x)";
+            }
+            else if (roll == 7)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 5.0f * 24.0f;
+                planet.TidalLockStatus = "Slow rotation";
+            }
+            else if (roll == 8)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 20.0f * 24.0f;
+                planet.TidalLockStatus = "Very slow rotation";
+            }
+            else if (roll == 9)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 10.0f * 24.0f;
+                planet.IsRetrogradeSpin = true;
+                planet.TidalLockStatus = "Retrograde rotation";
+            }
+            else if (roll == 10)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 50.0f * 24.0f;
+                planet.IsRetrogradeSpin = true;
+                planet.TidalLockStatus = "Very slow retrograde";
+            }
+            else if (roll == 11)
+            {
+                // 3:2 resonance lock
+                planet.TidalLockStatus = lockType == "ToMoon" && targetMoon != null
+                    ? $"3:2 lock to moon {targetMoon.Designation}"
+                    : "3:2 lock to star";
+                // Calculate rotation period for 3:2 resonance
+                // The world rotates 3 times for every 2 orbits
+                // So rotation period = (2/3) * orbital period
+                // We need the orbital period in hours
+                // This will be calculated based on the orbital period
+            }
+            else if (roll >= 12)
+            {
+                // 1:1 tidal lock
+                if (roll == 12)
+                {
+                    // Roll again without DMs
+                    int secondRoll = Starhelper.diceRoll(6, 2, dice);
+                    if (secondRoll != 12)
+                    {
+                        ApplyTidalEffectToPlanet(planet, secondRoll, lockType, targetMoon, orbitalPeriodYears, dice);
+                        return;
+                    }
+                }
+
+                // Full 1:1 lock
+                planet.TidalLockStatus = lockType == "ToMoon" && targetMoon != null
+                    ? $"1:1 lock to moon {targetMoon.Designation}"
+                    : "1:1 lock to star";
+
+                // Recalculate axial tilt (1d6 only)
+                planet.AxialTilt = Starhelper.diceRoll(6, 1, dice);
+
+                // Recalculate eccentricity with -2 modifier
+                // This would require access to the orbital object, which we don't have here
+                // We'll note this for future enhancement
+            }
+
+            // Recalculate solar days if rotation changed
+            RecalculateSolarDays(planet, orbitalPeriodYears);
+        }
+
+        private void ApplyTidalEffectToMoon(Moon moon, int roll, string lockType, float parentWorldOrbitalPeriodHours, Random dice)
+        {
+            if (roll == 3)
+            {
+                moon.BasicRotationRateHours *= 1.5f;
+                moon.TidalLockStatus = "Slowed (1.5x)";
+            }
+            else if (roll == 4)
+            {
+                moon.BasicRotationRateHours *= 2.0f;
+                moon.TidalLockStatus = "Slowed (2x)";
+            }
+            else if (roll == 5)
+            {
+                moon.BasicRotationRateHours *= 3.0f;
+                moon.TidalLockStatus = "Slowed (3x)";
+            }
+            else if (roll == 6)
+            {
+                moon.BasicRotationRateHours *= 5.0f;
+                moon.TidalLockStatus = "Slowed (5x)";
+            }
+            else if (roll == 7)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 5.0f * 24.0f;
+                moon.TidalLockStatus = "Slow rotation";
+            }
+            else if (roll == 8)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 20.0f * 24.0f;
+                moon.TidalLockStatus = "Very slow rotation";
+            }
+            else if (roll == 9)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 10.0f * 24.0f;
+                moon.IsRetrogradeSpin = true;
+                moon.TidalLockStatus = "Retrograde rotation";
+            }
+            else if (roll == 10)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 50.0f * 24.0f;
+                moon.IsRetrogradeSpin = true;
+                moon.TidalLockStatus = "Very slow retrograde";
+            }
+            else if (roll == 11)
+            {
+                // 3:2 resonance lock
+                moon.TidalLockStatus = "3:2 lock to world";
+                // The moon rotates 3 times for every 2 orbits around its parent
+                moon.BasicRotationRateHours = (moon.OrbitalPeriod * 2.0f) / 3.0f;
+            }
+            else if (roll >= 12)
+            {
+                // 1:1 tidal lock
+                if (roll == 12)
+                {
+                    // Roll again without DMs
+                    int secondRoll = Starhelper.diceRoll(6, 2, dice);
+                    if (secondRoll != 12)
+                    {
+                        ApplyTidalEffectToMoon(moon, secondRoll, lockType, parentWorldOrbitalPeriodHours, dice);
+                        return;
+                    }
+                }
+
+                // Full 1:1 lock
+                moon.TidalLockStatus = "1:1 lock to world";
+                moon.BasicRotationRateHours = moon.OrbitalPeriod;
+
+                // Recalculate axial tilt (1d6 only)
+                moon.AxialTilt = Starhelper.diceRoll(6, 1, dice);
+
+                // Recalculate eccentricity with -2 modifier
+                // This would require recalculating the moon's orbital eccentricity
+                // We'll note this for future enhancement
+            }
+
+            // Recalculate solar days if rotation changed
+            RecalculateSolarDays(moon, parentWorldOrbitalPeriodHours);
+        }
+
+        private void RecalculateSolarDays(TerrestrialPlanet planet, float orbitalPeriodYears)
+        {
+            if (planet.BasicRotationRateHours <= 0)
+            {
+                planet.SolarDaysInLocalYear = 0;
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Convert orbital period from years to hours
+            float orbitalPeriodHours = orbitalPeriodYears * 365.25f * 24f;
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            planet.SolarDaysInLocalYear = (orbitalPeriodHours / planet.BasicRotationRateHours) - 1;
+
+            if (planet.SolarDaysInLocalYear <= 0)
+            {
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            planet.SolarDayHours = orbitalPeriodHours / planet.SolarDaysInLocalYear;
+        }
+
+        private void RecalculateSolarDays(Moon moon, float parentWorldOrbitalPeriodHours)
+        {
+            if (moon.BasicRotationRateHours <= 0)
+            {
+                moon.SolarDaysInLocalYear = 0;
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            moon.SolarDaysInLocalYear = (parentWorldOrbitalPeriodHours / moon.BasicRotationRateHours) - 1;
+
+            if (moon.SolarDaysInLocalYear <= 0)
+            {
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            moon.SolarDayHours = parentWorldOrbitalPeriodHours / moon.SolarDaysInLocalYear;
         }
 
         private void GenerateAtmosphere(TerrestrialPlanet planet, float orbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
@@ -6201,7 +6785,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Notes</th>");
-            html.AppendLine("                <td colspan=\"6\"></td>");
+            html.AppendLine($"                <td colspan=\"6\">{data.TidalLockStatus}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 

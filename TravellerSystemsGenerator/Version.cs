@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 1;
-        public const int Minor = 7;
+        public const int Minor = 8;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -59,5 +59,6 @@ namespace TravellerSystemGenerator
         // 1.5.x - Non-HZ atmosphere generation (exotic atmospheres for worlds outside habitable zone)
         // 1.6.x - Atmospheric pressure, oxygen fraction, temperature, and hydrographics calculations
         // 1.7.x - Rotation and day length (sidereal period, solar days per year, solar day length)
+        // 1.8.x - Axial tilt and tidal lock calculations (complex DM system, effect table, rotation modifications)
     }
 }
