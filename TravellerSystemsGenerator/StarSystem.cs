@@ -6817,12 +6817,14 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Tidal lock?</th>");
-            // Only show "Yes" for 1:1 or 3:2 locks
+            // Show "1:1" or "3:2" for resonance locks, "No" for all others
             string tidalLockDisplay = "No";
             if (!string.IsNullOrEmpty(data.TidalLockStatus))
             {
-                if (data.TidalLockStatus.Contains("1:1") || data.TidalLockStatus.Contains("3:2"))
-                    tidalLockDisplay = "Yes";
+                if (data.TidalLockStatus.Contains("1:1"))
+                    tidalLockDisplay = "1:1";
+                else if (data.TidalLockStatus.Contains("3:2"))
+                    tidalLockDisplay = "3:2";
             }
             html.AppendLine($"                <td style=\"background-color: white;\">{tidalLockDisplay}</td>");
             html.AppendLine("                <th>Tides</th>");
