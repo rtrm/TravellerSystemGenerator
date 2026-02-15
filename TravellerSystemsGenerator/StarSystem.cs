@@ -73,6 +73,8 @@ namespace TravellerSystemGenerator
         public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period
         public float SolarDaysInLocalYear { get; set; } = 0;    // Solar days per year
         public float SolarDayHours { get; set; } = 0;           // Solar day length
+        public float AxialTilt { get; set; } = 0;               // Axial tilt in degrees
+        public string TidalLockStatus { get; set; } = "";       // Tidal lock status
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -1045,6 +1047,9 @@ namespace TravellerSystemGenerator
                 // Calculate rotation and day length
                 CalculateBasicRotationRate(moon, parentStar.age, dice);
                 CalculateSolarDays(moon, parentWorldOrbitalPeriodHours);
+
+                // Calculate axial tilt
+                CalculateAxialTilt(moon, dice);
             }
         }
 
@@ -2289,6 +2294,138 @@ namespace TravellerSystemGenerator
             moon.SolarDayHours = parentOrbitalPeriodHours / moon.SolarDaysInLocalYear;
         }
 
+        // Axial Tilt Calculations
+
+        private void CalculateAxialTilt(TerrestrialPlanet planet, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float axialTilt = 0;
+
+            if (roll >= 2 && roll <= 4)
+            {
+                // Axial Tilt = ((1d6)-1)/50
+                axialTilt = ((Starhelper.diceRoll(6, 1, dice) - 1) / 50f);
+            }
+            else if (roll == 5)
+            {
+                // Axial Tilt = (1d6)/5
+                axialTilt = (Starhelper.diceRoll(6, 1, dice) / 5f);
+            }
+            else if (roll == 6)
+            {
+                // Axial Tilt = 1d6
+                axialTilt = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (roll == 7)
+            {
+                // Axial Tilt = (1d6) + 6
+                axialTilt = Starhelper.diceRoll(6, 1, dice) + 6;
+            }
+            else if (roll >= 8 && roll <= 9)
+            {
+                // Axial Tilt = 5 + (1d6) * 5
+                axialTilt = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (roll >= 10)
+            {
+                // Roll 1d6 for sub-table
+                int subRoll = Starhelper.diceRoll(6, 1, dice);
+
+                if (subRoll >= 1 && subRoll <= 2)
+                {
+                    // Axial Tilt = 10 + (1d6) * 10
+                    axialTilt = 10 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 3)
+                {
+                    // Axial Tilt = 30 + (1d6) * 10
+                    axialTilt = 30 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 4)
+                {
+                    // Axial Tilt = 90 + (1d6) * (1d6)
+                    axialTilt = 90 + (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 5)
+                {
+                    // Axial Tilt = 180 - (1d6) * (1d6)
+                    axialTilt = 180 - (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 6)
+                {
+                    // Axial Tilt = 120 + (1d6) * 10
+                    axialTilt = 120 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+            }
+
+            planet.AxialTilt = axialTilt;
+        }
+
+        private void CalculateAxialTilt(Moon moon, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float axialTilt = 0;
+
+            if (roll >= 2 && roll <= 4)
+            {
+                // Axial Tilt = ((1d6)-1)/50
+                axialTilt = ((Starhelper.diceRoll(6, 1, dice) - 1) / 50f);
+            }
+            else if (roll == 5)
+            {
+                // Axial Tilt = (1d6)/5
+                axialTilt = (Starhelper.diceRoll(6, 1, dice) / 5f);
+            }
+            else if (roll == 6)
+            {
+                // Axial Tilt = 1d6
+                axialTilt = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (roll == 7)
+            {
+                // Axial Tilt = (1d6) + 6
+                axialTilt = Starhelper.diceRoll(6, 1, dice) + 6;
+            }
+            else if (roll >= 8 && roll <= 9)
+            {
+                // Axial Tilt = 5 + (1d6) * 5
+                axialTilt = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (roll >= 10)
+            {
+                // Roll 1d6 for sub-table
+                int subRoll = Starhelper.diceRoll(6, 1, dice);
+
+                if (subRoll >= 1 && subRoll <= 2)
+                {
+                    // Axial Tilt = 10 + (1d6) * 10
+                    axialTilt = 10 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 3)
+                {
+                    // Axial Tilt = 30 + (1d6) * 10
+                    axialTilt = 30 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 4)
+                {
+                    // Axial Tilt = 90 + (1d6) * (1d6)
+                    axialTilt = 90 + (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 5)
+                {
+                    // Axial Tilt = 180 - (1d6) * (1d6)
+                    axialTilt = 180 - (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 6)
+                {
+                    // Axial Tilt = 120 + (1d6) * 10
+                    axialTilt = 120 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+            }
+
+            moon.AxialTilt = axialTilt;
+        }
+
         private void GenerateAtmosphere(TerrestrialPlanet planet, float orbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
         {
             // Determine world type
@@ -3376,6 +3513,9 @@ namespace TravellerSystemGenerator
                 // Calculate rotation and day length
                 CalculateBasicRotationRate(planet, parentStar.age, dice);
                 CalculateSolarDays(planet, cobj.OrbitalPeriodYears);
+
+                // Calculate axial tilt
+                CalculateAxialTilt(planet, dice);
 
                 DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
                     cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
@@ -6051,13 +6191,13 @@ namespace TravellerSystemGenerator
             html.AppendLine($"                <td colspan=\"2\">{FormatRotationPeriod(data.BasicRotationRateHours)}</td>");
             html.AppendLine($"                <td colspan=\"2\">{FormatRotationPeriod(data.SolarDayHours)}</td>");
             html.AppendLine($"                <td>{(data.SolarDaysInLocalYear > 0 ? data.SolarDaysInLocalYear.ToString("F2") : "")}</td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(data.AxialTilt > 0 ? data.AxialTilt.ToString("F1") + "°" : "")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th></th>");
             html.AppendLine("                <th colspan=\"2\">Tidal lock?</th>");
             html.AppendLine("                <th colspan=\"3\">Tides</th>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(string.IsNullOrEmpty(data.TidalLockStatus) ? "No" : "Yes")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Notes</th>");
@@ -6271,6 +6411,8 @@ namespace TravellerSystemGenerator
                             BasicRotationRateHours = tp.BasicRotationRateHours,
                             SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
                             SolarDayHours = tp.SolarDayHours,
+                            AxialTilt = tp.AxialTilt,
+                            TidalLockStatus = tp.TidalLockStatus,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -6307,6 +6449,8 @@ namespace TravellerSystemGenerator
                                 BasicRotationRateHours = moon.BasicRotationRateHours,
                                 SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
                                 SolarDayHours = moon.SolarDayHours,
+                                AxialTilt = moon.AxialTilt,
+                                TidalLockStatus = moon.TidalLockStatus,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -6346,6 +6490,8 @@ namespace TravellerSystemGenerator
                                 BasicRotationRateHours = moon.BasicRotationRateHours,
                                 SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
                                 SolarDayHours = moon.SolarDayHours,
+                                AxialTilt = moon.AxialTilt,
+                                TidalLockStatus = moon.TidalLockStatus,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -6392,6 +6538,8 @@ namespace TravellerSystemGenerator
                                 BasicRotationRateHours = tp.BasicRotationRateHours,
                                 SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
                                 SolarDayHours = tp.SolarDayHours,
+                                AxialTilt = tp.AxialTilt,
+                                TidalLockStatus = tp.TidalLockStatus,
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
