@@ -37,6 +37,9 @@ namespace TravellerSystemGenerator
         public int MeanTemperatureC { get; set; } = 0;       // In Celsius
         public float HydrographicsCoverage { get; set; } = 0; // Percentage (0-100)
         public string HydrographicsCode { get; set; } = "";  // Code: 0-9, A
+        public float AxialTilt { get; set; } = 0;            // Axial tilt in degrees
+        public string TidalLockStatus { get; set; } = "";    // Tidal lock status (e.g., "Locked to planet", "3:2 lock", etc.)
+        public bool IsRetrogradeSpin { get; set; } = false;  // True if rotation is retrograde (from tidal lock)
 
         public Moon() { }
     }
@@ -87,6 +90,9 @@ namespace TravellerSystemGenerator
         public int MeanTemperatureC { get; set; } = 0;          // In Celsius
         public float HydrographicsCoverage { get; set; } = 0;   // Percentage (0-100)
         public string HydrographicsCode { get; set; } = "";     // Code: 0-9, A
+        public float AxialTilt { get; set; } = 0;               // Axial tilt in degrees
+        public string TidalLockStatus { get; set; } = "";       // Tidal lock status (e.g., "Locked to star", "3:2 lock", etc.)
+        public bool IsRetrogradeSpin { get; set; } = false;     // True if rotation is retrograde (from tidal lock)
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
