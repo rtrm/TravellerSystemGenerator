@@ -5611,9 +5611,9 @@ namespace TravellerSystemGenerator
                         string au = world.AU.ToString("F2");
                         string ecc = world.Ecc.ToString("F3");
 
-                        // Add clickable link for terrestrial planets (Size ends with "?")
+                        // Add clickable link for terrestrial planets (3-char SAH/UWP, not gas giant)
                         string objectCell = world.Object;
-                        if (world.Size.Length == 3 && world.Size.EndsWith("?"))
+                        if (world.Size.Length == 3 && !world.Size.StartsWith("G"))
                         {
                             string surveyFilename = world.Object.Replace(" ", "_");
                             objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
