@@ -65,6 +65,11 @@ namespace TravellerSystemGenerator
         public float EscapeVelocity { get; set; } = 0;
         public string Atmosphere { get; set; } = "";
         public string AtmosphereComposition { get; set; } = "";
+        public float AtmosphericPressure { get; set; } = 0;
+        public int MeanTemperatureK { get; set; } = 0;
+        public int MeanTemperatureC { get; set; } = 0;
+        public float HydrographicsCoverage { get; set; } = 0;
+        public string HydrographicsCode { get; set; } = "";
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -1024,6 +1029,12 @@ namespace TravellerSystemGenerator
             foreach (var moon in moons)
             {
                 GenerateAtmosphere(moon, worldOrbitNumber, hzMin, hzMax, parentStar, dice);
+
+                // Calculate atmospheric pressure, oxygen, temperature, and hydrographics
+                CalculateAtmosphericPressure(moon, dice);
+                CalculateOxygenFraction(moon, parentStar.age, dice);
+                CalculateMeanTemperature(moon, worldOrbitNumber, parentStar.HZCO, dice);
+                CalculateHydrographics(moon, dice);
             }
         }
 
@@ -1822,6 +1833,321 @@ namespace TravellerSystemGenerator
             }
 
             return result;
+        }
+
+        private (float minBar, float span) GetAtmosphericPressureData(string atmosphereCode)
+        {
+            // Returns (Min Bar, Span) for each atmosphere code
+            return atmosphereCode switch
+            {
+                "0" => (0f, 0f),           // None
+                "1" => (0.001f, 0.009f),   // Trace
+                "2" => (0.1f, 0.4f),       // Very Thin, Tainted
+                "3" => (0.1f, 0.4f),       // Very Thin
+                "4" => (0.5f, 0.2f),       // Thin, Tainted
+                "5" => (0.5f, 0.2f),       // Thin
+                "6" => (0.7f, 0.5f),       // Standard
+                "7" => (0.7f, 0.5f),       // Standard, Tainted
+                "8" => (1.5f, 1.0f),       // Dense
+                "9" => (1.5f, 1.0f),       // Dense, Tainted
+                "A" => (0f, 0f),           // Exotic - Varies
+                "B" => (0f, 0f),           // Corrosive - Varies
+                "C" => (0f, 0f),           // Insidious - Varies
+                "D" => (1.5f, 1.0f),       // Very Dense
+                "E" => (0.5f, 0.2f),       // Low
+                "F" => (0f, 0f),           // Unusual - Varies
+                "G" => (0f, 0f),           // Gas Helium - Varies
+                "H" => (0f, 0f),           // Gas Hydrogen - Varies
+                _ => (0f, 0f)
+            };
+        }
+
+        private void CalculateAtmosphericPressure(TerrestrialPlanet planet, Random dice)
+        {
+            var (minBar, span) = GetAtmosphericPressureData(planet.Atmosphere);
+
+            if (minBar == 0f && span == 0f && planet.Atmosphere != "0")
+            {
+                // Varies - don't calculate
+                planet.AtmosphericPressure = 0f;
+                return;
+            }
+
+            planet.AtmosphericPressure = minBar + span * (Starhelper.diceRoll(100, 1, dice) / 100f);
+        }
+
+        private void CalculateAtmosphericPressure(Moon moon, Random dice)
+        {
+            var (minBar, span) = GetAtmosphericPressureData(moon.Atmosphere);
+
+            if (minBar == 0f && span == 0f && moon.Atmosphere != "0")
+            {
+                // Varies - don't calculate
+                moon.AtmosphericPressure = 0f;
+                return;
+            }
+
+            moon.AtmosphericPressure = minBar + span * (Starhelper.diceRoll(100, 1, dice) / 100f);
+        }
+
+        private void CalculateOxygenFraction(TerrestrialPlanet planet, float systemAge, Random dice)
+        {
+            // Only calculate for atmosphere codes 2-9, D, or E
+            string[] validCodes = { "2", "3", "4", "5", "6", "7", "8", "9", "D", "E" };
+            if (!validCodes.Contains(planet.Atmosphere))
+                return;
+
+            int dm = systemAge > 4f ? 1 : 0;
+            float oxygenFraction = ((Starhelper.diceRoll(6, 1, dice) + dm) / 20f)
+                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f)
+                                 + ((Starhelper.diceRoll(6, 1, dice) - 1) / 20f);
+
+            // Clamp to 0-100%
+            if (oxygenFraction < 0) oxygenFraction = 0;
+            if (oxygenFraction > 1) oxygenFraction = 1;
+
+            int oxygenPercent = (int)Math.Round(oxygenFraction * 100);
+
+            // Set atmosphere composition with oxygen percentage
+            string baseComposition = GetAtmosphereComposition(planet.Atmosphere);
+            planet.AtmosphereComposition = $"{baseComposition}, Oxygen {oxygenPercent}%";
+        }
+
+        private void CalculateOxygenFraction(Moon moon, float systemAge, Random dice)
+        {
+            // Only calculate for atmosphere codes 2-9, D, or E
+            string[] validCodes = { "2", "3", "4", "5", "6", "7", "8", "9", "D", "E" };
+            if (!validCodes.Contains(moon.Atmosphere))
+                return;
+
+            int dm = systemAge > 4f ? 1 : 0;
+            float oxygenFraction = ((Starhelper.diceRoll(6, 1, dice) + dm) / 20f)
+                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f)
+                                 + ((Starhelper.diceRoll(6, 1, dice) - 1) / 20f);
+
+            // Clamp to 0-100%
+            if (oxygenFraction < 0) oxygenFraction = 0;
+            if (oxygenFraction > 1) oxygenFraction = 1;
+
+            int oxygenPercent = (int)Math.Round(oxygenFraction * 100);
+
+            // Set atmosphere composition with oxygen percentage
+            string baseComposition = GetAtmosphereComposition(moon.Atmosphere);
+            moon.AtmosphereComposition = $"{baseComposition}, Oxygen {oxygenPercent}%";
+        }
+
+        private void CalculateMeanTemperature(TerrestrialPlanet planet, float orbitNumber, float hzco, Random dice)
+        {
+            // Start with 2d6
+            int roll = Starhelper.diceRoll(6, 2, dice);
+
+            // Apply modifiers
+            if (planet.WorldType == "Frozen") roll -= 5;
+            else if (planet.WorldType == "Cold") roll -= 2;
+            else if (planet.WorldType == "Hot") roll += 2;
+            else if (planet.WorldType == "Boiling") roll += 5;
+
+            // Orbit-based modifiers
+            if (orbitNumber < hzco - 1f)
+            {
+                roll += 4;
+                float additionalOrbits = (hzco - 1f - orbitNumber) / 0.5f;
+                roll += (int)additionalOrbits;
+            }
+            else if (orbitNumber > hzco + 1f)
+            {
+                roll -= 4;
+                float additionalOrbits = (orbitNumber - (hzco + 1f)) / 0.5f;
+                roll -= (int)additionalOrbits;
+            }
+
+            // Atmosphere-based modifiers
+            if (planet.Atmosphere == "2" || planet.Atmosphere == "3") roll -= 2;
+            else if (planet.Atmosphere == "4" || planet.Atmosphere == "5" || planet.Atmosphere == "E") roll -= 1;
+            else if (planet.Atmosphere == "8" || planet.Atmosphere == "9") roll += 1;
+            else if (planet.Atmosphere == "A" || planet.Atmosphere == "D" || planet.Atmosphere == "F") roll += 2;
+            else if (planet.Atmosphere == "B" || planet.Atmosphere == "C") roll += 6;
+
+            // Calculate temperature in Kelvin
+            int temperatureK = roll switch
+            {
+                <= -1 => 178 + (roll * -5),
+                0 => 178,
+                1 => 198,
+                2 => 218,
+                3 => 238,
+                4 => 263,
+                5 => 278,
+                6 => 283,
+                7 => 288,
+                8 => 293,
+                9 => 298,
+                10 => 313,
+                11 => 338,
+                12 => 388,
+                >= 13 => 388 + ((roll - 12) * 50)
+            };
+
+            planet.MeanTemperatureK = temperatureK;
+            planet.MeanTemperatureC = temperatureK - 273; // Convert to Celsius
+        }
+
+        private void CalculateMeanTemperature(Moon moon, float worldOrbitNumber, float hzco, Random dice)
+        {
+            // Moons use same calculation but always start with roll of 7
+            int roll = 7;
+
+            // Apply modifiers
+            if (moon.WorldType == "Frozen") roll -= 5;
+            else if (moon.WorldType == "Cold") roll -= 2;
+            else if (moon.WorldType == "Hot") roll += 2;
+            else if (moon.WorldType == "Boiling") roll += 5;
+
+            // Orbit-based modifiers (using parent world's orbit)
+            if (worldOrbitNumber < hzco - 1f)
+            {
+                roll += 4;
+                float additionalOrbits = (hzco - 1f - worldOrbitNumber) / 0.5f;
+                roll += (int)additionalOrbits;
+            }
+            else if (worldOrbitNumber > hzco + 1f)
+            {
+                roll -= 4;
+                float additionalOrbits = (worldOrbitNumber - (hzco + 1f)) / 0.5f;
+                roll -= (int)additionalOrbits;
+            }
+
+            // Atmosphere-based modifiers
+            if (moon.Atmosphere == "2" || moon.Atmosphere == "3") roll -= 2;
+            else if (moon.Atmosphere == "4" || moon.Atmosphere == "5" || moon.Atmosphere == "E") roll -= 1;
+            else if (moon.Atmosphere == "8" || moon.Atmosphere == "9") roll += 1;
+            else if (moon.Atmosphere == "A" || moon.Atmosphere == "D" || moon.Atmosphere == "F") roll += 2;
+            else if (moon.Atmosphere == "B" || moon.Atmosphere == "C") roll += 6;
+
+            // Calculate temperature in Kelvin
+            int temperatureK = roll switch
+            {
+                <= -1 => 178 + (roll * -5),
+                0 => 178,
+                1 => 198,
+                2 => 218,
+                3 => 238,
+                4 => 263,
+                5 => 278,
+                6 => 283,
+                7 => 288,
+                8 => 293,
+                9 => 298,
+                10 => 313,
+                11 => 338,
+                12 => 388,
+                >= 13 => 388 + ((roll - 12) * 50)
+            };
+
+            moon.MeanTemperatureK = temperatureK;
+            moon.MeanTemperatureC = temperatureK - 273; // Convert to Celsius
+        }
+
+        private void CalculateHydrographics(TerrestrialPlanet planet, Random dice)
+        {
+            // Check size first
+            if (planet.Size == "S" || planet.Size == "0" || planet.Size == "1")
+            {
+                planet.HydrographicsCoverage = 0f;
+                planet.HydrographicsCode = "0";
+                return;
+            }
+
+            // Get atmosphere code value
+            int atmosValue = GetSizeValue(planet.Atmosphere);
+
+            // Roll 2d6-7 + Atmosphere Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + atmosValue;
+
+            // Apply modifiers
+            if (planet.Atmosphere == "0" || planet.Atmosphere == "1" ||
+                atmosValue >= 10) // A or higher
+                roll -= 4;
+
+            if ((planet.WorldType == "Hot") && (planet.Atmosphere != "D" && planet.Atmosphere != "F"))
+                roll -= 2;
+
+            if ((planet.WorldType == "Boiling") && (planet.Atmosphere != "D" && planet.Atmosphere != "F"))
+                roll -= 6;
+
+            // Determine percentage range
+            (int min, int max) = roll switch
+            {
+                <= 0 => (0, 5),
+                1 => (5, 15),
+                2 => (16, 25),
+                3 => (26, 35),
+                4 => (36, 45),
+                5 => (46, 55),
+                6 => (56, 65),
+                7 => (66, 75),
+                8 => (76, 85),
+                9 => (86, 95),
+                >= 10 => (96, 100)
+            };
+
+            // Randomly determine value within range
+            planet.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+
+            // Determine hydrographics code
+            if (roll < 0) roll = 0;
+            planet.HydrographicsCode = roll > 9 ? "A" : roll.ToString();
+        }
+
+        private void CalculateHydrographics(Moon moon, Random dice)
+        {
+            // Check size first
+            if (moon.Size == "S" || moon.Size == "0" || moon.Size == "1")
+            {
+                moon.HydrographicsCoverage = 0f;
+                moon.HydrographicsCode = "0";
+                return;
+            }
+
+            // Get atmosphere code value
+            int atmosValue = GetSizeValue(moon.Atmosphere);
+
+            // Roll 2d6-7 + Atmosphere Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + atmosValue;
+
+            // Apply modifiers
+            if (moon.Atmosphere == "0" || moon.Atmosphere == "1" ||
+                atmosValue >= 10) // A or higher
+                roll -= 4;
+
+            if ((moon.WorldType == "Hot") && (moon.Atmosphere != "D" && moon.Atmosphere != "F"))
+                roll -= 2;
+
+            if ((moon.WorldType == "Boiling") && (moon.Atmosphere != "D" && moon.Atmosphere != "F"))
+                roll -= 6;
+
+            // Determine percentage range
+            (int min, int max) = roll switch
+            {
+                <= 0 => (0, 5),
+                1 => (5, 15),
+                2 => (16, 25),
+                3 => (26, 35),
+                4 => (36, 45),
+                5 => (46, 55),
+                6 => (56, 65),
+                7 => (66, 75),
+                8 => (76, 85),
+                9 => (86, 95),
+                >= 10 => (96, 100)
+            };
+
+            // Randomly determine value within range
+            moon.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+
+            // Determine hydrographics code
+            if (roll < 0) roll = 0;
+            moon.HydrographicsCode = roll > 9 ? "A" : roll.ToString();
         }
 
         private void GenerateAtmosphere(TerrestrialPlanet planet, float orbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
@@ -2897,6 +3223,12 @@ namespace TravellerSystemGenerator
                 // Generate atmosphere
                 var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
                 GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
+
+                // Calculate atmospheric pressure, oxygen, temperature, and hydrographics
+                CalculateAtmosphericPressure(planet, dice);
+                CalculateOxygenFraction(planet, parentStar.age, dice);
+                CalculateMeanTemperature(planet, cobj.orbit, parentStar.HZCO, dice);
+                CalculateHydrographics(planet, dice);
 
                 DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
                     cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
@@ -5498,7 +5830,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td style=\"background-color: #d3d3d3; border-top: none;\"></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(data.AtmosphericPressure > 0 ? data.AtmosphericPressure.ToString("F2") : "")}</td>");
             html.AppendLine($"                <td>{data.AtmosphereComposition}</td>");
             html.AppendLine("                <td></td>");
             html.AppendLine("                <td></td>");
@@ -5518,7 +5850,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th colspan=\"2\">Distribution</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine($"                <td colspan=\"2\">{(data.HydrographicsCoverage > 0 ? data.HydrographicsCoverage.ToString("F1") + "%" : "")}</td>");
             html.AppendLine("                <td colspan=\"2\"></td>");
             html.AppendLine("                <td colspan=\"2\"></td>");
             html.AppendLine("            </tr>");
@@ -5572,7 +5904,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Mean</th>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(data.MeanTemperatureK > 0 ? $"{data.MeanTemperatureK}K ({data.MeanTemperatureC}°C)" : "")}</td>");
             html.AppendLine("                <th colspan=\"2\">Albedo</th>");
             html.AppendLine("                <td colspan=\"2\"></td>");
             html.AppendLine("            </tr>");
@@ -5756,7 +6088,14 @@ namespace TravellerSystemGenerator
                             Mass = tp.WorldMass,
                             EscapeVelocity = tp.EscapeVelocity,
                             Atmosphere = tp.Atmosphere,
-                            AtmosphereComposition = GetAtmosphereComposition(tp.Atmosphere),
+                            AtmosphereComposition = string.IsNullOrEmpty(tp.AtmosphereComposition)
+                                ? GetAtmosphereComposition(tp.Atmosphere)
+                                : tp.AtmosphereComposition,
+                            AtmosphericPressure = tp.AtmosphericPressure,
+                            MeanTemperatureK = tp.MeanTemperatureK,
+                            MeanTemperatureC = tp.MeanTemperatureC,
+                            HydrographicsCoverage = tp.HydrographicsCoverage,
+                            HydrographicsCode = tp.HydrographicsCode,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -5782,7 +6121,14 @@ namespace TravellerSystemGenerator
                                 Mass = moon.Mass,
                                 EscapeVelocity = moon.EscapeVelocity,
                                 Atmosphere = moon.Atmosphere,
-                                AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(moon.Atmosphere)
+                                    : moon.AtmosphereComposition,
+                                AtmosphericPressure = moon.AtmosphericPressure,
+                                MeanTemperatureK = moon.MeanTemperatureK,
+                                MeanTemperatureC = moon.MeanTemperatureC,
+                                HydrographicsCoverage = moon.HydrographicsCoverage,
+                                HydrographicsCode = moon.HydrographicsCode,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -5811,7 +6157,14 @@ namespace TravellerSystemGenerator
                                 Mass = moon.Mass,
                                 EscapeVelocity = moon.EscapeVelocity,
                                 Atmosphere = moon.Atmosphere,
-                                AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(moon.Atmosphere)
+                                    : moon.AtmosphereComposition,
+                                AtmosphericPressure = moon.AtmosphericPressure,
+                                MeanTemperatureK = moon.MeanTemperatureK,
+                                MeanTemperatureC = moon.MeanTemperatureC,
+                                HydrographicsCoverage = moon.HydrographicsCoverage,
+                                HydrographicsCode = moon.HydrographicsCode,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -5847,7 +6200,14 @@ namespace TravellerSystemGenerator
                                 Mass = tp.WorldMass,
                                 EscapeVelocity = tp.EscapeVelocity,
                                 Atmosphere = tp.Atmosphere,
-                                AtmosphereComposition = GetAtmosphereComposition(tp.Atmosphere),
+                                AtmosphereComposition = string.IsNullOrEmpty(tp.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(tp.Atmosphere)
+                                    : tp.AtmosphereComposition,
+                                AtmosphericPressure = tp.AtmosphericPressure,
+                                MeanTemperatureK = tp.MeanTemperatureK,
+                                MeanTemperatureC = tp.MeanTemperatureC,
+                                HydrographicsCoverage = tp.HydrographicsCoverage,
+                                HydrographicsCode = tp.HydrographicsCode,
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };

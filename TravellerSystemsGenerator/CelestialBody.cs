@@ -30,7 +30,13 @@ namespace TravellerSystemGenerator
         public bool IsRetrograde { get; set; } = false; // True if retrograde orbit
         public float OrbitDistanceKm { get; set; } = 0; // Orbital distance in km
         public string Atmosphere { get; set; } = "";    // Atmosphere code: 0-9, A-H
+        public string AtmosphereComposition { get; set; } = ""; // Full atmosphere description with oxygen %
         public string WorldType { get; set; } = "";     // Frozen, Cold, Temperate, Hot, Boiling
+        public float AtmosphericPressure { get; set; } = 0;  // In bars
+        public int MeanTemperatureK { get; set; } = 0;       // In Kelvin
+        public int MeanTemperatureC { get; set; } = 0;       // In Celsius
+        public float HydrographicsCoverage { get; set; } = 0; // Percentage (0-100)
+        public string HydrographicsCode { get; set; } = "";  // Code: 0-9, A
 
         public Moon() { }
     }
@@ -74,7 +80,13 @@ namespace TravellerSystemGenerator
         public float HillSphereMoonLimit { get; set; } = 0; // In planetary diameters
         public float RocheLimit { get; set; } = 0;          // In planetary diameters
         public string Atmosphere { get; set; } = "";        // Atmosphere code: 0-9, A-H
+        public string AtmosphereComposition { get; set; } = ""; // Full atmosphere description with oxygen %
         public string WorldType { get; set; } = "";         // Frozen, Cold, Temperate, Hot, Boiling
+        public float AtmosphericPressure { get; set; } = 0;     // In bars
+        public int MeanTemperatureK { get; set; } = 0;          // In Kelvin
+        public int MeanTemperatureC { get; set; } = 0;          // In Celsius
+        public float HydrographicsCoverage { get; set; } = 0;   // Percentage (0-100)
+        public string HydrographicsCode { get; set; } = "";     // Code: 0-9, A
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
