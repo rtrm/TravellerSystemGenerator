@@ -34,9 +34,10 @@ namespace TravellerSystemGenerator
     // Helper class for displaying world data in table format
     internal class WorldDisplayData
     {
+        public string Name { get; set; } = "";  // System name (only for mainworld)
         public string Primary { get; set; } = "";
         public string Object { get; set; } = "";
-        public string Size { get; set; } = ""; // Size code for terrestrial planets
+        public string Size { get; set; } = ""; // Size code for terrestrial planets (or UWP for mainworld)
         public float Orbit { get; set; }
         public float AU { get; set; }
         public float Ecc { get; set; }
@@ -86,41 +87,107 @@ namespace TravellerSystemGenerator
         public string Filename { get; set; } = "";
     }
 
+    internal class MainworldData
+    {
+        public char Starport { get; set; }
+        public int Size { get; set; }
+        public int Atmosphere { get; set; }
+        public int Hydrographics { get; set; }
+        public int Population { get; set; }
+        public int Government { get; set; }
+        public int LawLevel { get; set; }
+        public int TechLevel { get; set; }
+        public int? GasGiantCount { get; set; }
+        public int? PlanetoidBeltCount { get; set; }
+        public int? OtherWorldCount { get; set; }
+        public string UWP { get; set; } = ""; // The 8-character UWP (A123456-7)
+        public object? PlacedWorld { get; set; } // The world/moon selected as mainworld (CelestialBody or Moon)
+    }
+
     internal class StarSystem
     {
         private Random dice;
         internal int Seed { get; private set; }
         private bool uniqueHtmlFilename;
+        private MainworldData? mainworld;
+        private string? systemName;
 
-        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false)
+        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null)
         {
             this.uniqueHtmlFilename = uniqueHtmlFilename;
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
 
+            // Parse mainworld UWP if provided (before seed generation)
+            if (!string.IsNullOrEmpty(mainworldUWP))
+            {
+                mainworld = ParseMainworldUWP(mainworldUWP);
+            }
+
+            // Store system name if provided
+            if (!string.IsNullOrEmpty(name))
+            {
+                systemName = name;
+            }
+
             // Generate or use provided seed
+            int originalSeed;
             if (seed.HasValue)
             {
-                Seed = seed.Value;
-                DebugLogger.Log($"Using provided seed: {Seed}");
+                originalSeed = seed.Value;
+                Seed = originalSeed;
             }
             else
             {
-                Seed = Environment.TickCount;
-                DebugLogger.Log($"Generated seed: {Seed}");
+                originalSeed = Environment.TickCount;
+                Seed = originalSeed;
             }
 
-            dice = new Random(Seed);
-            DebugLogger.Log("Random number generator initialized");
-
-            DebugLogger.Log("");
-            DebugLogger.Log("Creating primary celestial object...");
-            primaryObject = new CelestrialObject();
-
-            DebugLogger.Log("Generating primary star...");
-            primaryObject.celestrialObject = new Star(dice);
-
+            // Load orbital values once (outside retry loop)
             DebugLogger.Log("Loading orbital values...");
             Starhelper.LoadOrbitalValues();
+
+            // Retry loop for atmosphere 4-9 mainworlds that need HZ
+            int attempts = 0;
+            const int maxAttempts = 1000;
+            bool needsHZ = mainworld != null && mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9;
+
+            while (attempts < maxAttempts)
+            {
+                attempts++;
+
+                if (attempts > 1)
+                {
+                    DebugLogger.Log("");
+                    DebugLogger.Log($"Regenerating system (attempt {attempts}) to find habitable zone...");
+                    Seed++;
+                }
+
+                DebugLogger.Log($"Using seed: {Seed}");
+                dice = new Random(Seed);
+                DebugLogger.Log("Random number generator initialized");
+
+                if (mainworld != null)
+                {
+                    DebugLogger.Log($"Mainworld UWP specified: {mainworld.UWP}");
+                    if (mainworld.GasGiantCount.HasValue)
+                        DebugLogger.Log($"  Gas Giants: {mainworld.GasGiantCount.Value}");
+                    if (mainworld.PlanetoidBeltCount.HasValue)
+                        DebugLogger.Log($"  Planetoid Belts: {mainworld.PlanetoidBeltCount.Value}");
+                    if (mainworld.OtherWorldCount.HasValue)
+                        DebugLogger.Log($"  Other Worlds: {mainworld.OtherWorldCount.Value}");
+                }
+
+                if (systemName != null)
+                {
+                    DebugLogger.Log($"System name specified: {systemName}");
+                }
+
+                DebugLogger.Log("");
+                DebugLogger.Log("Creating primary celestial object...");
+                primaryObject = new CelestrialObject();
+
+                DebugLogger.Log("Generating primary star...");
+                primaryObject.celestrialObject = new Star(dice);
 
             DebugLogger.Log("");
             DebugLogger.Log("Checking for additional companion stars...");
@@ -138,6 +205,28 @@ namespace TravellerSystemGenerator
             // Calculate habitable zone center orbits for all non-Companion stars
             CalculateAllHZCO();
 
+            // Check if mainworld needs HZ and primary star has one
+            if (needsHZ && primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (primaryStar.HZCO <= 0)
+                {
+                    DebugLogger.Log($"WARNING: Mainworld requires HZ (atmosphere {mainworld!.Atmosphere}), but primary star has no HZ (HZCO={primaryStar.HZCO:F3})");
+                    if (attempts < maxAttempts)
+                    {
+                        continue; // Try next seed
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"ERROR: Could not find suitable system after {maxAttempts} attempts");
+                        throw new Exception($"Could not generate system with habitable zone for atmosphere {mainworld.Atmosphere} mainworld after {maxAttempts} attempts");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"Primary star has HZ (HZCO={primaryStar.HZCO:F3}), suitable for atmosphere {mainworld!.Atmosphere} mainworld");
+                }
+            }
+
             // Determine non-stellar objects
             // D primary systems must first check if they have a planetary system at all
             bool hasPlanetarySystem = true;
@@ -148,9 +237,52 @@ namespace TravellerSystemGenerator
 
             if (hasPlanetarySystem)
             {
-                GasGiantCount = DetermineGasGiants(dice);
-                PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
-                TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+                // Use mainworld counts if provided, otherwise determine randomly
+                if (mainworld != null && mainworld.GasGiantCount.HasValue)
+                {
+                    GasGiantCount = mainworld.GasGiantCount.Value;
+                    DebugLogger.Log($"Using mainworld gas giant count: {GasGiantCount}");
+                }
+                else
+                {
+                    GasGiantCount = DetermineGasGiants(dice);
+                }
+
+                if (mainworld != null && mainworld.PlanetoidBeltCount.HasValue)
+                {
+                    PlanetoidBeltCount = mainworld.PlanetoidBeltCount.Value;
+                    DebugLogger.Log($"Using mainworld planetoid belt count: {PlanetoidBeltCount}");
+                }
+                else
+                {
+                    PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
+                }
+
+                if (mainworld != null && mainworld.OtherWorldCount.HasValue)
+                {
+                    TerrestrialPlanetCount = mainworld.OtherWorldCount.Value;
+                    DebugLogger.Log($"Using mainworld other world count: {TerrestrialPlanetCount}");
+                }
+                else
+                {
+                    TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+                }
+
+                // Adjust terrestrial count for mainworld
+                if (mainworld != null)
+                {
+                    // If mainworld size is 0 and there are asteroid belts, mainworld is in a belt
+                    // Otherwise, add 1 for the mainworld itself
+                    if (mainworld.Size == 0 && PlanetoidBeltCount > 0)
+                    {
+                        DebugLogger.Log("Mainworld (size 0) will be placed in an asteroid belt");
+                    }
+                    else
+                    {
+                        TerrestrialPlanetCount += 1;
+                        DebugLogger.Log($"Added 1 to terrestrial count for mainworld. Total: {TerrestrialPlanetCount}");
+                    }
+                }
             }
             else
             {
@@ -183,8 +315,112 @@ namespace TravellerSystemGenerator
             // Generate anomalous orbits
             GenerateAnomalousOrbits(dice);
 
-            // Place worlds in orbits
-            PlaceWorlds(dice);
+            // Place empty orbits first
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Starting world placement...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            PlaceEmptyOrbits(dice);
+
+            // Place Gas Giants
+            PlaceGasGiants(dice);
+
+            // Place Planetoid Belts
+            PlacePlanetoidBelts(dice);
+
+            // Check if HZ placement options are available for atmosphere 4-9 mainworlds
+            if (needsHZ)
+            {
+                // Count all possible HZ placement options (standalone orbits + gas giant moons)
+                int hzPlacementOptions = 0;
+
+                // Check for standalone HZ orbits (Filled bodies in HZ)
+                var emptyOrbitsForCheck = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+                foreach (var (orbitObj, star) in emptyOrbitsForCheck)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                    if (starHzMin > 0 && orbitObj.orbit >= starHzMin && orbitObj.orbit <= starHzMax)
+                    {
+                        hzPlacementOptions++;
+                    }
+                }
+
+                // Check for gas giants in HZ (can place mainworld as moon)
+                var allGasGiantsForCheck = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+                foreach (var (ggObj, ggStar) in allGasGiantsForCheck)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(ggStar);
+                    if (starHzMin > 0 && ggObj.orbit >= starHzMin && ggObj.orbit <= starHzMax)
+                    {
+                        // Check if gas giant can support moons
+                        if (ggObj.celestrialObject is GasGiant gg)
+                        {
+                            float worldMassEarth = gg.GasGiantMass;
+                            float orbitAU = ggObj.orbitAU;
+                            float eccentricity = ggObj.orbitEccentricity;
+                            float worldDiameterKm = gg.Diameter * 12742.0f; // Convert Earth diameters to km
+                            float totalStarMass = CalculateTotalOrbitedMassForPlanet(ggObj);
+
+                            // Calculate Hill Sphere Moon Limit
+                            float hillSphere = orbitAU * (1.0f - eccentricity) *
+                                               (float)Math.Sqrt((worldMassEarth * 0.000003) / (3.0 * totalStarMass));
+                            float hillSpherePD = hillSphere * (149597870.9f / worldDiameterKm);
+                            float hillSphereMoonLimit = hillSpherePD / 2.0f;
+                            float rocheLimit = 1.537f;
+
+                            // Only count if gas giant can support moons
+                            if (hillSphereMoonLimit > rocheLimit)
+                            {
+                                hzPlacementOptions++;
+                            }
+                        }
+                    }
+                }
+
+                if (hzPlacementOptions == 0)
+                {
+                    DebugLogger.Log($"WARNING: Mainworld requires HZ (atmosphere {mainworld!.Atmosphere}), but no HZ placement options available");
+                    DebugLogger.Log($"  No standalone HZ orbits AND no HZ gas giants available");
+                    if (attempts < maxAttempts)
+                    {
+                        continue; // Try next seed
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"ERROR: Could not find suitable system after {maxAttempts} attempts");
+                        throw new Exception($"Could not generate system with HZ placement options for atmosphere {mainworld.Atmosphere} mainworld after {maxAttempts} attempts");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"HZ placement options available for atmosphere {mainworld!.Atmosphere} mainworld:");
+                    DebugLogger.Log($"  Total options: {hzPlacementOptions}");
+                }
+            }
+
+            // Found suitable system, break out of retry loop
+            break;
+        } // End of retry while loop
+
+        if (Seed != originalSeed)
+        {
+            DebugLogger.Log($"");
+            DebugLogger.Log($"Final seed after regeneration: {Seed} (original: {originalSeed})");
+            Console.WriteLine($"Note: System regenerated with seed {Seed} to accommodate mainworld requirements (original seed: {originalSeed})");
+        }
+
+            // Continue with world placement: Trojans, Mainworld, Terrestrial Planets
+            HandleTrojanOrbits(dice);
+
+            if (mainworld != null)
+            {
+                PlaceMainworld(dice);
+            }
+
+            PlaceTerrestrialPlanets(dice);
+
+            DebugLogger.Log("");
+            DebugLogger.Log("World placement complete");
 
             // Generate moons for worlds
             GenerateMoons(dice);
@@ -554,6 +790,12 @@ namespace TravellerSystemGenerator
 
             // Step 4: Handle Trojan orbits
             HandleTrojanOrbits(dice);
+
+            // Step 4.5: Place Mainworld (if specified) before other terrestrial planets
+            if (mainworld != null)
+            {
+                PlaceMainworld(dice);
+            }
 
             // Step 5: Place Terrestrial Planets
             PlaceTerrestrialPlanets(dice);
@@ -1537,6 +1779,78 @@ namespace TravellerSystemGenerator
             if (char.IsDigit(size[0])) return int.Parse(size.Substring(0, 1));
             // Extended hex: A=10, B=11, C=12, D=13, E=14, F=15
             return size[0] - 'A' + 10;
+        }
+
+        private int EhexToInt(char c)
+        {
+            c = char.ToUpper(c);
+            if (char.IsDigit(c))
+                return c - '0';
+            else
+                return c - 'A' + 10;
+        }
+
+        private MainworldData ParseMainworldUWP(string uwp)
+        {
+            // Remove spaces
+            string cleanUWP = uwp.Replace(" ", "");
+
+            var data = new MainworldData();
+
+            // Parse starport (position 0)
+            data.Starport = char.ToUpper(cleanUWP[0]);
+
+            // Parse size (position 1)
+            data.Size = EhexToInt(cleanUWP[1]);
+
+            // Parse atmosphere (position 2)
+            data.Atmosphere = EhexToInt(cleanUWP[2]);
+
+            // Parse hydrographics (position 3)
+            data.Hydrographics = EhexToInt(cleanUWP[3]);
+
+            // Parse population (position 4)
+            data.Population = EhexToInt(cleanUWP[4]);
+
+            // Parse government (position 5)
+            data.Government = EhexToInt(cleanUWP[5]);
+
+            // Parse law level (position 6)
+            data.LawLevel = EhexToInt(cleanUWP[6]);
+
+            // Parse tech level - handle both A123456-7 and A1234567 formats
+            if (cleanUWP[7] == '-')
+            {
+                data.TechLevel = EhexToInt(cleanUWP[8]);
+
+                // Build UWP string (first 9 characters: A123456-7)
+                data.UWP = cleanUWP.Substring(0, 9);
+
+                // Optional: gas giants, belts, other worlds
+                if (cleanUWP.Length >= 10)
+                    data.GasGiantCount = cleanUWP[9] - '0';
+                if (cleanUWP.Length >= 11)
+                    data.PlanetoidBeltCount = cleanUWP[10] - '0';
+                if (cleanUWP.Length >= 12)
+                    data.OtherWorldCount = cleanUWP[11] - '0';
+            }
+            else
+            {
+                data.TechLevel = EhexToInt(cleanUWP[7]);
+
+                // Build UWP string with dash inserted (A1234567 -> A123456-7)
+                data.UWP = cleanUWP.Substring(0, 7) + "-" + cleanUWP[7];
+
+                // Optional: gas giants, belts, other worlds
+                if (cleanUWP.Length >= 9)
+                    data.GasGiantCount = cleanUWP[8] - '0';
+                if (cleanUWP.Length >= 10)
+                    data.PlanetoidBeltCount = cleanUWP[9] - '0';
+                if (cleanUWP.Length >= 11)
+                    data.OtherWorldCount = cleanUWP[10] - '0';
+            }
+
+            return data;
         }
 
         private string CalculateComposition(string size, float orbitNumber, float parentStarHZCO, float systemAge, Random dice)
@@ -4649,6 +4963,425 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("  Terrestrial Planet placement complete");
         }
 
+        private void PlaceMainworldAsMoon(GasGiant gasGiant, CelestrialObject ggObj, Star parentStar, Random dice)
+        {
+            DebugLogger.Log($"  Creating mainworld as moon of gas giant {gasGiant.Designation}");
+
+            // Create moon for mainworld
+            Moon moon = new Moon();
+
+            // Apply mainworld size
+            moon.Size = IntToEhex(mainworld!.Size);
+
+            // Assign designation based on current moon count (a, b, c, etc.)
+            int moonIndex = gasGiant.Moons.Count;
+            moon.Designation = ((char)('a' + moonIndex)).ToString();
+
+            moon.Diameter = CalculateDiameter(moon.Size, dice);
+
+            // Calculate physical properties for moon (use parent gas giant's orbit for composition)
+            CalculatePhysicalProperties(moon, ggObj.orbit, parentStar, dice);
+
+            // Apply mainworld atmosphere
+            string targetAtmosphere = IntToEhex(mainworld.Atmosphere);
+
+            // Generate atmosphere normally first (to get composition)
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+            GenerateAtmosphere(moon, ggObj.orbit, hzMin, hzMax, parentStar, dice);
+
+            // Override with mainworld atmosphere
+            moon.Atmosphere = targetAtmosphere;
+
+            // Calculate atmospheric properties
+            CalculateAtmosphericPressure(moon, dice);
+            CalculateOxygenFraction(moon, parentStar.age, dice);
+            CalculateHydrographics(moon, dice);
+
+            // Override with mainworld hydrographics
+            moon.HydrographicsCode = IntToEhex(mainworld.Hydrographics);
+
+            // Recalculate coverage based on code
+            int hydroValue = mainworld.Hydrographics;
+            if (hydroValue == 0)
+                moon.HydrographicsCoverage = 0;
+            else if (hydroValue == 10) // A
+                moon.HydrographicsCoverage = 96 + (Starhelper.diceRoll(100, 1, dice) / 100f) * 4;
+            else
+            {
+                int min = hydroValue * 10 - 4;
+                int max = hydroValue * 10 + 5;
+                moon.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+            }
+
+            // Calculate remaining properties
+            CalculateSurfaceDistribution(moon, dice);
+            CalculateAlbedo(moon, ggObj.orbit, parentStar.HZCO, dice);
+            CalculateGreenhouse(moon, dice);
+
+            // Add moon to gas giant first (needed for orbit calculations)
+            gasGiant.Moons.Add(moon);
+
+            // Calculate Hill Sphere and assign moon orbit
+            CalculateWorldHillSphere(gasGiant, ggObj, parentStar, dice);
+            AssignMoonOrbits(gasGiant, dice);
+            CalculateMoonOrbitalPeriods(gasGiant);
+
+            // Now generate atmosphere, rotation, and temperatures
+            // Note: We already set atmosphere above, but this will calculate rotation/tidal lock
+            CalculateBasicRotationRate(moon, parentStar.age, dice);
+
+            // Get moon's orbital period for solar day calculation
+            float moonOrbitalPeriodYears = moon.OrbitalPeriod / (365.25f * 24f); // Convert hours to years
+            CalculateSolarDays(moon, moonOrbitalPeriodYears);
+            CalculateAxialTilt(moon, dice);
+
+            // Calculate temperatures (need parent orbit, moon orbit in AU, eccentricity, luminosity)
+            float moonOrbitAU = moon.OrbitDistanceKm / 149597870.7f; // Convert km to AU
+            CalculateTemperatures(moon, ggObj.orbitAU, moonOrbitAU, moon.Eccentricity, parentStar.luminosity);
+
+            // Store reference to mainworld moon
+            mainworld.PlacedWorld = moon;
+
+            DebugLogger.Log($"  Placed mainworld as moon of {gasGiant.Designation}");
+            DebugLogger.LogFormat("  Moon properties: Size:{0}, Atmosphere:{1}, Hydrographics:{2}, Diameter:{3}km",
+                moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.Diameter);
+        }
+
+        private void PlaceMainworldAsStandalone(CelestrialObject cobj, Star parentStar, Random dice)
+        {
+            // Create Terrestrial Planet for mainworld
+            TerrestrialPlanet planet = new TerrestrialPlanet();
+
+            // Check for anomalous orbit type
+            if (cobj.celestrialObject is CelestialBody cb)
+            {
+                if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                    cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde)
+                {
+                    planet.Type = cb.Type;
+                }
+            }
+
+            cobj.celestrialObject = planet;
+
+            // Calculate eccentricity
+            int modifier = 0;
+            if (planet.Type == CelestialBodyType.Random || planet.Type == CelestialBodyType.Eccentric)
+                modifier = 2;
+
+            if (planet.Type == CelestialBodyType.Eccentric)
+            {
+                int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                planet.Inclination = ((inclinationRoll + 2) * 10) + 10;
+            }
+
+            int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+            cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+            // Calculate orbital period
+            CalculateOrbitalPeriod(cobj);
+
+            // Apply mainworld size
+            planet.Size = IntToEhex(mainworld!.Size);
+            planet.Diameter = CalculateDiameter(planet.Size, dice);
+
+            // Calculate physical properties
+            CalculatePhysicalProperties(planet, cobj.orbit, parentStar, dice);
+
+            // Apply mainworld atmosphere - temporarily store for later override
+            string targetAtmosphere = IntToEhex(mainworld.Atmosphere);
+
+            // Generate atmosphere normally first
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+            GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
+
+            // Override with mainworld atmosphere
+            planet.Atmosphere = targetAtmosphere;
+
+            // Calculate atmospheric pressure, oxygen, and hydrographics
+            CalculateAtmosphericPressure(planet, dice);
+            CalculateOxygenFraction(planet, parentStar.age, dice);
+            CalculateHydrographics(planet, dice);
+
+            // Override with mainworld hydrographics
+            planet.HydrographicsCode = IntToEhex(mainworld.Hydrographics);
+            // Recalculate coverage based on code
+            int hydroValue = mainworld.Hydrographics;
+            if (hydroValue == 0)
+                planet.HydrographicsCoverage = 0;
+            else if (hydroValue == 10) // A
+                planet.HydrographicsCoverage = 96 + (Starhelper.diceRoll(100, 1, dice) / 100f) * 4;
+            else
+            {
+                int min = hydroValue * 10 - 4;
+                int max = hydroValue * 10 + 5;
+                planet.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+            }
+
+            // Calculate remaining properties
+            CalculateSurfaceDistribution(planet, dice);
+            CalculateAlbedo(planet, cobj.orbit, parentStar.HZCO, dice);
+            CalculateGreenhouse(planet, dice);
+            CalculateBasicRotationRate(planet, parentStar.age, dice);
+            CalculateSolarDays(planet, cobj.OrbitalPeriodYears);
+            CalculateAxialTilt(planet, dice);
+
+            // Store reference to mainworld
+            mainworld.PlacedWorld = planet;
+
+            DebugLogger.LogFormat("  Placed Mainworld at orbit {0:F3} (Size:{1}, Atmosphere:{2}, Hydrographics:{3}, Diameter:{4}km)",
+                cobj.orbit, planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.Diameter);
+        }
+
+        private void PlaceMainworld(Random dice)
+        {
+            if (mainworld == null) return;
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Mainworld...");
+            DebugLogger.Log($"  Mainworld UWP: {mainworld.UWP}");
+            DebugLogger.Log($"  Size: {mainworld.Size}, Atmosphere: {mainworld.Atmosphere}, Hydrographics: {mainworld.Hydrographics}");
+
+            // Size 0 mainworlds are placed in planetoid belts if one exists
+            if (mainworld.Size == 0)
+            {
+                var allPlanetoidBelts = GetAllCelestialBodiesOfType(CelestialBodyType.PlanetoidBelt);
+                if (allPlanetoidBelts.Count > 0)
+                {
+                    DebugLogger.Log("  Mainworld has size 0, placing in planetoid belt");
+
+                    // Select a random planetoid belt
+                    int beltIndex = Starhelper.diceRoll(allPlanetoidBelts.Count, 1, dice) - 1;
+                    var (beltObj, beltStar) = allPlanetoidBelts[beltIndex];
+                    PlanetoidBelt belt = (PlanetoidBelt)beltObj.celestrialObject!;
+
+                    DebugLogger.Log($"  Selected planetoid belt: {belt.Designation} at orbit {beltObj.orbit:F3}");
+
+                    // Mark belt as containing mainworld
+                    belt.ContainsMainworld = true;
+                    belt.MainworldUWP = mainworld.UWP;
+
+                    // Store reference to mainworld (the belt itself is the mainworld location)
+                    mainworld.PlacedWorld = belt;
+
+                    DebugLogger.Log($"  Placed size 0 mainworld in belt {belt.Designation}");
+                    return;
+                }
+                else
+                {
+                    DebugLogger.Log("  WARNING: Mainworld has size 0 but no planetoid belts exist. Placing as standalone.");
+                    // Fall through to normal placement logic
+                }
+            }
+
+            if (mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9)
+            {
+                // Atmosphere 4-9: MUST be placed in HZ (either standalone or as gas giant moon)
+                DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (4-9), must be placed in habitable zone");
+
+                // Collect all HZ placement options
+                var hzPlacementOptions = new List<(string type, object data, float weight)>();
+
+                // Option 1: Standalone HZ orbits
+                var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+                foreach (var (orbitObj, star) in emptyOrbits)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                    if (starHzMin > 0 && orbitObj.orbit >= starHzMin && orbitObj.orbit <= starHzMax)
+                    {
+                        // Calculate distance from HZCO (as fraction of HZ width)
+                        float hzWidth = starHzMax - starHzMin;
+                        float distanceFromHZCO = Math.Abs(orbitObj.orbit - star.HZCO);
+                        float normalizedDistance = hzWidth > 0 ? distanceFromHZCO / hzWidth : 0;
+
+                        // Orbits near HZCO (within 20% of HZ width) get 2x weight
+                        float weight = normalizedDistance < 0.2f ? 2.0f : 1.0f;
+                        hzPlacementOptions.Add(("standalone", (orbitObj, star), weight));
+                    }
+                }
+
+                // Option 2: Gas giant moons in HZ
+                var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+                foreach (var (ggObj, ggStar) in allGasGiants)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(ggStar);
+                    if (starHzMin > 0 && ggObj.orbit >= starHzMin && ggObj.orbit <= starHzMax)
+                    {
+                        // Gas giant is in HZ, check if it can support moons
+                        GasGiant gg = (GasGiant)ggObj.celestrialObject!;
+
+                        // Calculate if this gas giant can support stable moons
+                        // Need to check Hill Sphere Moon Limit > Roche Limit
+                        float worldMassEarth = gg.GasGiantMass;
+                        float orbitAU = ggObj.orbitAU;
+                        float eccentricity = ggObj.orbitEccentricity;
+                        float worldDiameterKm = gg.Diameter * 12742.0f; // Convert Earth diameters to km
+                        float totalStarMass = CalculateTotalOrbitedMassForPlanet(ggObj);
+
+                        // Calculate Hill Sphere
+                        float hillSphere = orbitAU * (1.0f - eccentricity) *
+                                           (float)Math.Sqrt((worldMassEarth * 0.000003) / (3.0 * totalStarMass));
+                        float hillSpherePD = hillSphere * (149597870.9f / worldDiameterKm);
+                        float hillSphereMoonLimit = hillSpherePD / 2.0f;
+                        float rocheLimit = 1.537f;
+
+                        // Only add if gas giant can support moons
+                        if (hillSphereMoonLimit > rocheLimit)
+                        {
+                            // Give equal weight to gas giant moon option
+                            hzPlacementOptions.Add(("gasgiant", (ggObj, ggStar), 1.0f));
+                        }
+                    }
+                }
+
+                if (hzPlacementOptions.Count == 0)
+                {
+                    DebugLogger.Log("  ERROR: No HZ placement options available for atmosphere 4-9 mainworld");
+                    DebugLogger.Log($"  No standalone HZ orbits AND no HZ gas giants available");
+                    throw new Exception($"No habitable zone placement options for atmosphere {mainworld!.Atmosphere} mainworld. System will be regenerated.");
+                }
+
+                DebugLogger.Log($"  Found {hzPlacementOptions.Count} HZ placement option(s):");
+                int standaloneCount = hzPlacementOptions.Count(o => o.type == "standalone");
+                int gasGiantCount = hzPlacementOptions.Count(o => o.type == "gasgiant");
+                DebugLogger.Log($"    Standalone HZ orbits: {standaloneCount}");
+                DebugLogger.Log($"    HZ gas giant moons: {gasGiantCount}");
+
+                // Weighted random selection from all HZ options
+                float totalWeight = hzPlacementOptions.Sum(o => o.weight);
+                float randomValue = (float)dice.NextDouble() * totalWeight;
+                float cumulativeWeight = 0;
+
+                int chosenIndex = 0;
+                for (int i = 0; i < hzPlacementOptions.Count; i++)
+                {
+                    cumulativeWeight += hzPlacementOptions[i].weight;
+                    if (randomValue <= cumulativeWeight)
+                    {
+                        chosenIndex = i;
+                        break;
+                    }
+                }
+
+                var chosen = hzPlacementOptions[chosenIndex];
+
+                if (chosen.type == "standalone")
+                {
+                    // Place as standalone world in HZ
+                    var (orbitObj, star) = ((CelestrialObject, Star))chosen.data;
+                    DebugLogger.Log($"  Selected standalone HZ orbit {orbitObj.orbit:F3} (HZCO: {star.HZCO:F3})");
+
+                    PlaceMainworldAsStandalone(orbitObj, star, dice);
+                }
+                else // gasgiant
+                {
+                    // Place as gas giant moon in HZ
+                    var (ggObj, ggStar) = ((CelestrialObject, Star))chosen.data;
+                    GasGiant gasGiant = (GasGiant)ggObj.celestrialObject!;
+                    DebugLogger.Log($"  Selected HZ gas giant: {gasGiant.Designation} at orbit {ggObj.orbit:F3}");
+
+                    PlaceMainworldAsMoon(gasGiant, ggObj, ggStar, dice);
+
+                    // Reduce terrestrial count by 1 since mainworld is now a moon
+                    TerrestrialPlanetCount = Math.Max(0, TerrestrialPlanetCount - 1);
+                    DebugLogger.Log($"  Reduced terrestrial count by 1 (mainworld is moon). New count: {TerrestrialPlanetCount}");
+                }
+
+                return;
+            }
+
+            // Atmosphere NOT 4-9: can be placed anywhere (existing logic)
+            DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (not 4-9), can be placed anywhere");
+
+            // Check if mainworld should be a gas giant moon
+            var allGasGiantsNonHz = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            if (allGasGiantsNonHz.Count > 0)
+            {
+                // Roll chance for gas giant moon placement
+                // Other atmospheres: 1 in 3 chance (more likely as moons)
+                int targetRoll = 4;
+                int roll = Starhelper.diceRoll(6, 1, dice);
+
+                if (roll >= targetRoll)
+                {
+                    DebugLogger.Log($"  Gas giant moon roll: {roll} >= {targetRoll}, mainworld will be a gas giant moon");
+
+                    // Select a random gas giant
+                    int ggIndex = Starhelper.diceRoll(allGasGiantsNonHz.Count, 1, dice) - 1;
+                    var (ggObj, ggStar) = allGasGiantsNonHz[ggIndex];
+                    GasGiant gasGiant = (GasGiant)ggObj.celestrialObject!;
+
+                    DebugLogger.Log($"  Selected gas giant: {gasGiant.Designation} at orbit {ggObj.orbit:F3}");
+
+                    // Create mainworld as a moon of this gas giant
+                    PlaceMainworldAsMoon(gasGiant, ggObj, ggStar, dice);
+
+                    // Reduce terrestrial count by 1 since mainworld is now a moon
+                    TerrestrialPlanetCount = Math.Max(0, TerrestrialPlanetCount - 1);
+                    DebugLogger.Log($"  Reduced terrestrial count by 1 (mainworld is moon). New count: {TerrestrialPlanetCount}");
+
+                    return; // Mainworld placed as moon, done
+                }
+                else
+                {
+                    DebugLogger.Log($"  Gas giant moon roll: {roll} < {targetRoll}, mainworld will be standalone world");
+                }
+            }
+
+            // Get all available Filled orbits
+            var emptyOrbitsNonHz = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            if (emptyOrbitsNonHz.Count == 0)
+            {
+                DebugLogger.Log("  WARNING: No available orbits for mainworld!");
+                return;
+            }
+
+            // Atmosphere not 4-9: random placement with outer orbit penalty
+            DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (not 4-9), placing randomly with outer orbit penalty");
+
+            // Apply weights: inner/HZ orbits = 1.0, outer orbits (beyond HZCO) = 0.5
+            var weightedOrbits = new List<(CelestrialObject cobj, Star star, float weight)>();
+            foreach (var (orbitObj, star) in emptyOrbitsNonHz)
+            {
+                // Outer orbits (beyond HZCO + 1.0) get 0.5 weight to reduce gas giant zone placement
+                var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                float weight = (starHzMax > 0 && orbitObj.orbit > starHzMax) ? 0.5f : 1.0f;
+                weightedOrbits.Add((orbitObj, star, weight));
+            }
+
+            // Weighted random selection
+            float totalWeightNonHz = weightedOrbits.Sum(o => o.weight);
+            float randomValueNonHz = (float)dice.NextDouble() * totalWeightNonHz;
+            float cumulativeWeightNonHz = 0;
+
+            int chosenIndexNonHz = 0;
+            for (int i = 0; i < weightedOrbits.Count; i++)
+            {
+                cumulativeWeightNonHz += weightedOrbits[i].weight;
+                if (randomValueNonHz <= cumulativeWeightNonHz)
+                {
+                    chosenIndexNonHz = i;
+                    break;
+                }
+            }
+
+            CelestrialObject cobjNonHz = weightedOrbits[chosenIndexNonHz].cobj;
+            Star parentStarNonHz = weightedOrbits[chosenIndexNonHz].star;
+            DebugLogger.Log($"  Selected orbit {cobjNonHz.orbit:F3} (weight: {weightedOrbits[chosenIndexNonHz].weight:F1})");
+
+            // Place mainworld as standalone
+            PlaceMainworldAsStandalone(cobjNonHz, parentStarNonHz, dice);
+        }
+
+        private string IntToEhex(int value)
+        {
+            if (value < 10)
+                return value.ToString();
+            else
+                return ((char)('A' + value - 10)).ToString();
+        }
+
         private string DetermineTerrestrialSize(Random dice)
         {
             // First roll: 1d6
@@ -6598,12 +7331,22 @@ namespace TravellerSystemGenerator
                             else
                                 notes = $"{gg.GasGiantMass}ME";
                         }
-                        else if (body is PlanetoidBelt)
+                        else if (body is PlanetoidBelt pb)
                         {
                             sub = "?";
+
+                            // Check if this belt contains the mainworld
+                            if (pb.ContainsMainworld && !string.IsNullOrEmpty(pb.MainworldUWP))
+                            {
+                                size = pb.MainworldUWP;
+                            }
                         }
 
                         // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                        // Also check if any moon is the mainworld and add it as a separate world entry
+                        // Track mainworld moon to add after parent gas giant
+                        WorldDisplayData? mainworldMoonData = null;
+
                         if (moons.Count > 0)
                         {
                             List<string> moonInfo = new List<string>();
@@ -6613,11 +7356,42 @@ namespace TravellerSystemGenerator
                             if (rMoonCount > 0)
                                 moonInfo.Add($"R0{rMoonCount}");
 
-                            // Add non-R moon sizes
+                            // Add non-R moon sizes and check for mainworld moons
                             foreach (var moon in moons)
                             {
                                 if (moon.Size != "R")
-                                    moonInfo.Add(moon.Size);
+                                {
+                                    // Check if this moon is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        // This moon is the mainworld - save it to add AFTER parent gas giant
+                                        string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
+                                        string moonDesignation = $"{body.Designation} {moon.Designation}";
+
+                                        mainworldMoonData = new WorldDisplayData
+                                        {
+                                            Name = moonName,
+                                            Primary = primaryDesignation,
+                                            Object = moonDesignation,
+                                            Size = mainworld.UWP,
+                                            Orbit = bodyObj.orbit,
+                                            AU = bodyObj.orbitAU,
+                                            Ecc = bodyObj.orbitEccentricity,
+                                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                            Sub = "0",
+                                            Notes = BuildNotesString(bodyObj, body, primaryStar),
+                                            Moons = new List<Moon>()
+                                        };
+
+                                        // Add moon's SAH code to parent's notes (not full UWP)
+                                        string moonSAH = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                        moonInfo.Add(moonSAH);
+                                    }
+                                    else
+                                    {
+                                        moonInfo.Add(moon.Size);
+                                    }
+                                }
                             }
 
                             if (moonInfo.Count > 0)
@@ -6630,8 +7404,20 @@ namespace TravellerSystemGenerator
                             }
                         }
 
+                        // Check if this is the mainworld
+                        string name = "";
+                        if (mainworld != null && body == mainworld.PlacedWorld)
+                        {
+                            // Override size with mainworld UWP
+                            size = mainworld.UWP;
+                            // Set name if systemName is specified
+                            if (!string.IsNullOrEmpty(systemName))
+                                name = systemName;
+                        }
+
                         worldData.Add(new WorldDisplayData
                         {
+                            Name = name,
                             Primary = primaryDesignation,
                             Object = body.Designation,
                             Size = size,
@@ -6643,6 +7429,12 @@ namespace TravellerSystemGenerator
                             Notes = notes,
                             Moons = moons
                         });
+
+                        // Add mainworld moon AFTER parent gas giant
+                        if (mainworldMoonData != null)
+                        {
+                            worldData.Add(mainworldMoonData);
+                        }
                     }
                 }
             }
@@ -6709,12 +7501,22 @@ namespace TravellerSystemGenerator
                                 else
                                     notes = $"{gg.GasGiantMass}ME";
                             }
-                            else if (body is PlanetoidBelt)
+                            else if (body is PlanetoidBelt pb)
                             {
                                 sub = "?";
+
+                                // Check if this belt contains the mainworld
+                                if (pb.ContainsMainworld && !string.IsNullOrEmpty(pb.MainworldUWP))
+                                {
+                                    size = pb.MainworldUWP;
+                                }
                             }
 
+                            // Track mainworld moon to add after parent gas giant
+                            WorldDisplayData? mainworldMoonDataCompanion = null;
+
                             // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                            // Also check if any moon is the mainworld and add it as a separate world entry
                             if (moons.Count > 0)
                             {
                                 List<string> moonInfo = new List<string>();
@@ -6724,11 +7526,41 @@ namespace TravellerSystemGenerator
                                 if (rMoonCount > 0)
                                     moonInfo.Add($"R0{rMoonCount}");
 
-                                // Add non-R moon sizes
+                                // Add non-R moon sizes and check for mainworld moons
                                 foreach (var moon in moons)
                                 {
                                     if (moon.Size != "R")
-                                        moonInfo.Add(moon.Size);
+                                    {
+                                        // Check if this moon is the mainworld
+                                        if (mainworld != null && moon == mainworld.PlacedWorld)
+                                        {
+                                            // This moon is the mainworld - save it to add AFTER parent gas giant
+                                            string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
+                                            string moonDesignation = $"{body.Designation} {moon.Designation}";
+
+                                            mainworldMoonDataCompanion = new WorldDisplayData
+                                            {
+                                                Name = moonName,
+                                                Primary = primaryDesignation,
+                                                Object = moonDesignation,
+                                                Size = mainworld.UWP,
+                                                Orbit = bodyObj.orbit,
+                                                AU = bodyObj.orbitAU,
+                                                Ecc = bodyObj.orbitEccentricity,
+                                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                                Sub = "0",
+                                                Notes = BuildNotesString(bodyObj, body, companionStar),
+                                                Moons = new List<Moon>()
+                                            };
+
+                                            // Add mainworld UWP to parent's notes instead of just SAH
+                                            moonInfo.Add(mainworld.UWP);
+                                        }
+                                        else
+                                        {
+                                            moonInfo.Add(moon.Size);
+                                        }
+                                    }
                                 }
 
                                 if (moonInfo.Count > 0)
@@ -6741,8 +7573,20 @@ namespace TravellerSystemGenerator
                                 }
                             }
 
+                            // Check if this is the mainworld
+                            string name = "";
+                            if (mainworld != null && body == mainworld.PlacedWorld)
+                            {
+                                // Override size with mainworld UWP
+                                size = mainworld.UWP;
+                                // Set name if systemName is specified
+                                if (!string.IsNullOrEmpty(systemName))
+                                    name = systemName;
+                            }
+
                             worldData.Add(new WorldDisplayData
                             {
+                                Name = name,
                                 Primary = primaryDesignation,
                                 Object = body.Designation,
                                 Size = size,
@@ -6754,6 +7598,12 @@ namespace TravellerSystemGenerator
                                 Notes = notes,
                                 Moons = moons
                             });
+
+                            // Add mainworld moon AFTER parent gas giant
+                            if (mainworldMoonDataCompanion != null)
+                            {
+                                worldData.Add(mainworldMoonDataCompanion);
+                            }
                         }
                     }
                 }
@@ -6833,7 +7683,11 @@ namespace TravellerSystemGenerator
 
             Console.WriteLine("OBJECTS");
 
+            // Check if any world has a name
+            bool hasName = worldData.Any(w => !string.IsNullOrEmpty(w.Name));
+
             // Calculate column widths dynamically based on data
+            int nameWidth = hasName ? Math.Max("Name".Length, worldData.Max(w => w.Name.Length)) : 0;
             int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
             int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
             int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("SAH/UWP".Length, worldData.Max(w => w.Size.Length)) : "SAH/UWP".Length;
@@ -6844,8 +7698,15 @@ namespace TravellerSystemGenerator
             int subWidth = Math.Max("Sub".Length, worldData.Any(w => w.Sub.Length > 0) ? worldData.Max(w => w.Sub.Length) : 1);
             int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
 
-            // Print header - moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
-            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            // Print header - with optional Name column, moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
+            if (hasName)
+            {
+                Console.WriteLine($"{"Name".PadRight(nameWidth)} {"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            }
+            else
+            {
+                Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            }
 
             // Group by primary and print
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
@@ -6857,7 +7718,14 @@ namespace TravellerSystemGenerator
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
-                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    if (hasName)
+                    {
+                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    }
                 }
             }
 
@@ -7065,9 +7933,17 @@ namespace TravellerSystemGenerator
             // OBJECTS table
             if (worldData.Count > 0)
             {
+                // Check if any world has a name
+                bool hasName = worldData.Any(w => !string.IsNullOrEmpty(w.Name));
+
                 html.AppendLine("        <h2>Objects</h2>");
                 html.AppendLine("        <table>");
                 html.AppendLine("            <tr>");
+
+                // Add Name column if any world has a name
+                if (hasName)
+                    html.AppendLine("                <th>Name</th>");
+
                 html.AppendLine("                <th>Primary</th>");
                 html.AppendLine("                <th>Object</th>");
                 html.AppendLine("                <th>Orbit#</th>");
@@ -7088,9 +7964,10 @@ namespace TravellerSystemGenerator
                         string au = world.AU.ToString("F2");
                         string ecc = world.Ecc.ToString("F3");
 
-                        // Add clickable link for terrestrial planets (3-char SAH/UWP, not gas giant)
+                        // Add clickable link for terrestrial planets (3-char SAH/UWP, not gas giant, or mainworld UWP with dash)
+                        // Exclude planetoid belts (Sub == "?") even if they contain mainworld
                         string objectCell = world.Object;
-                        if (world.Size.Length == 3 && !world.Size.StartsWith("G"))
+                        if ((world.Size.Length == 3 && !world.Size.StartsWith("G")) || (world.Size.Contains("-") && world.Sub != "?"))
                         {
                             string surveyFilename = world.Object.Replace(" ", "_");
                             objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
@@ -7100,6 +7977,11 @@ namespace TravellerSystemGenerator
                         string notesCell = AddMoonLinksToNotes(world.Notes, world.Object, world.Moons);
 
                         html.AppendLine("            <tr>");
+
+                        // Add Name cell if any world has a name
+                        if (hasName)
+                            html.AppendLine($"                <td>{world.Name}</td>");
+
                         html.AppendLine($"                <td>{world.Primary}</td>");
                         html.AppendLine($"                <td>{objectCell}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
@@ -7121,7 +8003,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("</html>");
 
             // Save HTML file
-            string filename = uniqueHtmlFilename ? $"system_{Seed}.html" : "system.html";
+            string filename = uniqueHtmlFilename ? $"StarSystem_{Seed}.html" : "StarSystem.html";
             try
             {
                 System.IO.File.WriteAllText(filename, html.ToString());
@@ -7165,7 +8047,7 @@ namespace TravellerSystemGenerator
 
             // Back link
             html.AppendLine("        <div class=\"back-link\">");
-            html.AppendLine("            <a href=\"../system.html\">&larr; Back to System Overview</a>");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
             html.AppendLine("        </div>");
 
             // Title
@@ -7559,10 +8441,21 @@ namespace TravellerSystemGenerator
                 {
                     if (bodyObj.celestrialObject is TerrestrialPlanet tp)
                     {
+                        // Check if this is the mainworld
+                        string worldName = tp.Designation;
+                        string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                        if (mainworld != null && tp == mainworld.PlacedWorld)
+                        {
+                            // Override with mainworld-specific values
+                            if (!string.IsNullOrEmpty(systemName))
+                                worldName = $"{systemName} ({tp.Designation})";
+                            sahUwp = mainworld.UWP;
+                        }
+
                         SurveyData surveyData = new SurveyData
                         {
-                            WorldName = tp.Designation,
-                            SAH_UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode,
+                            WorldName = worldName,
+                            SAH_UWP = sahUwp,
                             PrimaryObject = primaryStar.Designation,
                             SystemAge = primaryStar.age.ToString("F2"),
                             OrbitNumber = bodyObj.orbit,
@@ -7604,10 +8497,21 @@ namespace TravellerSystemGenerator
                         // Generate surveys for moons
                         foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
                         {
+                            // Check if this moon is the mainworld
+                            string moonWorldName = $"{tp.Designation} {moon.Designation}";
+                            string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                            if (mainworld != null && moon == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    moonWorldName = $"{systemName} ({tp.Designation} {moon.Designation})";
+                                moonSahUwp = mainworld.UWP;
+                            }
+
                             SurveyData moonSurvey = new SurveyData
                             {
-                                WorldName = $"{tp.Designation} {moon.Designation}",
-                                SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
+                                WorldName = moonWorldName,
+                                SAH_UWP = moonSahUwp,
                                 PrimaryObject = $"{tp.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -7645,10 +8549,21 @@ namespace TravellerSystemGenerator
                         // Generate surveys for gas giant moons
                         foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
                         {
+                            // Check if this moon is the mainworld
+                            string moonWorldName = $"{gg.Designation} {moon.Designation}";
+                            string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                            if (mainworld != null && moon == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
+                                moonSahUwp = mainworld.UWP;
+                            }
+
                             SurveyData moonSurvey = new SurveyData
                             {
-                                WorldName = $"{gg.Designation} {moon.Designation}",
-                                SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
+                                WorldName = moonWorldName,
+                                SAH_UWP = moonSahUwp,
                                 PrimaryObject = $"{gg.Designation}",
                                 SystemAge = primaryStar.age.ToString("F2"),
                                 OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -7693,10 +8608,21 @@ namespace TravellerSystemGenerator
                     {
                         if (bodyObj.celestrialObject is TerrestrialPlanet tp)
                         {
+                            // Check if this is the mainworld
+                            string worldName = tp.Designation;
+                            string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    worldName = $"{systemName} ({tp.Designation})";
+                                sahUwp = mainworld.UWP;
+                            }
+
                             SurveyData surveyData = new SurveyData
                             {
-                                WorldName = tp.Designation,
-                                SAH_UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode,
+                                WorldName = worldName,
+                                SAH_UWP = sahUwp,
                                 PrimaryObject = companionStar.Designation + ", orbiting " + (primaryObject.celestrialObject as Star)?.Designation,
                                 SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                 OrbitNumber = bodyObj.orbit,
@@ -7767,10 +8693,21 @@ namespace TravellerSystemGenerator
                             // Generate surveys for gas giant moons
                             foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
                             {
+                                // Check if this moon is the mainworld
+                                string moonWorldName = $"{gg.Designation} {moon.Designation}";
+                                string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    // Override with mainworld-specific values
+                                    if (!string.IsNullOrEmpty(systemName))
+                                        moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
+                                    moonSahUwp = mainworld.UWP;
+                                }
+
                                 SurveyData moonSurvey = new SurveyData
                                 {
-                                    WorldName = $"{gg.Designation} {moon.Designation}",
-                                    SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
+                                    WorldName = moonWorldName,
+                                    SAH_UWP = moonSahUwp,
                                     PrimaryObject = $"{gg.Designation}",
                                     SystemAge = "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters

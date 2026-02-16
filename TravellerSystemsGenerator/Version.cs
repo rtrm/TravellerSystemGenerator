@@ -13,9 +13,9 @@ namespace TravellerSystemGenerator
         // Minor: Increment with each feature addition
         // Build: Increment with each build
 
-        public const int Major = 1;
-        public const int Minor = 9;
-        public const int Build = 1;
+        public const int Major = 2;
+        public const int Minor = 0;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -61,5 +61,6 @@ namespace TravellerSystemGenerator
         // 1.7.x - Rotation and day length (sidereal period, solar days per year, solar day length)
         // 1.8.x - Axial tilt and tidal lock calculations (complex DM system, effect table, rotation modifications)
         // 1.9.x - Temperature calculations (albedo, greenhouse, surface distribution, high/low temperatures, variance factors)
+        // 1.10.x - Mainworld and system name command line parameters (UWP specification, world counts, placement)
     }
 }
