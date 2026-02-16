@@ -16,7 +16,8 @@
       "Bash(git commit:*)",
       "Bash(git merge:*)",
       "Bash(.TravellerSystemsGenerator.exe)",
-      "Bash(do echo \"=== Testing seed $seed ===\")"
+      "Bash(do echo \"=== Testing seed $seed ===\")",
+      "Bash(grep:*)"
     ]
   }
 }
