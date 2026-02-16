@@ -29,6 +29,16 @@ namespace TravellerSystemGenerator
                     if (i + 1 < args.Length)
                     {
                         mainworldUWP = args[++i];
+
+                        // Check if next arg is the optional world counts (3 digits like "222")
+                        // If so, append it to the UWP with a space
+                        if (i + 1 < args.Length &&
+                            args[i + 1].Length == 3 &&
+                            args[i + 1].All(char.IsDigit) &&
+                            !args[i + 1].StartsWith("-"))
+                        {
+                            mainworldUWP += " " + args[++i];
+                        }
                     }
                     else
                     {
@@ -119,12 +129,12 @@ namespace TravellerSystemGenerator
             // Remove spaces for validation
             string cleanUWP = uwp.Replace(" ", "");
 
-            // Minimum length is 8 (A123456-7), maximum is 11 (A1234567890)
+            // Minimum length is 8 (A123456-7), maximum is 12 (A123456-7890 with dash) or 11 (A1234567890 without dash)
             if (cleanUWP.Length < 8)
                 return "UWP too short. Minimum format is A123456-7";
 
-            if (cleanUWP.Length > 11)
-                return "UWP too long. Maximum format is A1234567890";
+            if (cleanUWP.Length > 12)
+                return "UWP too long. Maximum format is A123456-7890";
 
             // Check starport (position 0)
             char starport = char.ToUpper(cleanUWP[0]);
