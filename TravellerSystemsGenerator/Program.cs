@@ -10,6 +10,17 @@ namespace TravellerSystemGenerator
     {
         static void Main(string[] args)
         {
+            // Check for help flags first
+            if (args.Length > 0)
+            {
+                string firstArg = args[0].ToLower();
+                if (firstArg == "-h" || firstArg == "-?" || firstArg == "/?" || firstArg == "/h" || firstArg == "--help")
+                {
+                    PrintUsage();
+                    return;
+                }
+            }
+
             // Parse command line arguments
             int? seed = null;
             bool uniqueHtmlFilename = false;
@@ -114,14 +125,65 @@ namespace TravellerSystemGenerator
 
         static void PrintUsage()
         {
-            Console.WriteLine("Usage: TravellerSystemsGenerator [seed] [-u|--unique] [-m|--mainworld UWP] [-n|--name NAME]");
-            Console.WriteLine("  seed                 Optional seed value for reproducible generation");
-            Console.WriteLine("  -u, --unique         Generate unique HTML filename (system_[seed].html)");
-            Console.WriteLine("  -m, --mainworld UWP  Specify mainworld UWP (format: A123456-7 890)");
-            Console.WriteLine("                       A=Starport, 1=Size, 2=Atmosphere, 3=Hydrographics,");
-            Console.WriteLine("                       4=Population, 5=Government, 6=Law, 7=Tech Level,");
-            Console.WriteLine("                       8=Gas Giants (opt), 9=Belts (opt), 0=Other Worlds (opt)");
-            Console.WriteLine("  -n, --name NAME      Specify system name (use quotes if it contains spaces)");
+            Console.WriteLine($"{Version.GetFullVersionString()}");
+            Console.WriteLine();
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  TravellerSystemsGenerator [OPTIONS] [SEED]");
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            Console.WriteLine("  -h, -?, /?, /h, --help");
+            Console.WriteLine("                       Display this help message");
+            Console.WriteLine();
+            Console.WriteLine("  -u, --unique");
+            Console.WriteLine("                       Generate unique HTML filename (system_[seed].html)");
+            Console.WriteLine("                       Default: StarSystem.html");
+            Console.WriteLine();
+            Console.WriteLine("  -m, --mainworld UWP [COUNTS]");
+            Console.WriteLine("                       Specify mainworld Universal World Profile");
+            Console.WriteLine("                       Format: A123456-7 [890]");
+            Console.WriteLine("                         A = Starport (A, B, C, D, E, X)");
+            Console.WriteLine("                         1 = Size (0-F)");
+            Console.WriteLine("                         2 = Atmosphere (0-H)");
+            Console.WriteLine("                         3 = Hydrographics (0-A)");
+            Console.WriteLine("                         4 = Population (0-C)");
+            Console.WriteLine("                         5 = Government (0-F)");
+            Console.WriteLine("                         6 = Law Level (0+)");
+            Console.WriteLine("                         7 = Tech Level (0-G)");
+            Console.WriteLine("                       Optional counts (3 digits):");
+            Console.WriteLine("                         8 = Gas Giants (0-9)");
+            Console.WriteLine("                         9 = Planetoid Belts (0-9)");
+            Console.WriteLine("                         0 = Other Worlds/Terrestrials (0-9)");
+            Console.WriteLine();
+            Console.WriteLine("  -n, --name NAME");
+            Console.WriteLine("                       Specify system name (use quotes for multiple words)");
+            Console.WriteLine();
+            Console.WriteLine("  SEED");
+            Console.WriteLine("                       Optional integer seed for reproducible generation");
+            Console.WriteLine();
+            Console.WriteLine("Examples:");
+            Console.WriteLine("  TravellerSystemsGenerator");
+            Console.WriteLine("    Generate a random system");
+            Console.WriteLine();
+            Console.WriteLine("  TravellerSystemsGenerator 12345");
+            Console.WriteLine("    Generate system with seed 12345");
+            Console.WriteLine();
+            Console.WriteLine("  TravellerSystemsGenerator -m B765432-9");
+            Console.WriteLine("    Generate system with specified mainworld");
+            Console.WriteLine();
+            Console.WriteLine("  TravellerSystemsGenerator -m B765432-9 223");
+            Console.WriteLine("    Generate with mainworld: 2 gas giants, 2 belts, 3 terrestrials");
+            Console.WriteLine();
+            Console.WriteLine("  TravellerSystemsGenerator -m D552325-3 222 -n Farhaven 54321");
+            Console.WriteLine("    Generate \"Farhaven\" system with seed 54321 and specific mainworld");
+            Console.WriteLine();
+            Console.WriteLine("  TravellerSystemsGenerator -u -n \"New Terra\"");
+            Console.WriteLine("    Generate with unique HTML filename and multi-word name");
+            Console.WriteLine();
+            Console.WriteLine("Output:");
+            Console.WriteLine("  - Console: System data in table format");
+            Console.WriteLine("  - StarSystem.html: System overview (or system_[seed].html with -u)");
+            Console.WriteLine("  - surveys/*.html: IISS Class IV Survey forms for worlds");
+            Console.WriteLine("  - system_generation_debug.log: Debug information");
         }
 
         static string? ValidateMainworldUWP(string uwp)
