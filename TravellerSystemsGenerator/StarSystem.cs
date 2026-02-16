@@ -5142,6 +5142,38 @@ namespace TravellerSystemGenerator
             DebugLogger.Log($"  Mainworld UWP: {mainworld.UWP}");
             DebugLogger.Log($"  Size: {mainworld.Size}, Atmosphere: {mainworld.Atmosphere}, Hydrographics: {mainworld.Hydrographics}");
 
+            // Size 0 mainworlds are placed in planetoid belts if one exists
+            if (mainworld.Size == 0)
+            {
+                var allPlanetoidBelts = GetAllCelestialBodiesOfType(CelestialBodyType.PlanetoidBelt);
+                if (allPlanetoidBelts.Count > 0)
+                {
+                    DebugLogger.Log("  Mainworld has size 0, placing in planetoid belt");
+
+                    // Select a random planetoid belt
+                    int beltIndex = Starhelper.diceRoll(allPlanetoidBelts.Count, 1, dice) - 1;
+                    var (beltObj, beltStar) = allPlanetoidBelts[beltIndex];
+                    PlanetoidBelt belt = (PlanetoidBelt)beltObj.celestrialObject!;
+
+                    DebugLogger.Log($"  Selected planetoid belt: {belt.Designation} at orbit {beltObj.orbit:F3}");
+
+                    // Mark belt as containing mainworld
+                    belt.ContainsMainworld = true;
+                    belt.MainworldUWP = mainworld.UWP;
+
+                    // Store reference to mainworld (the belt itself is the mainworld location)
+                    mainworld.PlacedWorld = belt;
+
+                    DebugLogger.Log($"  Placed size 0 mainworld in belt {belt.Designation}");
+                    return;
+                }
+                else
+                {
+                    DebugLogger.Log("  WARNING: Mainworld has size 0 but no planetoid belts exist. Placing as standalone.");
+                    // Fall through to normal placement logic
+                }
+            }
+
             if (mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9)
             {
                 // Atmosphere 4-9: MUST be placed in HZ (either standalone or as gas giant moon)
@@ -7299,9 +7331,15 @@ namespace TravellerSystemGenerator
                             else
                                 notes = $"{gg.GasGiantMass}ME";
                         }
-                        else if (body is PlanetoidBelt)
+                        else if (body is PlanetoidBelt pb)
                         {
                             sub = "?";
+
+                            // Check if this belt contains the mainworld
+                            if (pb.ContainsMainworld && !string.IsNullOrEmpty(pb.MainworldUWP))
+                            {
+                                size = pb.MainworldUWP;
+                            }
                         }
 
                         // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
@@ -7463,9 +7501,15 @@ namespace TravellerSystemGenerator
                                 else
                                     notes = $"{gg.GasGiantMass}ME";
                             }
-                            else if (body is PlanetoidBelt)
+                            else if (body is PlanetoidBelt pb)
                             {
                                 sub = "?";
+
+                                // Check if this belt contains the mainworld
+                                if (pb.ContainsMainworld && !string.IsNullOrEmpty(pb.MainworldUWP))
+                                {
+                                    size = pb.MainworldUWP;
+                                }
                             }
 
                             // Track mainworld moon to add after parent gas giant

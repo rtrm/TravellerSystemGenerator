@@ -153,6 +153,8 @@ namespace TravellerSystemGenerator
         public int Size1Bodies { get; set; } = 0;        // Number of size 1 asteroids
         public int SizeSBodies { get; set; } = 0;        // Number of size S asteroids
         public string BeltProfile { get; set; } = "";    // Profile string for display
+        public bool ContainsMainworld { get; set; } = false;  // True if this belt contains the mainworld
+        public string? MainworldUWP { get; set; } = null;     // UWP of mainworld if contained in this belt
 
         public PlanetoidBelt() : base(CelestialBodyType.PlanetoidBelt) { }
     }
