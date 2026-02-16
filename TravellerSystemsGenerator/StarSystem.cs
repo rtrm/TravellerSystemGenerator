@@ -117,50 +117,77 @@ namespace TravellerSystemGenerator
             this.uniqueHtmlFilename = uniqueHtmlFilename;
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
 
-            // Generate or use provided seed
-            if (seed.HasValue)
-            {
-                Seed = seed.Value;
-                DebugLogger.Log($"Using provided seed: {Seed}");
-            }
-            else
-            {
-                Seed = Environment.TickCount;
-                DebugLogger.Log($"Generated seed: {Seed}");
-            }
-
-            dice = new Random(Seed);
-            DebugLogger.Log("Random number generator initialized");
-
-            // Parse mainworld UWP if provided
+            // Parse mainworld UWP if provided (before seed generation)
             if (!string.IsNullOrEmpty(mainworldUWP))
             {
                 mainworld = ParseMainworldUWP(mainworldUWP);
-                DebugLogger.Log($"Mainworld UWP specified: {mainworld.UWP}");
-                if (mainworld.GasGiantCount.HasValue)
-                    DebugLogger.Log($"  Gas Giants: {mainworld.GasGiantCount.Value}");
-                if (mainworld.PlanetoidBeltCount.HasValue)
-                    DebugLogger.Log($"  Planetoid Belts: {mainworld.PlanetoidBeltCount.Value}");
-                if (mainworld.OtherWorldCount.HasValue)
-                    DebugLogger.Log($"  Other Worlds: {mainworld.OtherWorldCount.Value}");
             }
 
             // Store system name if provided
             if (!string.IsNullOrEmpty(name))
             {
                 systemName = name;
-                DebugLogger.Log($"System name specified: {systemName}");
             }
 
-            DebugLogger.Log("");
-            DebugLogger.Log("Creating primary celestial object...");
-            primaryObject = new CelestrialObject();
+            // Generate or use provided seed
+            int originalSeed;
+            if (seed.HasValue)
+            {
+                originalSeed = seed.Value;
+                Seed = originalSeed;
+            }
+            else
+            {
+                originalSeed = Environment.TickCount;
+                Seed = originalSeed;
+            }
 
-            DebugLogger.Log("Generating primary star...");
-            primaryObject.celestrialObject = new Star(dice);
-
+            // Load orbital values once (outside retry loop)
             DebugLogger.Log("Loading orbital values...");
             Starhelper.LoadOrbitalValues();
+
+            // Retry loop for atmosphere 4-9 mainworlds that need HZ
+            int attempts = 0;
+            const int maxAttempts = 1000;
+            bool needsHZ = mainworld != null && mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9;
+
+            while (attempts < maxAttempts)
+            {
+                attempts++;
+
+                if (attempts > 1)
+                {
+                    DebugLogger.Log("");
+                    DebugLogger.Log($"Regenerating system (attempt {attempts}) to find habitable zone...");
+                    Seed++;
+                }
+
+                DebugLogger.Log($"Using seed: {Seed}");
+                dice = new Random(Seed);
+                DebugLogger.Log("Random number generator initialized");
+
+                if (mainworld != null)
+                {
+                    DebugLogger.Log($"Mainworld UWP specified: {mainworld.UWP}");
+                    if (mainworld.GasGiantCount.HasValue)
+                        DebugLogger.Log($"  Gas Giants: {mainworld.GasGiantCount.Value}");
+                    if (mainworld.PlanetoidBeltCount.HasValue)
+                        DebugLogger.Log($"  Planetoid Belts: {mainworld.PlanetoidBeltCount.Value}");
+                    if (mainworld.OtherWorldCount.HasValue)
+                        DebugLogger.Log($"  Other Worlds: {mainworld.OtherWorldCount.Value}");
+                }
+
+                if (systemName != null)
+                {
+                    DebugLogger.Log($"System name specified: {systemName}");
+                }
+
+                DebugLogger.Log("");
+                DebugLogger.Log("Creating primary celestial object...");
+                primaryObject = new CelestrialObject();
+
+                DebugLogger.Log("Generating primary star...");
+                primaryObject.celestrialObject = new Star(dice);
 
             DebugLogger.Log("");
             DebugLogger.Log("Checking for additional companion stars...");
@@ -177,6 +204,39 @@ namespace TravellerSystemGenerator
 
             // Calculate habitable zone center orbits for all non-Companion stars
             CalculateAllHZCO();
+
+            // Check if mainworld needs HZ and primary star has one
+            if (needsHZ && primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (primaryStar.HZCO <= 0)
+                {
+                    DebugLogger.Log($"WARNING: Mainworld requires HZ (atmosphere {mainworld!.Atmosphere}), but primary star has no HZ (HZCO={primaryStar.HZCO:F3})");
+                    if (attempts < maxAttempts)
+                    {
+                        continue; // Try next seed
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"ERROR: Could not find suitable system after {maxAttempts} attempts");
+                        throw new Exception($"Could not generate system with habitable zone for atmosphere {mainworld.Atmosphere} mainworld after {maxAttempts} attempts");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"Primary star has HZ (HZCO={primaryStar.HZCO:F3}), suitable for atmosphere {mainworld!.Atmosphere} mainworld");
+                }
+            }
+
+            // Found suitable system, break out of retry loop
+            break;
+        } // End of retry while loop
+
+        if (Seed != originalSeed)
+        {
+            DebugLogger.Log($"");
+            DebugLogger.Log($"Final seed after regeneration: {Seed} (original: {originalSeed})");
+            Console.WriteLine($"Note: System regenerated with seed {Seed} to accommodate mainworld requirements (original seed: {originalSeed})");
+        }
 
             // Determine non-stellar objects
             // D primary systems must first check if they have a planetary system at all
@@ -4858,9 +4918,10 @@ namespace TravellerSystemGenerator
 
                 if (hzOrbits.Count == 0)
                 {
-                    DebugLogger.Log("  WARNING: No HZ orbits available, falling back to random placement");
-                    selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
-                    (cobj, parentStar) = emptyOrbits[selectedIndex];
+                    DebugLogger.Log("  ERROR: No HZ orbits available for atmosphere 4-9 mainworld");
+                    DebugLogger.Log($"  Star has HZ (HZCO exists) but all HZ orbits are occupied");
+                    DebugLogger.Log($"  Available orbits: {emptyOrbits.Count}, but none in HZ");
+                    throw new Exception($"No habitable zone orbits available for atmosphere {mainworld!.Atmosphere} mainworld. All HZ orbits occupied by gas giants/belts. Reduce world counts in UWP or try different seed.");
                 }
                 else
                 {
