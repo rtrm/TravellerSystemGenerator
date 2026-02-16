@@ -86,13 +86,32 @@ namespace TravellerSystemGenerator
         public string Filename { get; set; } = "";
     }
 
+    internal class MainworldData
+    {
+        public char Starport { get; set; }
+        public int Size { get; set; }
+        public int Atmosphere { get; set; }
+        public int Hydrographics { get; set; }
+        public int Population { get; set; }
+        public int Government { get; set; }
+        public int LawLevel { get; set; }
+        public int TechLevel { get; set; }
+        public int? GasGiantCount { get; set; }
+        public int? PlanetoidBeltCount { get; set; }
+        public int? OtherWorldCount { get; set; }
+        public string UWP { get; set; } = ""; // The 8-character UWP (A123456-7)
+        public CelestialBody? PlacedWorld { get; set; } // The world/moon selected as mainworld
+    }
+
     internal class StarSystem
     {
         private Random dice;
         internal int Seed { get; private set; }
         private bool uniqueHtmlFilename;
+        private MainworldData? mainworld;
+        private string? systemName;
 
-        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false)
+        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null)
         {
             this.uniqueHtmlFilename = uniqueHtmlFilename;
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
@@ -111,6 +130,26 @@ namespace TravellerSystemGenerator
 
             dice = new Random(Seed);
             DebugLogger.Log("Random number generator initialized");
+
+            // Parse mainworld UWP if provided
+            if (!string.IsNullOrEmpty(mainworldUWP))
+            {
+                mainworld = ParseMainworldUWP(mainworldUWP);
+                DebugLogger.Log($"Mainworld UWP specified: {mainworld.UWP}");
+                if (mainworld.GasGiantCount.HasValue)
+                    DebugLogger.Log($"  Gas Giants: {mainworld.GasGiantCount.Value}");
+                if (mainworld.PlanetoidBeltCount.HasValue)
+                    DebugLogger.Log($"  Planetoid Belts: {mainworld.PlanetoidBeltCount.Value}");
+                if (mainworld.OtherWorldCount.HasValue)
+                    DebugLogger.Log($"  Other Worlds: {mainworld.OtherWorldCount.Value}");
+            }
+
+            // Store system name if provided
+            if (!string.IsNullOrEmpty(name))
+            {
+                systemName = name;
+                DebugLogger.Log($"System name specified: {systemName}");
+            }
 
             DebugLogger.Log("");
             DebugLogger.Log("Creating primary celestial object...");
@@ -148,9 +187,52 @@ namespace TravellerSystemGenerator
 
             if (hasPlanetarySystem)
             {
-                GasGiantCount = DetermineGasGiants(dice);
-                PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
-                TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+                // Use mainworld counts if provided, otherwise determine randomly
+                if (mainworld != null && mainworld.GasGiantCount.HasValue)
+                {
+                    GasGiantCount = mainworld.GasGiantCount.Value;
+                    DebugLogger.Log($"Using mainworld gas giant count: {GasGiantCount}");
+                }
+                else
+                {
+                    GasGiantCount = DetermineGasGiants(dice);
+                }
+
+                if (mainworld != null && mainworld.PlanetoidBeltCount.HasValue)
+                {
+                    PlanetoidBeltCount = mainworld.PlanetoidBeltCount.Value;
+                    DebugLogger.Log($"Using mainworld planetoid belt count: {PlanetoidBeltCount}");
+                }
+                else
+                {
+                    PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
+                }
+
+                if (mainworld != null && mainworld.OtherWorldCount.HasValue)
+                {
+                    TerrestrialPlanetCount = mainworld.OtherWorldCount.Value;
+                    DebugLogger.Log($"Using mainworld other world count: {TerrestrialPlanetCount}");
+                }
+                else
+                {
+                    TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+                }
+
+                // Adjust terrestrial count for mainworld
+                if (mainworld != null)
+                {
+                    // If mainworld size is 0 and there are asteroid belts, mainworld is in a belt
+                    // Otherwise, add 1 for the mainworld itself
+                    if (mainworld.Size == 0 && PlanetoidBeltCount > 0)
+                    {
+                        DebugLogger.Log("Mainworld (size 0) will be placed in an asteroid belt");
+                    }
+                    else
+                    {
+                        TerrestrialPlanetCount += 1;
+                        DebugLogger.Log($"Added 1 to terrestrial count for mainworld. Total: {TerrestrialPlanetCount}");
+                    }
+                }
             }
             else
             {
@@ -554,6 +636,12 @@ namespace TravellerSystemGenerator
 
             // Step 4: Handle Trojan orbits
             HandleTrojanOrbits(dice);
+
+            // Step 4.5: Place Mainworld (if specified) before other terrestrial planets
+            if (mainworld != null)
+            {
+                PlaceMainworld(dice);
+            }
 
             // Step 5: Place Terrestrial Planets
             PlaceTerrestrialPlanets(dice);
@@ -1537,6 +1625,78 @@ namespace TravellerSystemGenerator
             if (char.IsDigit(size[0])) return int.Parse(size.Substring(0, 1));
             // Extended hex: A=10, B=11, C=12, D=13, E=14, F=15
             return size[0] - 'A' + 10;
+        }
+
+        private int EhexToInt(char c)
+        {
+            c = char.ToUpper(c);
+            if (char.IsDigit(c))
+                return c - '0';
+            else
+                return c - 'A' + 10;
+        }
+
+        private MainworldData ParseMainworldUWP(string uwp)
+        {
+            // Remove spaces
+            string cleanUWP = uwp.Replace(" ", "");
+
+            var data = new MainworldData();
+
+            // Parse starport (position 0)
+            data.Starport = char.ToUpper(cleanUWP[0]);
+
+            // Parse size (position 1)
+            data.Size = EhexToInt(cleanUWP[1]);
+
+            // Parse atmosphere (position 2)
+            data.Atmosphere = EhexToInt(cleanUWP[2]);
+
+            // Parse hydrographics (position 3)
+            data.Hydrographics = EhexToInt(cleanUWP[3]);
+
+            // Parse population (position 4)
+            data.Population = EhexToInt(cleanUWP[4]);
+
+            // Parse government (position 5)
+            data.Government = EhexToInt(cleanUWP[5]);
+
+            // Parse law level (position 6)
+            data.LawLevel = EhexToInt(cleanUWP[6]);
+
+            // Parse tech level - handle both A123456-7 and A1234567 formats
+            if (cleanUWP[7] == '-')
+            {
+                data.TechLevel = EhexToInt(cleanUWP[8]);
+
+                // Build UWP string (first 9 characters: A123456-7)
+                data.UWP = cleanUWP.Substring(0, 9);
+
+                // Optional: gas giants, belts, other worlds
+                if (cleanUWP.Length >= 10)
+                    data.GasGiantCount = cleanUWP[9] - '0';
+                if (cleanUWP.Length >= 11)
+                    data.PlanetoidBeltCount = cleanUWP[10] - '0';
+                if (cleanUWP.Length >= 12)
+                    data.OtherWorldCount = cleanUWP[11] - '0';
+            }
+            else
+            {
+                data.TechLevel = EhexToInt(cleanUWP[7]);
+
+                // Build UWP string with dash inserted (A1234567 -> A123456-7)
+                data.UWP = cleanUWP.Substring(0, 7) + "-" + cleanUWP[7];
+
+                // Optional: gas giants, belts, other worlds
+                if (cleanUWP.Length >= 9)
+                    data.GasGiantCount = cleanUWP[8] - '0';
+                if (cleanUWP.Length >= 10)
+                    data.PlanetoidBeltCount = cleanUWP[9] - '0';
+                if (cleanUWP.Length >= 11)
+                    data.OtherWorldCount = cleanUWP[10] - '0';
+            }
+
+            return data;
         }
 
         private string CalculateComposition(string size, float orbitNumber, float parentStarHZCO, float systemAge, Random dice)
@@ -4647,6 +4807,122 @@ namespace TravellerSystemGenerator
             }
 
             DebugLogger.Log("  Terrestrial Planet placement complete");
+        }
+
+        private void PlaceMainworld(Random dice)
+        {
+            if (mainworld == null) return;
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Mainworld...");
+            DebugLogger.Log($"  Mainworld UWP: {mainworld.UWP}");
+            DebugLogger.Log($"  Size: {mainworld.Size}, Atmosphere: {mainworld.Atmosphere}, Hydrographics: {mainworld.Hydrographics}");
+
+            // Get all available Filled orbits
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            if (emptyOrbits.Count == 0)
+            {
+                DebugLogger.Log("  WARNING: No available orbits for mainworld!");
+                return;
+            }
+
+            // For now, select randomly from available orbits
+            // TODO: Implement HZ weighting for atmosphere 4-9
+            // TODO: Implement gas giant moon placement option
+            int selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
+            var (cobj, parentStar) = emptyOrbits[selectedIndex];
+
+            // Create Terrestrial Planet for mainworld
+            TerrestrialPlanet planet = new TerrestrialPlanet();
+
+            // Check for anomalous orbit type
+            if (cobj.celestrialObject is CelestialBody cb)
+            {
+                if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                    cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde)
+                {
+                    planet.Type = cb.Type;
+                }
+            }
+
+            cobj.celestrialObject = planet;
+
+            // Calculate eccentricity
+            int modifier = 0;
+            if (planet.Type == CelestialBodyType.Random || planet.Type == CelestialBodyType.Eccentric)
+                modifier = 2;
+
+            if (planet.Type == CelestialBodyType.Eccentric)
+            {
+                int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                planet.Inclination = ((inclinationRoll + 2) * 10) + 10;
+            }
+
+            int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+            cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+            // Calculate orbital period
+            CalculateOrbitalPeriod(cobj);
+
+            // Apply mainworld size
+            planet.Size = IntToEhex(mainworld.Size);
+            planet.Diameter = CalculateDiameter(planet.Size, dice);
+
+            // Calculate physical properties
+            CalculatePhysicalProperties(planet, cobj.orbit, parentStar, dice);
+
+            // Apply mainworld atmosphere - temporarily store for later override
+            string targetAtmosphere = IntToEhex(mainworld.Atmosphere);
+
+            // Generate atmosphere normally first
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+            GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
+
+            // Override with mainworld atmosphere
+            planet.Atmosphere = targetAtmosphere;
+
+            // Calculate atmospheric pressure, oxygen, and hydrographics
+            CalculateAtmosphericPressure(planet, dice);
+            CalculateOxygenFraction(planet, parentStar.age, dice);
+            CalculateHydrographics(planet, dice);
+
+            // Override with mainworld hydrographics
+            planet.HydrographicsCode = IntToEhex(mainworld.Hydrographics);
+            // Recalculate coverage based on code
+            int hydroValue = mainworld.Hydrographics;
+            if (hydroValue == 0)
+                planet.HydrographicsCoverage = 0;
+            else if (hydroValue == 10) // A
+                planet.HydrographicsCoverage = 96 + (Starhelper.diceRoll(100, 1, dice) / 100f) * 4;
+            else
+            {
+                int min = hydroValue * 10 - 4;
+                int max = hydroValue * 10 + 5;
+                planet.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+            }
+
+            // Calculate remaining properties
+            CalculateSurfaceDistribution(planet, dice);
+            CalculateAlbedo(planet, cobj.orbit, parentStar.HZCO, dice);
+            CalculateGreenhouse(planet, dice);
+            CalculateBasicRotationRate(planet, parentStar.age, dice);
+            CalculateSolarDays(planet, cobj.OrbitalPeriodYears);
+            CalculateAxialTilt(planet, dice);
+
+            // Store reference to mainworld
+            mainworld.PlacedWorld = planet;
+
+            DebugLogger.LogFormat("  Placed Mainworld at orbit {0:F3} (Size:{1}, Atmosphere:{2}, Hydrographics:{3}, Diameter:{4}km)",
+                cobj.orbit, planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.Diameter);
+        }
+
+        private string IntToEhex(int value)
+        {
+            if (value < 10)
+                return value.ToString();
+            else
+                return ((char)('A' + value - 10)).ToString();
         }
 
         private string DetermineTerrestrialSize(Random dice)
