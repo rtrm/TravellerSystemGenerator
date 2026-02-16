@@ -13,9 +13,9 @@ namespace TravellerSystemGenerator
         // Minor: Increment with each feature addition
         // Build: Increment with each build
 
-        public const int Major = 1;
-        public const int Minor = 10;
-        public const int Build = 14;
+        public const int Major = 2;
+        public const int Minor = 0;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
