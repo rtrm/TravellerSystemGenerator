@@ -34,9 +34,10 @@ namespace TravellerSystemGenerator
     // Helper class for displaying world data in table format
     internal class WorldDisplayData
     {
+        public string Name { get; set; } = "";  // System name (only for mainworld)
         public string Primary { get; set; } = "";
         public string Object { get; set; } = "";
-        public string Size { get; set; } = ""; // Size code for terrestrial planets
+        public string Size { get; set; } = ""; // Size code for terrestrial planets (or UWP for mainworld)
         public float Orbit { get; set; }
         public float AU { get; set; }
         public float Ecc { get; set; }
@@ -4827,11 +4828,98 @@ namespace TravellerSystemGenerator
                 return;
             }
 
-            // For now, select randomly from available orbits
-            // TODO: Implement HZ weighting for atmosphere 4-9
-            // TODO: Implement gas giant moon placement option
-            int selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
-            var (cobj, parentStar) = emptyOrbits[selectedIndex];
+            // Select orbit based on atmosphere
+            int selectedIndex;
+            CelestrialObject cobj;
+            Star parentStar;
+
+            if (mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9)
+            {
+                // Atmosphere 4-9: place in HZ with weighting towards HZCO
+                DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (4-9), placing in habitable zone with HZCO weighting");
+
+                // Filter to HZ orbits and calculate weights
+                var hzOrbits = new List<(CelestrialObject cobj, Star star, float weight)>();
+                foreach (var (orbitObj, star) in emptyOrbits)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                    if (starHzMin > 0 && orbitObj.orbit >= starHzMin && orbitObj.orbit <= starHzMax)
+                    {
+                        // Calculate distance from HZCO (as fraction of HZ width)
+                        float hzWidth = starHzMax - starHzMin;
+                        float distanceFromHZCO = Math.Abs(orbitObj.orbit - star.HZCO);
+                        float normalizedDistance = hzWidth > 0 ? distanceFromHZCO / hzWidth : 0;
+
+                        // Orbits near HZCO (within 20% of HZ width) get 2x weight
+                        float weight = normalizedDistance < 0.2f ? 2.0f : 1.0f;
+                        hzOrbits.Add((orbitObj, star, weight));
+                    }
+                }
+
+                if (hzOrbits.Count == 0)
+                {
+                    DebugLogger.Log("  WARNING: No HZ orbits available, falling back to random placement");
+                    selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
+                    (cobj, parentStar) = emptyOrbits[selectedIndex];
+                }
+                else
+                {
+                    // Weighted random selection
+                    float totalWeight = hzOrbits.Sum(o => o.weight);
+                    float randomValue = (float)dice.NextDouble() * totalWeight;
+                    float cumulativeWeight = 0;
+
+                    int chosenIndex = 0;
+                    for (int i = 0; i < hzOrbits.Count; i++)
+                    {
+                        cumulativeWeight += hzOrbits[i].weight;
+                        if (randomValue <= cumulativeWeight)
+                        {
+                            chosenIndex = i;
+                            break;
+                        }
+                    }
+
+                    cobj = hzOrbits[chosenIndex].cobj;
+                    parentStar = hzOrbits[chosenIndex].star;
+                    DebugLogger.Log($"  Selected HZ orbit {cobj.orbit:F3} (HZCO: {parentStar.HZCO:F3}, weight: {hzOrbits[chosenIndex].weight:F1})");
+                }
+            }
+            else
+            {
+                // Atmosphere not 4-9: random placement with outer orbit penalty
+                DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (not 4-9), placing randomly with outer orbit penalty");
+
+                // Apply weights: inner/HZ orbits = 1.0, outer orbits (beyond HZCO) = 0.5
+                var weightedOrbits = new List<(CelestrialObject cobj, Star star, float weight)>();
+                foreach (var (orbitObj, star) in emptyOrbits)
+                {
+                    // Outer orbits (beyond HZCO + 1.0) get 0.5 weight to reduce gas giant zone placement
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                    float weight = (starHzMax > 0 && orbitObj.orbit > starHzMax) ? 0.5f : 1.0f;
+                    weightedOrbits.Add((orbitObj, star, weight));
+                }
+
+                // Weighted random selection
+                float totalWeight = weightedOrbits.Sum(o => o.weight);
+                float randomValue = (float)dice.NextDouble() * totalWeight;
+                float cumulativeWeight = 0;
+
+                int chosenIndex = 0;
+                for (int i = 0; i < weightedOrbits.Count; i++)
+                {
+                    cumulativeWeight += weightedOrbits[i].weight;
+                    if (randomValue <= cumulativeWeight)
+                    {
+                        chosenIndex = i;
+                        break;
+                    }
+                }
+
+                cobj = weightedOrbits[chosenIndex].cobj;
+                parentStar = weightedOrbits[chosenIndex].star;
+                DebugLogger.Log($"  Selected orbit {cobj.orbit:F3} (weight: {weightedOrbits[chosenIndex].weight:F1})");
+            }
 
             // Create Terrestrial Planet for mainworld
             TerrestrialPlanet planet = new TerrestrialPlanet();
@@ -6906,8 +6994,20 @@ namespace TravellerSystemGenerator
                             }
                         }
 
+                        // Check if this is the mainworld
+                        string name = "";
+                        if (mainworld != null && body == mainworld.PlacedWorld)
+                        {
+                            // Override size with mainworld UWP
+                            size = mainworld.UWP;
+                            // Set name if systemName is specified
+                            if (!string.IsNullOrEmpty(systemName))
+                                name = systemName;
+                        }
+
                         worldData.Add(new WorldDisplayData
                         {
+                            Name = name,
                             Primary = primaryDesignation,
                             Object = body.Designation,
                             Size = size,
@@ -7017,8 +7117,20 @@ namespace TravellerSystemGenerator
                                 }
                             }
 
+                            // Check if this is the mainworld
+                            string name = "";
+                            if (mainworld != null && body == mainworld.PlacedWorld)
+                            {
+                                // Override size with mainworld UWP
+                                size = mainworld.UWP;
+                                // Set name if systemName is specified
+                                if (!string.IsNullOrEmpty(systemName))
+                                    name = systemName;
+                            }
+
                             worldData.Add(new WorldDisplayData
                             {
+                                Name = name,
                                 Primary = primaryDesignation,
                                 Object = body.Designation,
                                 Size = size,
@@ -7109,7 +7221,11 @@ namespace TravellerSystemGenerator
 
             Console.WriteLine("OBJECTS");
 
+            // Check if any world has a name
+            bool hasName = worldData.Any(w => !string.IsNullOrEmpty(w.Name));
+
             // Calculate column widths dynamically based on data
+            int nameWidth = hasName ? Math.Max("Name".Length, worldData.Max(w => w.Name.Length)) : 0;
             int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
             int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
             int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("SAH/UWP".Length, worldData.Max(w => w.Size.Length)) : "SAH/UWP".Length;
@@ -7120,8 +7236,15 @@ namespace TravellerSystemGenerator
             int subWidth = Math.Max("Sub".Length, worldData.Any(w => w.Sub.Length > 0) ? worldData.Max(w => w.Sub.Length) : 1);
             int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
 
-            // Print header - moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
-            Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            // Print header - with optional Name column, moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
+            if (hasName)
+            {
+                Console.WriteLine($"{"Name".PadRight(nameWidth)} {"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            }
+            else
+            {
+                Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            }
 
             // Group by primary and print
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
@@ -7133,7 +7256,14 @@ namespace TravellerSystemGenerator
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
-                    Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    if (hasName)
+                    {
+                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    }
                 }
             }
 
@@ -7341,9 +7471,17 @@ namespace TravellerSystemGenerator
             // OBJECTS table
             if (worldData.Count > 0)
             {
+                // Check if any world has a name
+                bool hasName = worldData.Any(w => !string.IsNullOrEmpty(w.Name));
+
                 html.AppendLine("        <h2>Objects</h2>");
                 html.AppendLine("        <table>");
                 html.AppendLine("            <tr>");
+
+                // Add Name column if any world has a name
+                if (hasName)
+                    html.AppendLine("                <th>Name</th>");
+
                 html.AppendLine("                <th>Primary</th>");
                 html.AppendLine("                <th>Object</th>");
                 html.AppendLine("                <th>Orbit#</th>");
@@ -7376,6 +7514,11 @@ namespace TravellerSystemGenerator
                         string notesCell = AddMoonLinksToNotes(world.Notes, world.Object, world.Moons);
 
                         html.AppendLine("            <tr>");
+
+                        // Add Name cell if any world has a name
+                        if (hasName)
+                            html.AppendLine($"                <td>{world.Name}</td>");
+
                         html.AppendLine($"                <td>{world.Primary}</td>");
                         html.AppendLine($"                <td>{objectCell}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
@@ -7835,10 +7978,21 @@ namespace TravellerSystemGenerator
                 {
                     if (bodyObj.celestrialObject is TerrestrialPlanet tp)
                     {
+                        // Check if this is the mainworld
+                        string worldName = tp.Designation;
+                        string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                        if (mainworld != null && tp == mainworld.PlacedWorld)
+                        {
+                            // Override with mainworld-specific values
+                            if (!string.IsNullOrEmpty(systemName))
+                                worldName = $"{systemName} ({tp.Designation})";
+                            sahUwp = mainworld.UWP;
+                        }
+
                         SurveyData surveyData = new SurveyData
                         {
-                            WorldName = tp.Designation,
-                            SAH_UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode,
+                            WorldName = worldName,
+                            SAH_UWP = sahUwp,
                             PrimaryObject = primaryStar.Designation,
                             SystemAge = primaryStar.age.ToString("F2"),
                             OrbitNumber = bodyObj.orbit,
@@ -7969,10 +8123,21 @@ namespace TravellerSystemGenerator
                     {
                         if (bodyObj.celestrialObject is TerrestrialPlanet tp)
                         {
+                            // Check if this is the mainworld
+                            string worldName = tp.Designation;
+                            string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    worldName = $"{systemName} ({tp.Designation})";
+                                sahUwp = mainworld.UWP;
+                            }
+
                             SurveyData surveyData = new SurveyData
                             {
-                                WorldName = tp.Designation,
-                                SAH_UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode,
+                                WorldName = worldName,
+                                SAH_UWP = sahUwp,
                                 PrimaryObject = companionStar.Designation + ", orbiting " + (primaryObject.celestrialObject as Star)?.Designation,
                                 SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                 OrbitNumber = bodyObj.orbit,
