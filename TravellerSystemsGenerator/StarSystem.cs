@@ -227,17 +227,6 @@ namespace TravellerSystemGenerator
                 }
             }
 
-            // Found suitable system, break out of retry loop
-            break;
-        } // End of retry while loop
-
-        if (Seed != originalSeed)
-        {
-            DebugLogger.Log($"");
-            DebugLogger.Log($"Final seed after regeneration: {Seed} (original: {originalSeed})");
-            Console.WriteLine($"Note: System regenerated with seed {Seed} to accommodate mainworld requirements (original seed: {originalSeed})");
-        }
-
             // Determine non-stellar objects
             // D primary systems must first check if they have a planetary system at all
             bool hasPlanetarySystem = true;
@@ -326,8 +315,89 @@ namespace TravellerSystemGenerator
             // Generate anomalous orbits
             GenerateAnomalousOrbits(dice);
 
-            // Place worlds in orbits
-            PlaceWorlds(dice);
+            // Place empty orbits first
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Starting world placement...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            PlaceEmptyOrbits(dice);
+
+            // Place Gas Giants
+            PlaceGasGiants(dice);
+
+            // Place Planetoid Belts
+            PlacePlanetoidBelts(dice);
+
+            // Check if HZ orbits are available for atmosphere 4-9 mainworlds
+            if (needsHZ && primaryObject.celestrialObject is Star primaryStar2)
+            {
+                // Check if any HZ orbits are still available (not occupied by gas giants or planetoid belts)
+                bool hasAvailableHZOrbit = false;
+                double hzco = primaryStar2.HZCO;
+                double hzMin = hzco - 0.5;
+                double hzMax = hzco + 0.5;
+
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is CelestialBody body)
+                    {
+                        // Check if this is a Filled body (placeholder) in the HZ
+                        if ((body.Type == CelestialBodyType.Filled ||
+                             body.Type == CelestialBodyType.Random ||
+                             body.Type == CelestialBodyType.Eccentric ||
+                             body.Type == CelestialBodyType.Inclined ||
+                             body.Type == CelestialBodyType.Retrograde ||
+                             body.Type == CelestialBodyType.Trojan) &&
+                            bodyObj.orbit >= hzMin && bodyObj.orbit <= hzMax)
+                        {
+                            hasAvailableHZOrbit = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!hasAvailableHZOrbit)
+                {
+                    DebugLogger.Log($"WARNING: Mainworld requires HZ (atmosphere {mainworld!.Atmosphere}), but all HZ orbits occupied by gas giants/belts");
+                    if (attempts < maxAttempts)
+                    {
+                        continue; // Try next seed
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"ERROR: Could not find suitable system after {maxAttempts} attempts");
+                        throw new Exception($"Could not generate system with available HZ orbits for atmosphere {mainworld.Atmosphere} mainworld after {maxAttempts} attempts");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"HZ orbits available for atmosphere {mainworld!.Atmosphere} mainworld");
+                }
+            }
+
+            // Found suitable system, break out of retry loop
+            break;
+        } // End of retry while loop
+
+        if (Seed != originalSeed)
+        {
+            DebugLogger.Log($"");
+            DebugLogger.Log($"Final seed after regeneration: {Seed} (original: {originalSeed})");
+            Console.WriteLine($"Note: System regenerated with seed {Seed} to accommodate mainworld requirements (original seed: {originalSeed})");
+        }
+
+            // Continue with world placement: Trojans, Mainworld, Terrestrial Planets
+            HandleTrojanOrbits(dice);
+
+            if (mainworld != null)
+            {
+                PlaceMainworld(dice);
+            }
+
+            PlaceTerrestrialPlanets(dice);
+
+            DebugLogger.Log("");
+            DebugLogger.Log("World placement complete");
 
             // Generate moons for worlds
             GenerateMoons(dice);
