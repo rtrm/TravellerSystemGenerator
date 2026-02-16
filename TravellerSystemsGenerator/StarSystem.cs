@@ -7679,9 +7679,9 @@ namespace TravellerSystemGenerator
                         string au = world.AU.ToString("F2");
                         string ecc = world.Ecc.ToString("F3");
 
-                        // Add clickable link for terrestrial planets (3-char SAH/UWP, not gas giant)
+                        // Add clickable link for terrestrial planets (3-char SAH/UWP, not gas giant, or mainworld UWP with dash)
                         string objectCell = world.Object;
-                        if (world.Size.Length == 3 && !world.Size.StartsWith("G"))
+                        if ((world.Size.Length == 3 && !world.Size.StartsWith("G")) || world.Size.Contains("-"))
                         {
                             string surveyFilename = world.Object.Replace(" ", "_");
                             objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
