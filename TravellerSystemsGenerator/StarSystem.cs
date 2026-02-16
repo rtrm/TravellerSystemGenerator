@@ -7717,7 +7717,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("</html>");
 
             // Save HTML file
-            string filename = uniqueHtmlFilename ? $"system_{Seed}.html" : "system.html";
+            string filename = uniqueHtmlFilename ? $"StarSystem_{Seed}.html" : "StarSystem.html";
             try
             {
                 System.IO.File.WriteAllText(filename, html.ToString());
@@ -7761,7 +7761,7 @@ namespace TravellerSystemGenerator
 
             // Back link
             html.AppendLine("        <div class=\"back-link\">");
-            html.AppendLine("            <a href=\"../system.html\">&larr; Back to System Overview</a>");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
             html.AppendLine("        </div>");
 
             // Title
