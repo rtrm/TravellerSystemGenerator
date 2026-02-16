@@ -4949,7 +4949,11 @@ namespace TravellerSystemGenerator
 
             // Apply mainworld size
             moon.Size = IntToEhex(mainworld!.Size);
-            moon.Designation = ""; // Will be assigned later (a, b, c, etc.)
+
+            // Assign designation based on current moon count (a, b, c, etc.)
+            int moonIndex = gasGiant.Moons.Count;
+            moon.Designation = ((char)('a' + moonIndex)).ToString();
+
             moon.Diameter = CalculateDiameter(moon.Size, dice);
 
             // Calculate physical properties for moon (use parent gas giant's orbit for composition)
@@ -7215,6 +7219,7 @@ namespace TravellerSystemGenerator
                         }
 
                         // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                        // Also check if any moon is the mainworld and add it as a separate world entry
                         if (moons.Count > 0)
                         {
                             List<string> moonInfo = new List<string>();
@@ -7224,11 +7229,42 @@ namespace TravellerSystemGenerator
                             if (rMoonCount > 0)
                                 moonInfo.Add($"R0{rMoonCount}");
 
-                            // Add non-R moon sizes
+                            // Add non-R moon sizes and check for mainworld moons
                             foreach (var moon in moons)
                             {
                                 if (moon.Size != "R")
-                                    moonInfo.Add(moon.Size);
+                                {
+                                    // Check if this moon is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        // This moon is the mainworld - add it as a separate world entry
+                                        string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
+                                        string moonDesignation = $"{body.Designation} {moon.Designation}";
+
+                                        worldData.Add(new WorldDisplayData
+                                        {
+                                            Name = moonName,
+                                            Primary = primaryDesignation,
+                                            Object = moonDesignation,
+                                            Size = mainworld.UWP,
+                                            Orbit = bodyObj.orbit,
+                                            AU = bodyObj.orbitAU,
+                                            Ecc = bodyObj.orbitEccentricity,
+                                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                            Sub = "0",
+                                            Notes = BuildNotesString(bodyObj, body, primaryStar),
+                                            Moons = new List<Moon>()
+                                        });
+
+                                        // Add moon's SAH code to parent's notes (not full UWP)
+                                        string moonSAH = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                        moonInfo.Add(moonSAH);
+                                    }
+                                    else
+                                    {
+                                        moonInfo.Add(moon.Size);
+                                    }
+                                }
                             }
 
                             if (moonInfo.Count > 0)
@@ -7338,6 +7374,7 @@ namespace TravellerSystemGenerator
                             }
 
                             // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                            // Also check if any moon is the mainworld and add it as a separate world entry
                             if (moons.Count > 0)
                             {
                                 List<string> moonInfo = new List<string>();
@@ -7347,11 +7384,41 @@ namespace TravellerSystemGenerator
                                 if (rMoonCount > 0)
                                     moonInfo.Add($"R0{rMoonCount}");
 
-                                // Add non-R moon sizes
+                                // Add non-R moon sizes and check for mainworld moons
                                 foreach (var moon in moons)
                                 {
                                     if (moon.Size != "R")
-                                        moonInfo.Add(moon.Size);
+                                    {
+                                        // Check if this moon is the mainworld
+                                        if (mainworld != null && moon == mainworld.PlacedWorld)
+                                        {
+                                            // This moon is the mainworld - add it as a separate world entry
+                                            string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
+                                            string moonDesignation = $"{body.Designation} {moon.Designation}";
+
+                                            worldData.Add(new WorldDisplayData
+                                            {
+                                                Name = moonName,
+                                                Primary = primaryDesignation,
+                                                Object = moonDesignation,
+                                                Size = mainworld.UWP,
+                                                Orbit = bodyObj.orbit,
+                                                AU = bodyObj.orbitAU,
+                                                Ecc = bodyObj.orbitEccentricity,
+                                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                                Sub = "0",
+                                                Notes = BuildNotesString(bodyObj, body, companionStar),
+                                                Moons = new List<Moon>()
+                                            });
+
+                                            // Add mainworld UWP to parent's notes instead of just SAH
+                                            moonInfo.Add(mainworld.UWP);
+                                        }
+                                        else
+                                        {
+                                            moonInfo.Add(moon.Size);
+                                        }
+                                    }
                                 }
 
                                 if (moonInfo.Count > 0)

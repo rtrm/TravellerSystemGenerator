@@ -15,7 +15,7 @@ namespace TravellerSystemGenerator
 
         public const int Major = 1;
         public const int Minor = 10;
-        public const int Build = 6;
+        public const int Build = 7;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
