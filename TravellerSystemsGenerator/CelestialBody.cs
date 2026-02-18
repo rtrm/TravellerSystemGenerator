@@ -61,7 +61,19 @@ namespace TravellerSystemGenerator
         public int HighTemperatureC { get; set; } = 0;       // High temperature in Celsius
         public int LowTemperatureC { get; set; } = 0;        // Low temperature in Celsius
 
+        // Tidal force tracking
+        public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
+        public float TotalTidalForce { get; set; } = 0;  // Total tidal force in meters
+
         public Moon() { }
+    }
+
+    // Helper class to track individual tidal force contributions
+    internal class TidalForceContribution
+    {
+        public string SourceName { get; set; } = "";      // Name of the body causing the tidal force
+        public string SourceType { get; set; } = "";      // Type: "Star", "Gas Giant", "Planet", "Moon"
+        public float TidalForce { get; set; } = 0;        // Tidal force contribution in meters
     }
 
     internal class GasGiant : CelestialBody
@@ -137,6 +149,10 @@ namespace TravellerSystemGenerator
         public int LowTemperatureK { get; set; } = 0;        // Low temperature in Kelvin
         public int HighTemperatureC { get; set; } = 0;       // High temperature in Celsius
         public int LowTemperatureC { get; set; } = 0;        // Low temperature in Celsius
+
+        // Tidal force tracking
+        public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
+        public float TotalTidalForce { get; set; } = 0;  // Total tidal force in meters
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }

@@ -83,6 +83,8 @@ namespace TravellerSystemGenerator
         public float SolarDayHours { get; set; } = 0;           // Solar day length
         public float AxialTilt { get; set; } = 0;               // Axial tilt in degrees
         public string TidalLockStatus { get; set; } = "";       // Tidal lock status
+        public float TotalTidalForce { get; set; } = 0;         // Total tidal force in meters
+        public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -427,6 +429,15 @@ namespace TravellerSystemGenerator
 
             // Assign world designations
             AssignWorldDesignations();
+
+            // Calculate tidal forces (after designations are assigned)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating tidal forces...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAllTidalForces();
+            DebugLogger.Log("");
+            DebugLogger.Log("Tidal force calculation complete");
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -3283,6 +3294,370 @@ namespace TravellerSystemGenerator
             moon.AxialTilt = axialTilt;
         }
 
+        // Tidal Force Calculations
+
+        private void CalculateAllTidalForces()
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Calculating Tidal Forces...");
+
+            // Calculate tidal forces for all terrestrial planets
+            var allTerrestrialPlanets = GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet);
+            foreach (var (planetObj, parentStar) in allTerrestrialPlanets)
+            {
+                if (planetObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    CalculateTidalForcesForPlanet(planet, planetObj, parentStar);
+                }
+            }
+
+            // Calculate tidal forces for all moons on terrestrial planets
+            foreach (var (worldObj, parentStar) in allTerrestrialPlanets)
+            {
+                if (worldObj.celestrialObject is TerrestrialPlanet tp && tp.Moons.Count > 0)
+                {
+                    foreach (var moon in tp.Moons)
+                    {
+                        CalculateTidalForcesForMoon(moon, tp, worldObj, parentStar);
+                    }
+                }
+            }
+
+            // Calculate tidal forces for moons on gas giants
+            var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            foreach (var (worldObj, parentStar) in allGasGiants)
+            {
+                if (worldObj.celestrialObject is GasGiant gg && gg.Moons.Count > 0)
+                {
+                    foreach (var moon in gg.Moons)
+                    {
+                        CalculateTidalForcesForMoon(moon, gg, worldObj, parentStar);
+                    }
+                }
+            }
+        }
+
+        private void CalculateTidalForcesForPlanet(TerrestrialPlanet planet, CelestrialObject planetObj, Star parentStar)
+        {
+            planet.TidalForceContributions.Clear();
+            planet.TotalTidalForce = 0;
+
+            // Measure against all stars in the system
+            CalculateTidalForceFromStars(planet, planetObj, parentStar);
+
+            // Measure against all gas giants
+            CalculateTidalForceFromGasGiants(planet, planetObj);
+
+            // Measure against all moons orbiting this planet
+            if (planet.Moons.Count > 0)
+            {
+                foreach (var moon in planet.Moons)
+                {
+                    float tidalForce = CalculateTidalForce(
+                        moon.Mass,                    // Moon mass in Earth masses
+                        planet.Diameter,              // Planet diameter in km
+                        moon.OrbitDistanceKm / 149597870.7f  // Convert km to AU
+                    );
+
+                    if (tidalForce > 0)
+                    {
+                        planet.TidalForceContributions.Add(new TidalForceContribution
+                        {
+                            SourceName = $"{planet.Designation} {moon.Designation}",
+                            SourceType = "Moon",
+                            TidalForce = tidalForce
+                        });
+                        planet.TotalTidalForce += tidalForce;
+                    }
+                }
+            }
+
+            DebugLogger.Log($"  {planet.Designation}: Total tidal force = {planet.TotalTidalForce:F2}m");
+        }
+
+        private void CalculateTidalForcesForMoon(Moon moon, CelestialBody parentWorld, CelestrialObject worldObj, Star parentStar)
+        {
+            moon.TidalForceContributions.Clear();
+            moon.TotalTidalForce = 0;
+
+            // Measure against all stars in the system
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                float distanceAU = worldObj.orbitAU;
+                if (primaryStar != parentStar)
+                {
+                    // Moon orbits a companion star, use companion star's orbit as distance
+                    var starObj = FindCelestrialObjectForStar(parentStar);
+                    if (starObj != null)
+                    {
+                        distanceAU = starObj.orbitAU;
+                    }
+                }
+
+                float starMassEarth = primaryStar.mass * 332946f;
+                float tidalForce = CalculateTidalForce(starMassEarth, moon.Diameter, distanceAU);
+
+                if (tidalForce > 0)
+                {
+                    moon.TidalForceContributions.Add(new TidalForceContribution
+                    {
+                        SourceName = primaryStar.Designation,
+                        SourceType = "Star",
+                        TidalForce = tidalForce
+                    });
+                    moon.TotalTidalForce += tidalForce;
+                }
+            }
+
+            // Companion stars
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .ToList();
+
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    float distanceAU = companionObj.orbitAU;
+                    float starMassEarth = companionStar.mass * 332946f;
+                    float tidalForce = CalculateTidalForce(starMassEarth, moon.Diameter, distanceAU);
+
+                    if (tidalForce > 0)
+                    {
+                        moon.TidalForceContributions.Add(new TidalForceContribution
+                        {
+                            SourceName = companionStar.Designation,
+                            SourceType = "Star",
+                            TidalForce = tidalForce
+                        });
+                        moon.TotalTidalForce += tidalForce;
+                    }
+                }
+            }
+
+            // Measure against all gas giants
+            var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            foreach (var (ggObj, _) in allGasGiants)
+            {
+                if (ggObj.celestrialObject is GasGiant gg && ggObj != worldObj)
+                {
+                    float distanceAU = Math.Abs(worldObj.orbitAU - ggObj.orbitAU);
+                    if (distanceAU > 0)
+                    {
+                        float tidalForce = CalculateTidalForce(
+                            gg.GasGiantMass,
+                            moon.Diameter,
+                            distanceAU
+                        );
+
+                        if (tidalForce > 0)
+                        {
+                            moon.TidalForceContributions.Add(new TidalForceContribution
+                            {
+                                SourceName = gg.Designation,
+                                SourceType = "Gas Giant",
+                                TidalForce = tidalForce
+                            });
+                            moon.TotalTidalForce += tidalForce;
+                        }
+                    }
+                }
+            }
+
+            // Measure against the world being orbited
+            float parentMassEarth = 0;
+            string parentType = "";
+
+            if (parentWorld is TerrestrialPlanet tp)
+            {
+                parentMassEarth = tp.WorldMass;
+                parentType = "Planet";
+            }
+            else if (parentWorld is GasGiant gg)
+            {
+                parentMassEarth = gg.GasGiantMass;
+                parentType = "Gas Giant";
+            }
+
+            if (parentMassEarth > 0)
+            {
+                float tidalForce = CalculateTidalForce(
+                    parentMassEarth,
+                    moon.Diameter,
+                    moon.OrbitDistanceKm / 149597870.7f  // Convert km to AU
+                );
+
+                if (tidalForce > 0)
+                {
+                    moon.TidalForceContributions.Add(new TidalForceContribution
+                    {
+                        SourceName = parentWorld.Designation,
+                        SourceType = parentType,
+                        TidalForce = tidalForce
+                    });
+                    moon.TotalTidalForce += tidalForce;
+                }
+            }
+
+            // Measure against other moons of the same parent
+            List<Moon> siblingMoons = new List<Moon>();
+            if (parentWorld is TerrestrialPlanet tpMoons)
+                siblingMoons = tpMoons.Moons;
+            else if (parentWorld is GasGiant ggMoons)
+                siblingMoons = ggMoons.Moons;
+
+            foreach (var otherMoon in siblingMoons)
+            {
+                if (otherMoon != moon)
+                {
+                    // Calculate distance between moons (simplified as difference in orbital distances)
+                    float distanceKm = Math.Abs(moon.OrbitDistanceKm - otherMoon.OrbitDistanceKm);
+                    float distanceAU = distanceKm / 149597870.7f;
+
+                    if (distanceAU > 0)
+                    {
+                        float tidalForce = CalculateTidalForce(
+                            otherMoon.Mass,
+                            moon.Diameter,
+                            distanceAU
+                        );
+
+                        if (tidalForce > 0)
+                        {
+                            moon.TidalForceContributions.Add(new TidalForceContribution
+                            {
+                                SourceName = $"{parentWorld.Designation} {otherMoon.Designation}",
+                                SourceType = "Moon",
+                                TidalForce = tidalForce
+                            });
+                            moon.TotalTidalForce += tidalForce;
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.Log($"  {parentWorld.Designation} {moon.Designation}: Total tidal force = {moon.TotalTidalForce:F2}m");
+        }
+
+        private void CalculateTidalForceFromStars(TerrestrialPlanet planet, CelestrialObject planetObj, Star parentStar)
+        {
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                float distanceAU = planetObj.orbitAU;
+                if (primaryStar != parentStar)
+                {
+                    // Planet orbits a companion star, use companion star's orbit as distance
+                    var starObj = FindCelestrialObjectForStar(parentStar);
+                    if (starObj != null)
+                    {
+                        distanceAU = starObj.orbitAU;
+                    }
+                }
+
+                float starMassEarth = primaryStar.mass * 332946f;
+                float tidalForce = CalculateTidalForce(starMassEarth, planet.Diameter, distanceAU);
+
+                if (tidalForce > 0)
+                {
+                    planet.TidalForceContributions.Add(new TidalForceContribution
+                    {
+                        SourceName = primaryStar.Designation,
+                        SourceType = "Star",
+                        TidalForce = tidalForce
+                    });
+                    planet.TotalTidalForce += tidalForce;
+                }
+            }
+
+            // Companion stars
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .ToList();
+
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    float distanceAU = companionObj.orbitAU;
+                    float starMassEarth = companionStar.mass * 332946f;
+                    float tidalForce = CalculateTidalForce(starMassEarth, planet.Diameter, distanceAU);
+
+                    if (tidalForce > 0)
+                    {
+                        planet.TidalForceContributions.Add(new TidalForceContribution
+                        {
+                            SourceName = companionStar.Designation,
+                            SourceType = "Star",
+                            TidalForce = tidalForce
+                        });
+                        planet.TotalTidalForce += tidalForce;
+                    }
+                }
+            }
+        }
+
+        private void CalculateTidalForceFromGasGiants(TerrestrialPlanet planet, CelestrialObject planetObj)
+        {
+            var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            foreach (var (ggObj, _) in allGasGiants)
+            {
+                if (ggObj.celestrialObject is GasGiant gg)
+                {
+                    // Calculate distance between planet and gas giant
+                    float distanceAU = Math.Abs(planetObj.orbitAU - ggObj.orbitAU);
+
+                    if (distanceAU > 0)
+                    {
+                        float tidalForce = CalculateTidalForce(
+                            gg.GasGiantMass,
+                            planet.Diameter,
+                            distanceAU
+                        );
+
+                        if (tidalForce > 0)
+                        {
+                            planet.TidalForceContributions.Add(new TidalForceContribution
+                            {
+                                SourceName = gg.Designation,
+                                SourceType = "Gas Giant",
+                                TidalForce = tidalForce
+                            });
+                            planet.TotalTidalForce += tidalForce;
+                        }
+                    }
+                }
+            }
+        }
+
+        private float CalculateTidalForce(float sourceMassEarth, float affectedDiameterKm, float distanceAU)
+        {
+            if (distanceAU == 0 || affectedDiameterKm == 0)
+                return 0;
+
+            // Tidal Force = (mass × diameter) / distance³
+            // Apply scaling factor to convert to meters (tidal bulge height)
+            // Scaling factor of 10^-12 converts from raw formula units to meters
+            float tidalForce = (sourceMassEarth * affectedDiameterKm) / (float)Math.Pow(distanceAU, 3);
+            tidalForce *= 1e-12f;  // Scale to reasonable meter values
+
+            return tidalForce;
+        }
+
+        private CelestrialObject? FindCelestrialObjectForStar(Star star)
+        {
+            // Find the CelestrialObject that contains this star
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star s && s == star)
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
         // Tidal Lock Calculations
 
         private class TidalLockCandidate
@@ -4178,32 +4553,6 @@ namespace TravellerSystemGenerator
             }
 
             DebugLogger.Log("  Empty orbit placement complete");
-        }
-
-        private CelestrialObject? FindCelestrialObjectForStar(Star star)
-        {
-            if (primaryObject.celestrialObject == star)
-            {
-                return primaryObject;
-            }
-
-            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
-            {
-                if (companionObj.celestrialObject == star)
-                {
-                    return companionObj;
-                }
-
-                foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
-                {
-                    if (subCompanionObj.celestrialObject == star)
-                    {
-                        return subCompanionObj;
-                    }
-                }
-            }
-
-            return null;
         }
 
         private void PlaceGasGiants(Random dice)
@@ -6878,6 +7227,48 @@ namespace TravellerSystemGenerator
             return period;
         }
 
+        private string FormatTidalForceDisplay(SurveyData data)
+        {
+            if (data.TotalTidalForce == 0 || data.TidalForceContributions.Count == 0)
+                return "";
+
+            // Sort contributions by magnitude (highest first)
+            var sortedContributions = data.TidalForceContributions
+                .OrderByDescending(c => c.TidalForce)
+                .ToList();
+
+            // Start with total
+            string display = $"Total: {data.TotalTidalForce:F1}m";
+
+            // Find primary star contribution (the star in PrimaryObject field)
+            var primaryContribution = sortedContributions.FirstOrDefault(c =>
+                c.SourceType == "Star" && data.PrimaryObject.Contains(c.SourceName));
+
+            if (primaryContribution != null && primaryContribution.TidalForce >= 0.1f)
+            {
+                display += $"; {primaryContribution.SourceName}: {primaryContribution.TidalForce:F1}m";
+            }
+
+            // Find next highest non-primary contribution
+            var nextHighest = sortedContributions.FirstOrDefault(c => c != primaryContribution && c.TidalForce >= 0.1f);
+            if (nextHighest != null)
+            {
+                display += $"; {nextHighest.SourceName}: {nextHighest.TidalForce:F1}m";
+            }
+
+            // Calculate "other stars" total (all stars except primary and next highest)
+            var otherStars = sortedContributions
+                .Where(c => c.SourceType == "Star" && c != primaryContribution && c != nextHighest)
+                .Sum(c => c.TidalForce);
+
+            if (otherStars >= 0.1f)
+            {
+                display += $"; Other stars: {otherStars:F1}m";
+            }
+
+            return display;
+        }
+
         private int CountStarsInSystem()
         {
             int count = 1; // Primary star
@@ -8251,7 +8642,7 @@ namespace TravellerSystemGenerator
             }
             html.AppendLine($"                <td style=\"background-color: white;\">{tidalLockDisplay}</td>");
             html.AppendLine("                <th>Tides</th>");
-            html.AppendLine("                <td colspan=\"5\" style=\"background-color: white;\"></td>");
+            html.AppendLine($"                <td colspan=\"5\" style=\"background-color: white;\">{FormatTidalForceDisplay(data)}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
             html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
@@ -8489,6 +8880,8 @@ namespace TravellerSystemGenerator
                             SolarDayHours = tp.SolarDayHours,
                             AxialTilt = tp.AxialTilt,
                             TidalLockStatus = tp.TidalLockStatus,
+                            TotalTidalForce = tp.TotalTidalForce,
+                            TidalForceContributions = tp.TidalForceContributions,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -8538,6 +8931,8 @@ namespace TravellerSystemGenerator
                                 SolarDayHours = moon.SolarDayHours,
                                 AxialTilt = moon.AxialTilt,
                                 TidalLockStatus = moon.TidalLockStatus,
+                                TotalTidalForce = moon.TotalTidalForce,
+                                TidalForceContributions = moon.TidalForceContributions,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -8590,6 +8985,8 @@ namespace TravellerSystemGenerator
                                 SolarDayHours = moon.SolarDayHours,
                                 AxialTilt = moon.AxialTilt,
                                 TidalLockStatus = moon.TidalLockStatus,
+                                TotalTidalForce = moon.TotalTidalForce,
+                                TidalForceContributions = moon.TidalForceContributions,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -8656,6 +9053,8 @@ namespace TravellerSystemGenerator
                                 SolarDayHours = tp.SolarDayHours,
                                 AxialTilt = tp.AxialTilt,
                                 TidalLockStatus = tp.TidalLockStatus,
+                                TotalTidalForce = tp.TotalTidalForce,
+                                TidalForceContributions = tp.TidalForceContributions,
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
@@ -8682,6 +9081,8 @@ namespace TravellerSystemGenerator
                                     EscapeVelocity = moon.EscapeVelocity,
                                     Atmosphere = moon.Atmosphere,
                                     AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
                                     Moons = new List<Moon>(),
                                     Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
@@ -8722,6 +9123,8 @@ namespace TravellerSystemGenerator
                                     EscapeVelocity = moon.EscapeVelocity,
                                     Atmosphere = moon.Atmosphere,
                                     AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
                                     Moons = new List<Moon>(),
                                     Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
