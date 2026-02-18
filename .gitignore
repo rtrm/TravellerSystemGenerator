@@ -104,3 +104,8 @@ ClientBin/
 *.pfx
 *.publishsettings
 orleans.codegen.cs
+
+# Release files
+*.zip
+Release-v*/
+installer_output/
