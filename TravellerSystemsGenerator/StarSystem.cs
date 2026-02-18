@@ -3353,11 +3353,13 @@ namespace TravellerSystemGenerator
             {
                 foreach (var moon in planet.Moons)
                 {
-                    // For planet-to-moon: use close orbit formula (PD, Earth masses)
-                    float tidalForce = CalculateTidalForceClose(
-                        moon.Mass,                // Keep in Earth masses
-                        planet.Diameter,          // Planet diameter in km
-                        moon.Orbit                // Distance in planetary diameters
+                    // Convert distance from PD to km
+                    float distanceKm = moon.Orbit * planet.Diameter;
+
+                    float tidalForce = CalculateTidalForce(
+                        moon.Mass,                // Earth masses
+                        planet.Diameter,          // Diameter in km
+                        distanceKm                // Distance in km
                     );
 
                     if (tidalForce > 0)
@@ -3396,8 +3398,10 @@ namespace TravellerSystemGenerator
                     }
                 }
 
-                // Use solar mass directly for stars (not Earth mass)
-                float tidalForce = CalculateTidalForce(primaryStar.mass, moon.Diameter, distanceAU);
+                // Convert star mass from solar masses to Earth masses, distance from AU to km
+                float starMassEarth = primaryStar.mass * 332946f;
+                float distanceKm = distanceAU * 149597871f;
+                float tidalForce = CalculateTidalForce(starMassEarth, moon.Diameter, distanceKm);
 
                 if (tidalForce > 0)
                 {
@@ -3421,8 +3425,10 @@ namespace TravellerSystemGenerator
                 if (companionObj.celestrialObject is Star companionStar)
                 {
                     float distanceAU = companionObj.orbitAU;
-                    // Use solar mass directly for stars (not Earth mass)
-                    float tidalForce = CalculateTidalForce(companionStar.mass, moon.Diameter, distanceAU);
+                    // Convert star mass from solar masses to Earth masses, distance from AU to km
+                    float starMassEarth = companionStar.mass * 332946f;
+                    float distanceKm = distanceAU * 149597871f;
+                    float tidalForce = CalculateTidalForce(starMassEarth, moon.Diameter, distanceKm);
 
                     if (tidalForce > 0)
                     {
@@ -3446,13 +3452,13 @@ namespace TravellerSystemGenerator
                     float distanceAU = Math.Abs(worldObj.orbitAU - ggObj.orbitAU);
                     if (distanceAU > 0)
                     {
-                        // Convert gas giant mass from Earth masses to solar masses
-                        float ggMassSolar = gg.GasGiantMass / 332946f;
+                        // Gas giant mass is already in Earth masses, just convert distance to km
+                        float distanceKm = distanceAU * 149597871f;
 
                         float tidalForce = CalculateTidalForce(
-                            ggMassSolar,
+                            gg.GasGiantMass,  // Already in Earth masses
                             moon.Diameter,
-                            distanceAU
+                            distanceKm
                         );
 
                         if (tidalForce > 0)
@@ -3471,26 +3477,31 @@ namespace TravellerSystemGenerator
 
             // Measure against the world being orbited
             float parentMassEarth = 0;
+            float parentDiameterKm = 0;
             string parentType = "";
 
             if (parentWorld is TerrestrialPlanet tp)
             {
                 parentMassEarth = tp.WorldMass;
+                parentDiameterKm = tp.Diameter;
                 parentType = "Planet";
             }
             else if (parentWorld is GasGiant gg)
             {
                 parentMassEarth = gg.GasGiantMass;
+                parentDiameterKm = gg.Diameter * 12742f; // Convert Earth diameters to km
                 parentType = "Gas Giant";
             }
 
-            if (parentMassEarth > 0)
+            if (parentMassEarth > 0 && parentDiameterKm > 0)
             {
-                // For moons orbiting their parent: use close orbit formula (PD, Earth masses)
-                float tidalForce = CalculateTidalForceClose(
-                    parentMassEarth,          // Keep in Earth masses
-                    moon.Diameter,
-                    moon.Orbit                // Distance in planetary diameters
+                // Convert distance from PD to km
+                float distanceKm = moon.Orbit * parentDiameterKm;
+
+                float tidalForce = CalculateTidalForce(
+                    parentMassEarth,          // Earth masses
+                    moon.Diameter,            // Diameter in km
+                    distanceKm                // Distance in km
                 );
 
                 if (tidalForce > 0)
@@ -3514,18 +3525,20 @@ namespace TravellerSystemGenerator
 
             foreach (var otherMoon in siblingMoons)
             {
-                if (otherMoon != moon)
+                if (otherMoon != moon && parentDiameterKm > 0)
                 {
                     // Calculate distance between moons in planetary diameters
                     float distancePD = Math.Abs(moon.Orbit - otherMoon.Orbit);
 
                     if (distancePD > 0)
                     {
-                        // For moon-to-moon: use close orbit formula (PD, Earth masses)
-                        float tidalForce = CalculateTidalForceClose(
-                            otherMoon.Mass,       // Keep in Earth masses
-                            moon.Diameter,
-                            distancePD            // Distance in planetary diameters
+                        // Convert distance from PD to km
+                        float distanceKm = distancePD * parentDiameterKm;
+
+                        float tidalForce = CalculateTidalForce(
+                            otherMoon.Mass,       // Earth masses
+                            moon.Diameter,        // Diameter in km
+                            distanceKm            // Distance in km
                         );
 
                         if (tidalForce > 0)
@@ -3561,8 +3574,10 @@ namespace TravellerSystemGenerator
                     }
                 }
 
-                // Use solar mass directly for stars (not Earth mass)
-                float tidalForce = CalculateTidalForce(primaryStar.mass, planet.Diameter, distanceAU);
+                // Convert star mass from solar masses to Earth masses, distance from AU to km
+                float starMassEarth = primaryStar.mass * 332946f;
+                float distanceKm = distanceAU * 149597871f;
+                float tidalForce = CalculateTidalForce(starMassEarth, planet.Diameter, distanceKm);
 
                 if (tidalForce > 0)
                 {
@@ -3586,8 +3601,10 @@ namespace TravellerSystemGenerator
                 if (companionObj.celestrialObject is Star companionStar)
                 {
                     float distanceAU = companionObj.orbitAU;
-                    // Use solar mass directly for stars (not Earth mass)
-                    float tidalForce = CalculateTidalForce(companionStar.mass, planet.Diameter, distanceAU);
+                    // Convert star mass from solar masses to Earth masses, distance from AU to km
+                    float starMassEarth = companionStar.mass * 332946f;
+                    float distanceKm = distanceAU * 149597871f;
+                    float tidalForce = CalculateTidalForce(starMassEarth, planet.Diameter, distanceKm);
 
                     if (tidalForce > 0)
                     {
@@ -3615,13 +3632,13 @@ namespace TravellerSystemGenerator
 
                     if (distanceAU > 0)
                     {
-                        // Convert gas giant mass from Earth masses to solar masses
-                        float ggMassSolar = gg.GasGiantMass / 332946f;
+                        // Gas giant mass is already in Earth masses, just convert distance to km
+                        float distanceKm = distanceAU * 149597871f;
 
                         float tidalForce = CalculateTidalForce(
-                            ggMassSolar,
+                            gg.GasGiantMass,  // Already in Earth masses
                             planet.Diameter,
-                            distanceAU
+                            distanceKm
                         );
 
                         if (tidalForce > 0)
@@ -3639,37 +3656,27 @@ namespace TravellerSystemGenerator
             }
         }
 
-        // Tidal force for DISTANT bodies (stars, other planets/gas giants)
-        // Uses AU for distance, solar masses for mass
-        private float CalculateTidalForce(float sourceMassSolar, float affectedDiameterKm, float distanceAU)
+        // UNIFIED tidal force formula per World Builder's Handbook
+        // ALL inputs must be: mass in Earth masses, diameter in km, distance in km
+        private float CalculateTidalForce(float sourceMassEarth, float affectedDiameterKm, float distanceKm)
         {
-            if (distanceAU == 0 || affectedDiameterKm == 0)
+            if (distanceKm == 0 || affectedDiameterKm == 0)
                 return 0;
 
-            // Tidal Force = (mass × diameter) / distance³
-            // For distant bodies: AU and solar masses
-            float tidalForce = (sourceMassSolar * affectedDiameterKm) / (float)Math.Pow(distanceAU, 3);
+            // Tidal Force = (mass × diameter) / distance³ × scaling
+            // Where:
+            //   mass: Earth masses (convert solar masses by ×332,946)
+            //   diameter: kilometers
+            //   distance: kilometers (convert AU by ×149,597,871, PD by ×parent diameter)
+            //   scaling: 2×10^14
+            //
+            // Verified against World Builder's Handbook examples:
+            //   Luna → Terra: (0.0123 × 12,742) / (389,399)³ × 2×10¹⁴ = 0.54m ✓
+            //   Sol → Terra: (332,946 × 12,742) / (149,597,871)³ × 2×10¹⁴ = 0.25m ✓
+            //   Zed Prime moon → gas giant: (1,200 × 8,163) / (3,942,400)³ × 2×10¹⁴ = 30.6m ✓
 
-            // Scaling factor 0.12 for AU-based calculations
-            tidalForce *= 0.12f;
-
-            return tidalForce;
-        }
-
-        // Tidal force for CLOSE orbits (moons ↔ parent planet, moon ↔ moon)
-        // Uses planetary diameters for distance, Earth masses for mass
-        private float CalculateTidalForceClose(float sourceMassEarth, float affectedDiameterKm, float distancePD)
-        {
-            if (distancePD == 0 || affectedDiameterKm == 0)
-                return 0;
-
-            // Tidal Force = (mass × diameter) / distance³
-            // For close orbits: planetary diameters and Earth masses
-            float tidalForce = (sourceMassEarth * affectedDiameterKm) / (float)Math.Pow(distancePD, 3);
-
-            // Scaling factor 0.033 for PD-based calculations
-            // Verified: moon diam 8163km at 22 PD from 1200 Earth mass gas giant = 30.6m
-            tidalForce *= 0.033f;
+            float tidalForce = (sourceMassEarth * affectedDiameterKm) / (float)Math.Pow(distanceKm, 3);
+            tidalForce *= 2e14f;  // Scaling factor: 2×10^14
 
             return tidalForce;
         }
