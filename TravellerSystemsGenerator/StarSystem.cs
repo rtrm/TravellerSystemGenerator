@@ -3445,8 +3445,11 @@ namespace TravellerSystemGenerator
                     float distanceAU = Math.Abs(worldObj.orbitAU - ggObj.orbitAU);
                     if (distanceAU > 0)
                     {
+                        // Convert gas giant mass from Earth masses to solar masses
+                        float ggMassSolar = gg.GasGiantMass / 332946f;
+
                         float tidalForce = CalculateTidalForce(
-                            gg.GasGiantMass,
+                            ggMassSolar,
                             moon.Diameter,
                             distanceAU
                         );
@@ -3482,11 +3485,14 @@ namespace TravellerSystemGenerator
 
             if (parentMassEarth > 0)
             {
-                // For moons, use orbital distance in planetary diameters (not AU)
+                // Convert parent mass from Earth masses to solar masses for consistency
+                float parentMassSolar = parentMassEarth / 332946f;
+
+                // For moons, convert orbital distance from km to AU
                 float tidalForce = CalculateTidalForce(
-                    parentMassEarth,
+                    parentMassSolar,
                     moon.Diameter,
-                    moon.Orbit  // Orbital distance in parent world diameters
+                    moon.OrbitDistanceKm / 149597870.7f  // Convert km to AU
                 );
 
                 if (tidalForce > 0)
@@ -3512,15 +3518,19 @@ namespace TravellerSystemGenerator
             {
                 if (otherMoon != moon)
                 {
-                    // Calculate distance between moons in planetary diameters (simplified as difference in orbital distances)
-                    float distancePD = Math.Abs(moon.Orbit - otherMoon.Orbit);
+                    // Calculate distance between moons (simplified as difference in orbital distances)
+                    float distanceKm = Math.Abs(moon.OrbitDistanceKm - otherMoon.OrbitDistanceKm);
+                    float distanceAU = distanceKm / 149597870.7f;
 
-                    if (distancePD > 0)
+                    if (distanceAU > 0)
                     {
+                        // Convert moon mass from Earth masses to solar masses
+                        float moonMassSolar = otherMoon.Mass / 332946f;
+
                         float tidalForce = CalculateTidalForce(
-                            otherMoon.Mass,
+                            moonMassSolar,
                             moon.Diameter,
-                            distancePD  // Distance in planetary diameters
+                            distanceAU  // Distance in AU
                         );
 
                         if (tidalForce > 0)
@@ -3610,8 +3620,11 @@ namespace TravellerSystemGenerator
 
                     if (distanceAU > 0)
                     {
+                        // Convert gas giant mass from Earth masses to solar masses
+                        float ggMassSolar = gg.GasGiantMass / 332946f;
+
                         float tidalForce = CalculateTidalForce(
-                            gg.GasGiantMass,
+                            ggMassSolar,
                             planet.Diameter,
                             distanceAU
                         );
@@ -3638,14 +3651,15 @@ namespace TravellerSystemGenerator
 
             // Tidal Force = (mass × diameter) / distance³
             // Per World Builder's Handbook formula
-            // Mass: solar masses for stars, Earth masses for planets/moons
+            // Mass: ALWAYS in solar masses (convert planets/moons from Earth masses before calling)
             // Diameter: kilometers
-            // Distance: AU
-            // Result: tidal force rating (scaled for game mechanics)
+            // Distance: ALWAYS in AU (convert moon distances from km to AU before calling)
+            // Result: tidal force in meters
             float tidalForce = (sourceMass * affectedDiameterKm) / (float)Math.Pow(distanceAU, 3);
 
-            // Apply scaling factor of 10^-3 for reasonable comparative values
-            tidalForce *= 1e-3f;
+            // Apply scaling factor of 0.12 per World Builder's Handbook
+            // Verified: planet diam 8163km at orbit 3.1 AU from 0.929 solar mass star = 30.6m
+            tidalForce *= 0.12f;
 
             return tidalForce;
         }
