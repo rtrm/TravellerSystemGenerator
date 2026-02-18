@@ -18,7 +18,12 @@
       "Bash(.TravellerSystemsGenerator.exe)",
       "Bash(do echo \"=== Testing seed $seed ===\")",
       "Bash(grep:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(gh:*)",
+      "Bash(git reset:*)",
+      "Bash(python3:*)",
+      "Bash(/tmp/distance_test.txt:*)"
     ]
   }
 }

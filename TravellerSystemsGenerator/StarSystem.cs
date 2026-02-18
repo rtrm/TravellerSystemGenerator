@@ -3353,8 +3353,11 @@ namespace TravellerSystemGenerator
             {
                 foreach (var moon in planet.Moons)
                 {
+                    // Convert moon mass from Earth masses to solar masses
+                    float moonMassSolar = moon.Mass / 332946f;
+
                     float tidalForce = CalculateTidalForce(
-                        moon.Mass,                    // Moon mass in Earth masses
+                        moonMassSolar,                // Moon mass in solar masses
                         planet.Diameter,              // Planet diameter in km
                         moon.OrbitDistanceKm / 149597870.7f  // Convert km to AU
                     );
