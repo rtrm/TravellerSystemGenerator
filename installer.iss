@@ -52,6 +52,7 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "-h"; Description: "{cm:LaunchPro
 [Code]
 const
     EnvironmentKey = 'Environment';
+    WM_SETTINGCHANGE = $001A;
 
 procedure AddToPath();
 var
