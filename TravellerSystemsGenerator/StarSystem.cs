@@ -3006,14 +3006,15 @@ namespace TravellerSystemGenerator
 
         private void CalculateTemperatures(Moon moon, float parentOrbitAU, float moonOrbitAU, float eccentricity, float totalLuminosity)
         {
-            // For moons, use the parent planet's orbit
+            // For moons, use the parent planet's orbit for all temperature calculations
+            // The moon's distance from the star is essentially the same as the parent's distance
             float effectiveOrbitAU = parentOrbitAU;
 
             // Calculate High and Low Luminosity
             moon.HighLuminosity = totalLuminosity * (1.0f + moon.LuminosityModifier);
             moon.LowLuminosity = totalLuminosity * (1.0f - moon.LuminosityModifier);
 
-            // Calculate Near and Far AU based on eccentricity (of moon's orbit around parent)
+            // Store moon's orbital data (around parent) for reference, but don't use for temperature
             moon.NearAU = moonOrbitAU * (1.0f - eccentricity);
             moon.FarAU = moonOrbitAU * (1.0f + eccentricity);
 
@@ -3022,13 +3023,13 @@ namespace TravellerSystemGenerator
             moon.MeanTemperatureK = (int)(279.0f * (float)Math.Pow(meanTempCalc, 0.25));
             moon.MeanTemperatureC = moon.MeanTemperatureK - 273;
 
-            // Calculate High Temperature
-            float highTempCalc = moon.HighLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (moon.NearAU * moon.NearAU);
+            // Calculate High Temperature using parent's orbit and luminosity variation
+            float highTempCalc = moon.HighLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (effectiveOrbitAU * effectiveOrbitAU);
             moon.HighTemperatureK = (int)(279.0f * (float)Math.Pow(highTempCalc, 0.25));
             moon.HighTemperatureC = moon.HighTemperatureK - 273;
 
-            // Calculate Low Temperature
-            float lowTempCalc = moon.LowLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (moon.FarAU * moon.FarAU);
+            // Calculate Low Temperature using parent's orbit and luminosity variation
+            float lowTempCalc = moon.LowLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (effectiveOrbitAU * effectiveOrbitAU);
             moon.LowTemperatureK = (int)(279.0f * (float)Math.Pow(lowTempCalc, 0.25));
             moon.LowTemperatureC = moon.LowTemperatureK - 273;
         }
@@ -8960,6 +8961,10 @@ namespace TravellerSystemGenerator
                                 AtmosphericPressure = moon.AtmosphericPressure,
                                 MeanTemperatureK = moon.MeanTemperatureK,
                                 MeanTemperatureC = moon.MeanTemperatureC,
+                                HighTemperatureK = moon.HighTemperatureK,
+                                HighTemperatureC = moon.HighTemperatureC,
+                                LowTemperatureK = moon.LowTemperatureK,
+                                LowTemperatureC = moon.LowTemperatureC,
                                 HydrographicsCoverage = moon.HydrographicsCoverage,
                                 HydrographicsCode = moon.HydrographicsCode,
                                 BasicRotationRateHours = moon.BasicRotationRateHours,
@@ -9014,6 +9019,10 @@ namespace TravellerSystemGenerator
                                 AtmosphericPressure = moon.AtmosphericPressure,
                                 MeanTemperatureK = moon.MeanTemperatureK,
                                 MeanTemperatureC = moon.MeanTemperatureC,
+                                HighTemperatureK = moon.HighTemperatureK,
+                                HighTemperatureC = moon.HighTemperatureC,
+                                LowTemperatureK = moon.LowTemperatureK,
+                                LowTemperatureC = moon.LowTemperatureC,
                                 HydrographicsCoverage = moon.HydrographicsCoverage,
                                 HydrographicsCode = moon.HydrographicsCode,
                                 BasicRotationRateHours = moon.BasicRotationRateHours,
@@ -9117,6 +9126,23 @@ namespace TravellerSystemGenerator
                                     EscapeVelocity = moon.EscapeVelocity,
                                     Atmosphere = moon.Atmosphere,
                                     AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
                                     TotalTidalForce = moon.TotalTidalForce,
                                     TidalForceContributions = moon.TidalForceContributions,
                                     Moons = new List<Moon>(),
@@ -9159,6 +9185,194 @@ namespace TravellerSystemGenerator
                                     EscapeVelocity = moon.EscapeVelocity,
                                     Atmosphere = moon.Atmosphere,
                                     AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
+                                    Moons = new List<Moon>(),
+                                    Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Collect survey data for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                        {
+                            // Check if this is the mainworld
+                            string worldName = tp.Designation;
+                            string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    worldName = $"{systemName} ({tp.Designation})";
+                                sahUwp = mainworld.UWP;
+                            }
+
+                            SurveyData surveyData = new SurveyData
+                            {
+                                WorldName = worldName,
+                                SAH_UWP = sahUwp,
+                                PrimaryObject = companionStar.Designation,
+                                SystemAge = companionStar.age.ToString("F2"),
+                                OrbitNumber = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Eccentricity = bodyObj.orbitEccentricity,
+                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Diameter = tp.Diameter,
+                                Composition = tp.Composition,
+                                Density = tp.Density,
+                                Gravity = tp.Gravity,
+                                Mass = tp.WorldMass,
+                                EscapeVelocity = tp.EscapeVelocity,
+                                Atmosphere = tp.Atmosphere,
+                                AtmosphereComposition = string.IsNullOrEmpty(tp.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(tp.Atmosphere)
+                                    : tp.AtmosphereComposition,
+                                AtmosphericPressure = tp.AtmosphericPressure,
+                                MeanTemperatureK = tp.MeanTemperatureK,
+                                MeanTemperatureC = tp.MeanTemperatureC,
+                                HydrographicsCoverage = tp.HydrographicsCoverage,
+                                HydrographicsCode = tp.HydrographicsCode,
+                                SurfaceDistribution = tp.SurfaceDistribution,
+                                Albedo = tp.Albedo,
+                                Greenhouse = tp.Greenhouse,
+                                HighTemperatureK = tp.HighTemperatureK,
+                                HighTemperatureC = tp.HighTemperatureC,
+                                LowTemperatureK = tp.LowTemperatureK,
+                                LowTemperatureC = tp.LowTemperatureC,
+                                BasicRotationRateHours = tp.BasicRotationRateHours,
+                                SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
+                                SolarDayHours = tp.SolarDayHours,
+                                AxialTilt = tp.AxialTilt,
+                                TidalLockStatus = tp.TidalLockStatus,
+                                TotalTidalForce = tp.TotalTidalForce,
+                                TidalForceContributions = tp.TidalForceContributions,
+                                Moons = tp.Moons,
+                                Filename = $"{tp.Designation.Replace(" ", "_")}.html"
+                            };
+                            surveyDataList.Add(surveyData);
+
+                            // Generate surveys for moons
+                            foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
+                            {
+                                // Check if this moon is the mainworld
+                                string moonWorldName = $"{tp.Designation} {moon.Designation}";
+                                string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    // Override with mainworld-specific values
+                                    if (!string.IsNullOrEmpty(systemName))
+                                        moonWorldName = $"{systemName} ({tp.Designation} {moon.Designation})";
+                                    moonSahUwp = mainworld.UWP;
+                                }
+
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = moonWorldName,
+                                    SAH_UWP = moonSahUwp,
+                                    PrimaryObject = $"{tp.Designation}",
+                                    SystemAge = companionStar.age.ToString("F2"),
+                                    OrbitNumber = moon.Orbit,
+                                    AU = moon.OrbitDistanceKm,
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
+                                    Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                        ? GetAtmosphereComposition(moon.Atmosphere)
+                                        : moon.AtmosphereComposition,
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
+                                    Moons = new List<Moon>(),
+                                    Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            // Generate surveys for gas giant moons
+                            foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
+                            {
+                                // Check if this moon is the mainworld
+                                string moonWorldName = $"{gg.Designation} {moon.Designation}";
+                                string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    // Override with mainworld-specific values
+                                    if (!string.IsNullOrEmpty(systemName))
+                                        moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
+                                    moonSahUwp = mainworld.UWP;
+                                }
+
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = moonWorldName,
+                                    SAH_UWP = moonSahUwp,
+                                    PrimaryObject = $"{gg.Designation}",
+                                    SystemAge = companionStar.age.ToString("F2"),
+                                    OrbitNumber = moon.Orbit,
+                                    AU = moon.OrbitDistanceKm,
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
+                                    Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                        ? GetAtmosphereComposition(moon.Atmosphere)
+                                        : moon.AtmosphereComposition,
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
                                     TotalTidalForce = moon.TotalTidalForce,
                                     TidalForceContributions = moon.TidalForceContributions,
                                     Moons = new List<Moon>(),
