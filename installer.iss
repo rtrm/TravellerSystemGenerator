@@ -1,8 +1,8 @@
-; Inno Setup Script for Traveller System Generator v2.0.0
+; Inno Setup Script for Traveller System Generator v2.3.0
 ; Requires Inno Setup 6.0 or later (download from https://jrsoftware.org/isinfo.php)
 
 #define MyAppName "Traveller System Generator"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.3.0"
 #define MyAppPublisher "RTRM"
 #define MyAppURL "https://github.com/rtrm/TravellerSystemGenerator"
 #define MyAppExeName "TravellerSystemsGenerator.exe"
@@ -38,7 +38,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "addtopath"; Description: "Add to PATH environment variable"; GroupDescription: "Additional options:"; Flags: unchecked
 
 [Files]
-Source: "TravellerSystemsGenerator\bin\Release\net10.0\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "publish\win-x64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
