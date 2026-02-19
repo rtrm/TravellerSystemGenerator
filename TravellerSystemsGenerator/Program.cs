@@ -26,6 +26,7 @@ namespace TravellerSystemGenerator
             bool uniqueHtmlFilename = false;
             string? mainworldUWP = null;
             string? systemName = null;
+            bool noMainworld = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -34,6 +35,10 @@ namespace TravellerSystemGenerator
                 if (arg == "-u" || arg == "--unique")
                 {
                     uniqueHtmlFilename = true;
+                }
+                else if (arg == "--no-mainworld")
+                {
+                    noMainworld = true;
                 }
                 else if (arg == "-m" || arg == "--mainworld")
                 {
@@ -105,7 +110,7 @@ namespace TravellerSystemGenerator
 
             try
             {
-                StarSystem starsystem = new StarSystem(seed, uniqueHtmlFilename, mainworldUWP, systemName);
+                StarSystem starsystem = new StarSystem(seed, uniqueHtmlFilename, mainworldUWP, systemName, noMainworld);
                 DebugLogger.Log("System generation completed successfully");
             }
             catch (Exception ex)
@@ -157,6 +162,10 @@ namespace TravellerSystemGenerator
             Console.WriteLine("  -n, --name NAME");
             Console.WriteLine("                       Specify system name (use quotes for multiple words)");
             Console.WriteLine();
+            Console.WriteLine("  --no-mainworld");
+            Console.WriteLine("                       Disable automatic mainworld selection");
+            Console.WriteLine("                       No mainworld will be selected or marked");
+            Console.WriteLine();
             Console.WriteLine("  SEED");
             Console.WriteLine("                       Optional integer seed for reproducible generation");
             Console.WriteLine();
@@ -178,6 +187,9 @@ namespace TravellerSystemGenerator
             Console.WriteLine();
             Console.WriteLine("  TravellerSystemsGenerator -u -n \"New Terra\"");
             Console.WriteLine("    Generate with unique HTML filename and multi-word name");
+            Console.WriteLine();
+            Console.WriteLine("  TravellerSystemsGenerator --no-mainworld 12345");
+            Console.WriteLine("    Generate system without automatic mainworld selection");
             Console.WriteLine();
             Console.WriteLine("Output:");
             Console.WriteLine("  - Console: System data in table format");

@@ -129,10 +129,12 @@ namespace TravellerSystemGenerator
         private bool uniqueHtmlFilename;
         private MainworldData? mainworld;
         private string? systemName;
+        private bool NoMainworld;
 
-        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null)
+        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false)
         {
             this.uniqueHtmlFilename = uniqueHtmlFilename;
+            this.NoMainworld = noMainworld;
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
 
             // Parse mainworld UWP if provided (before seed generation)
@@ -482,8 +484,8 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("");
             DebugLogger.Log("Native lifeforms calculation complete");
 
-            // Select mainworld if not specified via command line
-            if (mainworld == null)
+            // Select mainworld if not specified via command line and not disabled
+            if (mainworld == null && !NoMainworld)
             {
                 DebugLogger.Log("");
                 DebugLogger.Log("═══════════════════════════════════════════════════════════════");
