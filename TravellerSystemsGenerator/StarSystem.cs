@@ -37,6 +37,7 @@ namespace TravellerSystemGenerator
         public string Name { get; set; } = "";  // System name (only for mainworld)
         public string Primary { get; set; } = "";
         public string Object { get; set; } = "";
+        public string Type { get; set; } = "";  // Object type: Gas Giant, Planetoid Belt, Terrestrial Planet
         public string Size { get; set; } = ""; // Size code for terrestrial planets (or UWP for mainworld)
         public float Orbit { get; set; }
         public float AU { get; set; }
@@ -8002,14 +8003,16 @@ namespace TravellerSystemGenerator
                         string primaryDesignation = DeterminePrimaryDesignation(bodyObj, primaryStar, companionStars);
                         string notes = BuildNotesString(bodyObj, body, primaryStar);
 
-                        // Determine size based on body type
+                        // Determine size and type based on body type
                         string size = "";
+                        string type = "";
                         string sub = "";
                         int ringCount = 0;
                         List<Moon> moons = new List<Moon>();
 
                         if (body is TerrestrialPlanet tp)
                         {
+                            type = "Terrestrial Planet";
                             size = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
                             moons = tp.Moons;
                             // R-sized moons are rings
@@ -8034,6 +8037,7 @@ namespace TravellerSystemGenerator
                         }
                         else if (body is GasGiant gg)
                         {
+                            type = "Gas Giant";
                             size = $"{gg.Size}{ToEhex(gg.Diameter)}";
                             moons = gg.Moons;
                             // R-sized moons are rings
@@ -8054,6 +8058,7 @@ namespace TravellerSystemGenerator
                         }
                         else if (body is PlanetoidBelt pb)
                         {
+                            type = "Planetoid Belt";
                             sub = "?";
 
                             // Check if this belt contains the mainworld
@@ -8094,6 +8099,7 @@ namespace TravellerSystemGenerator
                                             Name = moonName,
                                             Primary = primaryDesignation,
                                             Object = moonDesignation,
+                                            Type = "Moon",
                                             Size = mainworld.UWP,
                                             Orbit = bodyObj.orbit,
                                             AU = bodyObj.orbitAU,
@@ -8141,6 +8147,7 @@ namespace TravellerSystemGenerator
                             Name = name,
                             Primary = primaryDesignation,
                             Object = body.Designation,
+                            Type = type,
                             Size = size,
                             Orbit = bodyObj.orbit,
                             AU = bodyObj.orbitAU,
@@ -8172,14 +8179,16 @@ namespace TravellerSystemGenerator
                             string primaryDesignation = DeterminePrimaryDesignation(bodyObj, companionStar, new List<CelestrialObject>());
                             string notes = BuildNotesString(bodyObj, body, companionStar);
 
-                            // Determine size based on body type
+                            // Determine size and type based on body type
                             string size = "";
+                            string type = "";
                             string sub = "";
                             int ringCount = 0;
                             List<Moon> moons = new List<Moon>();
 
                             if (body is TerrestrialPlanet tp)
                             {
+                                type = "Terrestrial Planet";
                                 size = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
                                 moons = tp.Moons;
                                 // R-sized moons are rings
@@ -8204,6 +8213,7 @@ namespace TravellerSystemGenerator
                             }
                             else if (body is GasGiant gg)
                             {
+                                type = "Gas Giant";
                                 size = $"{gg.Size}{ToEhex(gg.Diameter)}";
                                 moons = gg.Moons;
                                 // R-sized moons are rings
@@ -8224,6 +8234,7 @@ namespace TravellerSystemGenerator
                             }
                             else if (body is PlanetoidBelt pb)
                             {
+                                type = "Planetoid Belt";
                                 sub = "?";
 
                                 // Check if this belt contains the mainworld
@@ -8264,6 +8275,7 @@ namespace TravellerSystemGenerator
                                                 Name = moonName,
                                                 Primary = primaryDesignation,
                                                 Object = moonDesignation,
+                                                Type = "Moon",
                                                 Size = mainworld.UWP,
                                                 Orbit = bodyObj.orbit,
                                                 AU = bodyObj.orbitAU,
@@ -8310,6 +8322,7 @@ namespace TravellerSystemGenerator
                                 Name = name,
                                 Primary = primaryDesignation,
                                 Object = body.Designation,
+                                Type = type,
                                 Size = size,
                                 Orbit = bodyObj.orbit,
                                 AU = bodyObj.orbitAU,
@@ -8411,6 +8424,7 @@ namespace TravellerSystemGenerator
             int nameWidth = hasName ? Math.Max("Name".Length, worldData.Max(w => w.Name.Length)) : 0;
             int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
             int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
+            int typeWidth = Math.Max("Type".Length, worldData.Max(w => w.Type.Length));
             int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("SAH/UWP".Length, worldData.Max(w => w.Size.Length)) : "SAH/UWP".Length;
             int orbitWidth = Math.Max("Orbit#".Length, worldData.Max(w => w.Orbit.ToString("F2").Length));
             int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
@@ -8422,11 +8436,11 @@ namespace TravellerSystemGenerator
             // Print header - with optional Name column, moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
             if (hasName)
             {
-                Console.WriteLine($"{"Name".PadRight(nameWidth)} {"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+                Console.WriteLine($"{"Name".PadRight(nameWidth)} {"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Type".PadRight(typeWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
             }
             else
             {
-                Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+                Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Type".PadRight(typeWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
             }
 
             // Group by primary and print
@@ -8441,11 +8455,11 @@ namespace TravellerSystemGenerator
 
                     if (hasName)
                     {
-                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
                     }
                     else
                     {
-                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
                     }
                 }
             }
@@ -8667,6 +8681,7 @@ namespace TravellerSystemGenerator
 
                 html.AppendLine("                <th>Primary</th>");
                 html.AppendLine("                <th>Object</th>");
+                html.AppendLine("                <th>Type</th>");
                 html.AppendLine("                <th>Orbit#</th>");
                 html.AppendLine("                <th>AU</th>");
                 html.AppendLine("                <th>Ecc</th>");
@@ -8705,6 +8720,7 @@ namespace TravellerSystemGenerator
 
                         html.AppendLine($"                <td>{world.Primary}</td>");
                         html.AppendLine($"                <td>{objectCell}</td>");
+                        html.AppendLine($"                <td>{world.Type}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{au}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
