@@ -65,6 +65,13 @@ namespace TravellerSystemGenerator
         public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
         public float TotalTidalForce { get; set; } = 0;  // Total tidal force in meters
 
+        // Seismology tracking
+        public float ResidualSeismicStress { get; set; } = 0;      // Residual seismic stress
+        public float TidalStressFactor { get; set; } = 0;          // Tidal stress factor (TotalTidalForce / 10)
+        public float TidalHeatingEffects { get; set; } = 0;        // Tidal heating effects
+        public float TotalSeismicStress { get; set; } = 0;         // Total seismic stress
+        public int NumberOfMajorTectonicPlates { get; set; } = 0;  // Number of major tectonic plates
+
         public Moon() { }
     }
 
@@ -153,6 +160,13 @@ namespace TravellerSystemGenerator
         // Tidal force tracking
         public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
         public float TotalTidalForce { get; set; } = 0;  // Total tidal force in meters
+
+        // Seismology tracking
+        public float ResidualSeismicStress { get; set; } = 0;      // Residual seismic stress
+        public float TidalStressFactor { get; set; } = 0;          // Tidal stress factor (TotalTidalForce / 10)
+        public float TidalHeatingEffects { get; set; } = 0;        // Tidal heating effects
+        public float TotalSeismicStress { get; set; } = 0;         // Total seismic stress
+        public int NumberOfMajorTectonicPlates { get; set; } = 0;  // Number of major tectonic plates
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }

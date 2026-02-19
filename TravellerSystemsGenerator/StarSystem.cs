@@ -85,6 +85,11 @@ namespace TravellerSystemGenerator
         public string TidalLockStatus { get; set; } = "";       // Tidal lock status
         public float TotalTidalForce { get; set; } = 0;         // Total tidal force in meters
         public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
+        public float ResidualSeismicStress { get; set; } = 0;   // Residual seismic stress
+        public float TidalStressFactor { get; set; } = 0;       // Tidal stress factor
+        public float TidalHeatingEffects { get; set; } = 0;     // Tidal heating effects
+        public float TotalSeismicStress { get; set; } = 0;      // Total seismic stress
+        public int NumberOfMajorTectonicPlates { get; set; } = 0; // Number of major tectonic plates
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -438,6 +443,15 @@ namespace TravellerSystemGenerator
             CalculateAllTidalForces();
             DebugLogger.Log("");
             DebugLogger.Log("Tidal force calculation complete");
+
+            // Calculate seismology (after tidal forces)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating seismology...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAllSeismology();
+            DebugLogger.Log("");
+            DebugLogger.Log("Seismology calculation complete");
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -3680,6 +3694,285 @@ namespace TravellerSystemGenerator
             tidalForce *= 2e14f;  // Scaling factor: 2×10^14
 
             return tidalForce;
+        }
+
+        // Seismology Calculations
+
+        private void CalculateAllSeismology()
+        {
+            DebugLogger.Log("Calculating seismology...");
+
+            // Process all terrestrial planets
+            var allPlanets = GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet);
+            foreach (var (planetObj, parentStar) in allPlanets)
+            {
+                if (planetObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    CalculateSeismologyForPlanet(planet, planetObj, parentStar);
+                }
+            }
+
+            // Process all moons
+            foreach (var (bodyObj, parentStar) in GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet))
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    foreach (var moon in tp.Moons)
+                    {
+                        CalculateSeismologyForMoon(moon, tp, bodyObj, parentStar);
+                    }
+                }
+            }
+
+            foreach (var (bodyObj, parentStar) in GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant))
+            {
+                if (bodyObj.celestrialObject is GasGiant gg)
+                {
+                    foreach (var moon in gg.Moons)
+                    {
+                        CalculateSeismologyForMoon(moon, gg, bodyObj, parentStar);
+                    }
+                }
+            }
+
+            DebugLogger.Log("Seismology calculation complete");
+        }
+
+        private void CalculateSeismologyForPlanet(TerrestrialPlanet planet, CelestrialObject planetObj, Star parentStar)
+        {
+            // 1. Calculate Residual Seismic Stress
+            planet.ResidualSeismicStress = CalculateResidualSeismicStress(planet.Size, planet.Density, false, null, parentStar.age);
+
+            // 2. Calculate Tidal Stress Factor
+            planet.TidalStressFactor = CalculateTidalStressFactor(planet.TotalTidalForce);
+
+            // 3. Calculate Tidal Heating Effects (planets orbit stars, so parent is star)
+            planet.TidalHeatingEffects = CalculateTidalHeatingEffects(
+                planet.Size,
+                planetObj.orbitEccentricity,  // Get eccentricity from CelestrialObject
+                parentStar.mass,  // Parent is the star (in solar masses)
+                planetObj.orbitAU * 149597871f / 1000f,  // Convert AU to Mkm (millions of km)
+                planetObj.OrbitalPeriodYears * 365.25f,  // Convert years to days
+                planet.WorldMass,
+                planet.TidalLockStatus
+            );
+
+            // 4. Calculate Total Seismic Stress
+            planet.TotalSeismicStress = planet.ResidualSeismicStress + planet.TidalStressFactor + planet.TidalHeatingEffects;
+
+            // 5. Apply seismic stress to temperatures
+            ApplySeismicStressToTemperatures(planet);
+
+            // 6. Calculate Tectonic Plates
+            planet.NumberOfMajorTectonicPlates = CalculateTectonicPlates(
+                planet.Size,
+                planet.HydrographicsCode,
+                planet.TotalSeismicStress
+            );
+
+            DebugLogger.LogFormat("  {0}: RSS={1:F1}, TSF={2:F1}, THE={3:F1}, TSS={4:F1}, Plates={5}",
+                planet.Designation, planet.ResidualSeismicStress, planet.TidalStressFactor,
+                planet.TidalHeatingEffects, planet.TotalSeismicStress, planet.NumberOfMajorTectonicPlates);
+        }
+
+        private void CalculateSeismologyForMoon(Moon moon, CelestialBody parentWorld, CelestrialObject worldObj, Star parentStar)
+        {
+            // Get sibling moons
+            List<Moon>? siblingMoons = null;
+            if (parentWorld is TerrestrialPlanet tPlanet)
+                siblingMoons = tPlanet.Moons;
+            else if (parentWorld is GasGiant gGiant)
+                siblingMoons = gGiant.Moons;
+
+            // 1. Calculate Residual Seismic Stress
+            moon.ResidualSeismicStress = CalculateResidualSeismicStress(
+                moon.Size,
+                moon.Density,
+                true,  // Is a moon
+                siblingMoons,
+                parentStar.age
+            );
+
+            // 2. Calculate Tidal Stress Factor
+            moon.TidalStressFactor = CalculateTidalStressFactor(moon.TotalTidalForce);
+
+            // 3. Calculate Tidal Heating Effects (moons orbit planets/gas giants)
+            float parentMassEarth = 0;
+            if (parentWorld is TerrestrialPlanet tpMass)
+                parentMassEarth = tpMass.WorldMass;
+            else if (parentWorld is GasGiant ggMass)
+                parentMassEarth = ggMass.GasGiantMass;
+
+            moon.TidalHeatingEffects = CalculateTidalHeatingEffects(
+                moon.Size,
+                moon.Eccentricity,
+                parentMassEarth,  // Parent world mass in Earth masses
+                moon.OrbitDistanceKm / 1000000f,  // Convert km to Mkm (millions of km)
+                moon.OrbitalPeriod / 24f,  // Convert hours to days
+                moon.Mass,
+                moon.TidalLockStatus
+            );
+
+            // 4. Calculate Total Seismic Stress
+            moon.TotalSeismicStress = moon.ResidualSeismicStress + moon.TidalStressFactor + moon.TidalHeatingEffects;
+
+            // 5. Apply seismic stress to temperatures
+            ApplySeismicStressToTemperatures(moon);
+
+            // 6. Calculate Tectonic Plates
+            moon.NumberOfMajorTectonicPlates = CalculateTectonicPlates(
+                moon.Size,
+                moon.HydrographicsCode,
+                moon.TotalSeismicStress
+            );
+
+            DebugLogger.LogFormat("    Moon {0}: RSS={1:F1}, TSF={2:F1}, THE={3:F1}, TSS={4:F1}, Plates={5}",
+                moon.Designation, moon.ResidualSeismicStress, moon.TidalStressFactor,
+                moon.TidalHeatingEffects, moon.TotalSeismicStress, moon.NumberOfMajorTectonicPlates);
+        }
+
+        private float CalculateResidualSeismicStress(string sizeCode, float density, bool isMoon, List<Moon>? siblingMoons, float systemAge)
+        {
+            int sizeValue = GetSizeValue(sizeCode);
+
+            // DM modifiers
+            int dm = 0;
+
+            // World is a moon: +1
+            if (isMoon)
+                dm += 1;
+
+            // World has a size 1+ larger moon: +1 for each size difference
+            if (siblingMoons != null)
+            {
+                foreach (var otherMoon in siblingMoons)
+                {
+                    int otherSize = GetSizeValue(otherMoon.Size);
+                    if (otherSize > sizeValue)
+                    {
+                        dm += (otherSize - sizeValue);
+                    }
+                }
+            }
+
+            // Density > 1.0: +2
+            if (density > 1.0f)
+                dm += 2;
+
+            // Density < 0.5: +1
+            if (density < 0.5f)
+                dm += 1;
+
+            // Calculate: squared(round down(Size Code - System Age + DM))
+            float value = sizeValue - systemAge + dm;
+
+            // If total < 1, RSS = 0
+            if (value < 1)
+                return 0;
+
+            // Otherwise, square it
+            return value * value;
+        }
+
+        private float CalculateTidalStressFactor(float totalTidalForce)
+        {
+            // Tidal Stress Factor = TotalTidalForce / 10, round down
+            return (float)Math.Floor(totalTidalForce / 10f);
+        }
+
+        private float CalculateTidalHeatingEffects(string sizeCode, float eccentricity, float parentMassEarth,
+            float distanceMkm, float orbitalPeriodDays, float massEarth, string tidalLockStatus)
+        {
+            // If tidally locked (3:2 or 1:1), THE = 0
+            if (tidalLockStatus.Contains("1:1") || tidalLockStatus.Contains("3:2"))
+                return 0;
+
+            int sizeValue = GetSizeValue(sizeCode);
+
+            // Formula: ((Mass_parent)² × (Size_Code)^5 × Eccentricity²) /
+            //          (3000 × (Distance_Mkm)^5 × Orbital_period_days × Mass_Earth)
+
+            float numerator = (parentMassEarth * parentMassEarth) *
+                             (float)Math.Pow(sizeValue, 5) *
+                             (eccentricity * eccentricity);
+
+            float denominator = 3000f *
+                               (float)Math.Pow(distanceMkm, 5) *
+                               orbitalPeriodDays *
+                               massEarth;
+
+            if (denominator == 0)
+                return 0;
+
+            float result = numerator / denominator;
+
+            // Ignore numbers < 1
+            if (result < 1)
+                return 0;
+
+            return result;
+        }
+
+        private void ApplySeismicStressToTemperatures(TerrestrialPlanet planet)
+        {
+            // New temperature = Quad root(Old_Temperature⁴ + Total_Seismic_Stress)
+            planet.MeanTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(planet.MeanTemperatureK, 4) + planet.TotalSeismicStress, 0.25));
+            planet.MeanTemperatureC = planet.MeanTemperatureK - 273;
+
+            planet.HighTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(planet.HighTemperatureK, 4) + planet.TotalSeismicStress, 0.25));
+            planet.HighTemperatureC = planet.HighTemperatureK - 273;
+
+            planet.LowTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(planet.LowTemperatureK, 4) + planet.TotalSeismicStress, 0.25));
+            planet.LowTemperatureC = planet.LowTemperatureK - 273;
+        }
+
+        private void ApplySeismicStressToTemperatures(Moon moon)
+        {
+            // New temperature = Quad root(Old_Temperature⁴ + Total_Seismic_Stress)
+            moon.MeanTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(moon.MeanTemperatureK, 4) + moon.TotalSeismicStress, 0.25));
+            moon.MeanTemperatureC = moon.MeanTemperatureK - 273;
+
+            moon.HighTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(moon.HighTemperatureK, 4) + moon.TotalSeismicStress, 0.25));
+            moon.HighTemperatureC = moon.HighTemperatureK - 273;
+
+            moon.LowTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(moon.LowTemperatureK, 4) + moon.TotalSeismicStress, 0.25));
+            moon.LowTemperatureC = moon.LowTemperatureK - 273;
+        }
+
+        private int CalculateTectonicPlates(string sizeCode, string hydrographicsCode, float totalSeismicStress)
+        {
+            int sizeValue = GetSizeValue(sizeCode);
+            int hydroValue = GetSizeValue(hydrographicsCode);
+
+            // If TSS = 0 or Hydro = 0, plates = 0
+            if (totalSeismicStress == 0 || hydroValue == 0)
+                return 0;
+
+            // Number = Size + Hydro - 2d6 + DM
+            int dm = 0;
+
+            // TSS >= 10 and < 100: +1
+            if (totalSeismicStress >= 10 && totalSeismicStress < 100)
+                dm += 1;
+
+            // TSS >= 100: +2
+            if (totalSeismicStress >= 100)
+                dm += 2;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int plates = sizeValue + hydroValue - roll + dm;
+
+            // Can't have negative plates
+            if (plates < 0)
+                plates = 0;
+
+            return plates;
         }
 
         private CelestrialObject? FindCelestrialObjectForStar(Star star)
@@ -8724,11 +9017,11 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th>Major Tectonic Plates</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td colspan=\"2\"></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{(data.TotalSeismicStress > 0 ? data.TotalSeismicStress.ToString("F1") : "")}</td>");
+            html.AppendLine($"                <td>{(data.ResidualSeismicStress > 0 ? data.ResidualSeismicStress.ToString("F1") : "")}</td>");
+            html.AppendLine($"                <td>{(data.TidalStressFactor > 0 ? data.TidalStressFactor.ToString("F1") : "")}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{(data.TidalHeatingEffects > 0 ? data.TidalHeatingEffects.ToString("F1") : "")}</td>");
+            html.AppendLine($"                <td>{(data.NumberOfMajorTectonicPlates > 0 ? data.NumberOfMajorTectonicPlates.ToString() : "")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
@@ -8919,6 +9212,11 @@ namespace TravellerSystemGenerator
                             TidalLockStatus = tp.TidalLockStatus,
                             TotalTidalForce = tp.TotalTidalForce,
                             TidalForceContributions = tp.TidalForceContributions,
+                            ResidualSeismicStress = tp.ResidualSeismicStress,
+                            TidalStressFactor = tp.TidalStressFactor,
+                            TidalHeatingEffects = tp.TidalHeatingEffects,
+                            TotalSeismicStress = tp.TotalSeismicStress,
+                            NumberOfMajorTectonicPlates = tp.NumberOfMajorTectonicPlates,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -8974,6 +9272,11 @@ namespace TravellerSystemGenerator
                                 TidalLockStatus = moon.TidalLockStatus,
                                 TotalTidalForce = moon.TotalTidalForce,
                                 TidalForceContributions = moon.TidalForceContributions,
+                                ResidualSeismicStress = moon.ResidualSeismicStress,
+                                TidalStressFactor = moon.TidalStressFactor,
+                                TidalHeatingEffects = moon.TidalHeatingEffects,
+                                TotalSeismicStress = moon.TotalSeismicStress,
+                                NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -9032,6 +9335,11 @@ namespace TravellerSystemGenerator
                                 TidalLockStatus = moon.TidalLockStatus,
                                 TotalTidalForce = moon.TotalTidalForce,
                                 TidalForceContributions = moon.TidalForceContributions,
+                                ResidualSeismicStress = moon.ResidualSeismicStress,
+                                TidalStressFactor = moon.TidalStressFactor,
+                                TidalHeatingEffects = moon.TidalHeatingEffects,
+                                TotalSeismicStress = moon.TotalSeismicStress,
+                                NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
