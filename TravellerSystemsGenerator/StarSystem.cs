@@ -6077,9 +6077,9 @@ namespace TravellerSystemGenerator
 
         private string GenerateBeltProfile(PlanetoidBelt belt)
         {
-            // Format: S-Cm.Cs.Cc.Co-B-R-#-s
+            // Format: S-Cm.Cs.Cc.Co-B-R-#-s (B, R, #, s in ehex)
             return $"{belt.BeltSpan:F1}-{belt.MType:D2}.{belt.SType:D2}.{belt.CType:D2}.{belt.Other:D2}-" +
-                   $"{belt.Bulk}-{belt.ResourceRating}-{belt.Size1Bodies}-{belt.SizeSBodies}";
+                   $"{IntToEhex(belt.Bulk)}-{IntToEhex(belt.ResourceRating)}-{IntToEhex(belt.Size1Bodies)}-{IntToEhex(belt.SizeSBodies)}";
         }
 
         private void CalculateBeltCharacteristics(PlanetoidBelt belt, CelestrialObject beltObj,
