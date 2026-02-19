@@ -482,6 +482,18 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("");
             DebugLogger.Log("Native lifeforms calculation complete");
 
+            // Select mainworld if not specified via command line
+            if (mainworld == null)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                DebugLogger.Log("Selecting mainworld...");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                SelectMainworld(dice);
+                DebugLogger.Log("");
+                DebugLogger.Log("Mainworld selection complete");
+            }
+
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
             List<WorldDisplayData> worldData = CollectAllWorldData();
@@ -6710,6 +6722,262 @@ namespace TravellerSystemGenerator
             PlaceMainworldAsStandalone(cobjNonHz, parentStarNonHz, dice);
         }
 
+        private void SelectMainworld(Random dice)
+        {
+            // Collect all candidates (terrestrial planets, moons, planetoid belts)
+            List<(object world, string designation, string type, int habitability, int resource, bool hasSophonts, string size)> candidates = new List<(object, string, string, int, int, bool, string)>();
+
+            // Collect from all stars
+            CollectMainworldCandidates(primaryObject, candidates);
+
+            if (candidates.Count == 0)
+            {
+                DebugLogger.Log("  No suitable mainworld candidates found");
+                return;
+            }
+
+            DebugLogger.Log($"  Found {candidates.Count} potential candidates");
+
+            // Create shortlist
+            List<(object world, string designation, string type, int habitability, int resource, bool hasSophonts, string size)> shortlist = new List<(object, string, string, int, int, bool, string)>();
+
+            // Add highest habitability candidate (minimum 6)
+            int maxHabitability = candidates.Max(c => c.habitability);
+            if (maxHabitability >= 6)
+            {
+                var habitabilityCandidates = candidates.Where(c => c.habitability == maxHabitability).ToList();
+                foreach (var candidate in habitabilityCandidates)
+                {
+                    if (!shortlist.Any(s => s.world == candidate.world))
+                    {
+                        shortlist.Add(candidate);
+                        DebugLogger.Log($"  Added to shortlist (habitability {candidate.habitability}): {candidate.designation}");
+                    }
+                }
+            }
+
+            // Add any worlds with sophonts
+            var sophontCandidates = candidates.Where(c => c.hasSophonts).ToList();
+            foreach (var candidate in sophontCandidates)
+            {
+                if (!shortlist.Any(s => s.world == candidate.world))
+                {
+                    shortlist.Add(candidate);
+                    DebugLogger.Log($"  Added to shortlist (sophonts present): {candidate.designation}");
+                }
+            }
+
+            // Add highest resource candidate (minimum 6)
+            int maxResource = candidates.Max(c => c.resource);
+            if (maxResource >= 6)
+            {
+                var resourceCandidates = candidates.Where(c => c.resource == maxResource).ToList();
+                foreach (var candidate in resourceCandidates)
+                {
+                    if (!shortlist.Any(s => s.world == candidate.world))
+                    {
+                        shortlist.Add(candidate);
+                        DebugLogger.Log($"  Added to shortlist (resource {candidate.resource}): {candidate.designation}");
+                    }
+                }
+            }
+
+            // If shortlist is empty, use highest resource rating world
+            if (shortlist.Count == 0)
+            {
+                DebugLogger.Log("  Shortlist empty, selecting highest resource world");
+                var highestResource = candidates.Where(c => c.resource == maxResource).ToList();
+                if (highestResource.Count == 1)
+                {
+                    shortlist.Add(highestResource[0]);
+                }
+                else
+                {
+                    // Randomize among tied candidates
+                    int chosen = Starhelper.diceRoll(highestResource.Count, 1, dice) - 1;
+                    shortlist.Add(highestResource[chosen]);
+                }
+            }
+
+            // Now select from shortlist
+            object? selectedWorld = null;
+
+            // Priority 1: Any world with sophonts, unless another has higher habitability
+            var sophontWorlds = shortlist.Where(c => c.hasSophonts).ToList();
+            var highHabWorlds = shortlist.Where(c => c.habitability >= 8).ToList();
+
+            if (sophontWorlds.Count > 0 && highHabWorlds.Count == 0)
+            {
+                // Choose sophont world
+                if (sophontWorlds.Count == 1)
+                {
+                    selectedWorld = sophontWorlds[0].world;
+                    DebugLogger.Log($"  Selected mainworld (sophonts): {sophontWorlds[0].designation}");
+                }
+                else
+                {
+                    // Randomize between sophont worlds
+                    int chosen = Starhelper.diceRoll(sophontWorlds.Count, 1, dice) - 1;
+                    selectedWorld = sophontWorlds[chosen].world;
+                    DebugLogger.Log($"  Selected mainworld (random sophont): {sophontWorlds[chosen].designation}");
+                }
+            }
+            // Priority 2: Highest habitability >= 8
+            else if (highHabWorlds.Count > 0)
+            {
+                int maxHab = highHabWorlds.Max(c => c.habitability);
+                var topHabWorlds = highHabWorlds.Where(c => c.habitability == maxHab).ToList();
+
+                if (topHabWorlds.Count == 1)
+                {
+                    selectedWorld = topHabWorlds[0].world;
+                    DebugLogger.Log($"  Selected mainworld (high habitability {maxHab}): {topHabWorlds[0].designation}");
+                }
+                else
+                {
+                    // Apply bonuses for size and moon type
+                    List<(object world, string designation, float weight)> weighted = new List<(object, string, float)>();
+
+                    foreach (var candidate in topHabWorlds)
+                    {
+                        float weight = 1.0f;
+
+                        // Get size value for comparison
+                        int sizeValue = GetSizeValue(candidate.size);
+
+                        // Compare with other candidates to determine if this is larger
+                        bool isLargest = true;
+                        bool isSmallestUnder5 = sizeValue < 5;
+                        foreach (var other in topHabWorlds)
+                        {
+                            if (other.world != candidate.world)
+                            {
+                                int otherSize = GetSizeValue(other.size);
+                                if (otherSize > sizeValue)
+                                {
+                                    isLargest = false;
+                                }
+                                if (otherSize < 5)
+                                {
+                                    isSmallestUnder5 = false;
+                                }
+                            }
+                        }
+
+                        // Apply size bonuses
+                        if (isLargest)
+                        {
+                            if (isSmallestUnder5)
+                                weight += 0.25f; // 25% bonus if smaller world is < size 5
+                            else
+                                weight += 0.10f; // 10% bonus for larger world
+                        }
+
+                        // Apply gas giant moon bonus
+                        if (candidate.type == "Moon" && candidate.world is Moon moon)
+                        {
+                            // Check if parent is a gas giant by looking at the parent in the hierarchy
+                            // For now, we'll mark this - implementation may need parent tracking
+                            weight += 0.05f; // 5% bonus for gas giant moon
+                        }
+
+                        weighted.Add((candidate.world, candidate.designation, weight));
+                        DebugLogger.Log($"    {candidate.designation}: weight={weight:F2}");
+                    }
+
+                    // Select using weighted random
+                    float totalWeight = weighted.Sum(w => w.weight);
+                    float randomValue = (float)(dice.NextDouble() * totalWeight);
+                    float cumulative = 0;
+
+                    foreach (var w in weighted)
+                    {
+                        cumulative += w.weight;
+                        if (randomValue <= cumulative)
+                        {
+                            selectedWorld = w.world;
+                            DebugLogger.Log($"  Selected mainworld (weighted random): {w.designation}");
+                            break;
+                        }
+                    }
+                }
+            }
+            // Priority 3: Random from shortlist
+            else
+            {
+                int chosen = Starhelper.diceRoll(shortlist.Count, 1, dice) - 1;
+                selectedWorld = shortlist[chosen].world;
+                DebugLogger.Log($"  Selected mainworld (random from shortlist): {shortlist[chosen].designation}");
+            }
+
+            // Create mainworld data structure
+            if (selectedWorld != null)
+            {
+                mainworld = new MainworldData();
+                mainworld.PlacedWorld = selectedWorld;
+
+                // Extract UWP from the selected world
+                if (selectedWorld is TerrestrialPlanet tp)
+                {
+                    mainworld.UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                }
+                else if (selectedWorld is Moon m)
+                {
+                    mainworld.UWP = m.Size + m.Atmosphere + m.HydrographicsCode;
+                }
+                else if (selectedWorld is PlanetoidBelt pb)
+                {
+                    mainworld.UWP = "000"; // Planetoid belt default
+                }
+
+                DebugLogger.Log($"  Mainworld selected: UWP={mainworld.UWP}");
+            }
+        }
+
+        private void CollectMainworldCandidates(CelestrialObject starObj, List<(object world, string designation, string type, int habitability, int resource, bool hasSophonts, string size)> candidates)
+        {
+            if (!(starObj.celestrialObject is Star star))
+                return;
+
+            foreach (var bodyObj in starObj.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    candidates.Add((tp, tp.Designation, "TerrestrialPlanet", tp.HabitabilityRating, tp.ResourceRating, tp.CurrentNativeSophont == "Yes", tp.Size));
+
+                    // Check moons
+                    foreach (var moon in tp.Moons)
+                    {
+                        if (moon.Size != "R") // Skip rings
+                        {
+                            candidates.Add((moon, $"{tp.Designation} {moon.Designation}", "Moon", moon.HabitabilityRating, moon.ResourceRating, moon.CurrentNativeSophont == "Yes", moon.Size));
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gg)
+                {
+                    // Check gas giant moons
+                    foreach (var moon in gg.Moons)
+                    {
+                        if (moon.Size != "R") // Skip rings
+                        {
+                            candidates.Add((moon, $"{gg.Designation} {moon.Designation}", "Moon", moon.HabitabilityRating, moon.ResourceRating, moon.CurrentNativeSophont == "Yes", moon.Size));
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is PlanetoidBelt pb)
+                {
+                    // Planetoid belts are candidates with resource rating
+                    candidates.Add((pb, pb.Designation, "PlanetoidBelt", 0, pb.ResourceRating, false, "0"));
+                }
+                else if (bodyObj.celestrialObject is Star companionStar)
+                {
+                    // Recursively check companion stars
+                    CollectMainworldCandidates(bodyObj, candidates);
+                }
+            }
+        }
+
         private string IntToEhex(int value)
         {
             if (value < 10)
@@ -8754,7 +9022,7 @@ namespace TravellerSystemGenerator
                                         {
                                             Name = moonName,
                                             Primary = primaryDesignation,
-                                            Object = moonDesignation,
+                                            Object = moonDesignation + "*",
                                             Type = "Moon",
                                             Size = mainworld.UWP,
                                             Orbit = bodyObj.orbit,
@@ -8798,11 +9066,18 @@ namespace TravellerSystemGenerator
                                 name = systemName;
                         }
 
+                        // Check if this body is the mainworld and add * marker
+                        string objectDesignation = body.Designation;
+                        if (mainworld != null && body == mainworld.PlacedWorld)
+                        {
+                            objectDesignation += "*";
+                        }
+
                         worldData.Add(new WorldDisplayData
                         {
                             Name = name,
                             Primary = primaryDesignation,
-                            Object = body.Designation,
+                            Object = objectDesignation,
                             Type = type,
                             Size = size,
                             Orbit = bodyObj.orbit,
@@ -8930,7 +9205,7 @@ namespace TravellerSystemGenerator
                                             {
                                                 Name = moonName,
                                                 Primary = primaryDesignation,
-                                                Object = moonDesignation,
+                                                Object = moonDesignation + "*",
                                                 Type = "Moon",
                                                 Size = mainworld.UWP,
                                                 Orbit = bodyObj.orbit,
@@ -8973,11 +9248,18 @@ namespace TravellerSystemGenerator
                                     name = systemName;
                             }
 
+                            // Check if this body is the mainworld and add * marker
+                            string objectDesignationCompanion = body.Designation;
+                            if (mainworld != null && body == mainworld.PlacedWorld)
+                            {
+                                objectDesignationCompanion += "*";
+                            }
+
                             worldData.Add(new WorldDisplayData
                             {
                                 Name = name,
                                 Primary = primaryDesignation,
-                                Object = body.Designation,
+                                Object = objectDesignationCompanion,
                                 Type = type,
                                 Size = size,
                                 Orbit = bodyObj.orbit,
