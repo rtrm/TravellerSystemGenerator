@@ -91,6 +91,15 @@ namespace TravellerSystemGenerator
         public float TidalHeatingEffects { get; set; } = 0;     // Tidal heating effects
         public float TotalSeismicStress { get; set; } = 0;      // Total seismic stress
         public int NumberOfMajorTectonicPlates { get; set; } = 0; // Number of major tectonic plates
+        public int BiomassRating { get; set; } = 0;              // Biomass rating
+        public int BiocomplexityRating { get; set; } = 0;        // Biocomplexity rating
+        public string BiocomplexityDescription { get; set; } = ""; // Biocomplexity description
+        public string CurrentNativeSophont { get; set; } = "No"; // Current native sophonts
+        public bool ExtinctNativeSophont { get; set; } = false;  // Extinct native sophonts
+        public int BiodiversityRating { get; set; } = 0;         // Biodiversity rating
+        public int CompatibilityRating { get; set; } = 0;        // Compatibility rating
+        public int ResourceRating { get; set; } = 0;             // Resource rating
+        public int HabitabilityRating { get; set; } = 0;         // Habitability rating
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
     }
@@ -453,6 +462,15 @@ namespace TravellerSystemGenerator
             CalculateAllSeismology();
             DebugLogger.Log("");
             DebugLogger.Log("Seismology calculation complete");
+
+            // Calculate native lifeforms (after seismology)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating native lifeforms...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateNativeLifeforms();
+            DebugLogger.Log("");
+            DebugLogger.Log("Native lifeforms calculation complete");
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -3974,6 +3992,444 @@ namespace TravellerSystemGenerator
                 plates = 0;
 
             return plates;
+        }
+
+        // Native Lifeforms Calculations
+
+        private void CalculateNativeLifeforms()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING NATIVE LIFEFORMS");
+
+            // 1. Check for life outside the HZ
+            int unlikelyLifeRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, unlikelyLifeRoll, "Life outside HZ check");
+            UnlikelyLife = (unlikelyLifeRoll == 12);
+            DebugLogger.LogFormat("  Unlikely life outside HZ: {0}", UnlikelyLife);
+
+            // Get system age from primary star
+            float systemAge = 0;
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                systemAge = primaryStar.age;
+            }
+
+            DebugLogger.LogFormat("  System age: {0} Gyrs", systemAge);
+
+            // Calculate for primary star's worlds
+            if (primaryObject.celestrialObject is Star)
+            {
+                CalculateLifeformsForStar(primaryObject, systemAge);
+            }
+
+            // Calculate for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star)
+                {
+                    CalculateLifeformsForStar(companionObj, systemAge);
+                }
+            }
+        }
+
+        private void CalculateLifeformsForStar(CelestrialObject starObj, float systemAge)
+        {
+            if (!(starObj.celestrialObject is Star parentStar))
+                return;
+
+            foreach (var bodyObj in starObj.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    CalculateLifeformsForPlanet(planet, bodyObj, parentStar, systemAge);
+
+                    // Calculate for moons
+                    foreach (var moon in planet.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            CalculateLifeformsForMoon(moon, bodyObj, parentStar, systemAge);
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gasGiant)
+                {
+                    // Calculate for gas giant moons
+                    foreach (var moon in gasGiant.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            CalculateLifeformsForMoon(moon, bodyObj, parentStar, systemAge);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CalculateLifeformsForPlanet(TerrestrialPlanet planet, CelestrialObject bodyObj, Star parentStar, float systemAge)
+        {
+            // Check if in HZ
+            bool inHZ = IsInHabitableZone(bodyObj.orbit, parentStar);
+            if (!inHZ && !UnlikelyLife)
+                return;
+
+            DebugLogger.LogFormat("  Calculating lifeforms for planet {0} (HZ: {1})", planet.Designation, inHZ);
+
+            // Calculate all ratings
+            planet.BiomassRating = CalculateBiomassRating(planet.Atmosphere, planet.HydrographicsCode, systemAge, planet.HighTemperatureK, planet.MeanTemperatureK, planet.AtmosphericTaint, planet.AtmosphericIrritant);
+            planet.BiocomplexityRating = CalculateBiocomplexityRating(planet.BiomassRating, planet.Atmosphere, systemAge);
+            planet.BiocomplexityDescription = GetBiocomplexityDescription(planet.BiocomplexityRating);
+
+            var sophontResult = CalculateNativeSophonts(planet.BiocomplexityRating, systemAge);
+            planet.CurrentNativeSophont = sophontResult.current;
+            planet.ExtinctNativeSophont = sophontResult.extinct;
+
+            planet.BiodiversityRating = CalculateBiodiversityRating(planet.BiomassRating, planet.BiocomplexityRating);
+            planet.CompatibilityRating = CalculateCompatibilityRating(planet.BiomassRating, planet.BiocomplexityRating, planet.Atmosphere, systemAge);
+            planet.ResourceRating = CalculateResourceRating(planet.Size, planet.Density, planet.BiomassRating, planet.BiodiversityRating, planet.CompatibilityRating);
+            planet.HabitabilityRating = CalculateHabitabilityRating(planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.TidalLockStatus, planet.HighTemperatureK, planet.MeanTemperatureK, planet.LowTemperatureK, planet.Gravity);
+
+            DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
+                planet.BiomassRating, planet.BiocomplexityRating, planet.BiodiversityRating, planet.CompatibilityRating, planet.ResourceRating, planet.HabitabilityRating);
+        }
+
+        private void CalculateLifeformsForMoon(Moon moon, CelestrialObject bodyObj, Star parentStar, float systemAge)
+        {
+            // Check if in HZ (use parent world's orbit)
+            bool inHZ = IsInHabitableZone(bodyObj.orbit, parentStar);
+            if (!inHZ && !UnlikelyLife)
+                return;
+
+            DebugLogger.LogFormat("  Calculating lifeforms for moon {0} (HZ: {1})", moon.Designation, inHZ);
+
+            // Calculate all ratings
+            moon.BiomassRating = CalculateBiomassRating(moon.Atmosphere, moon.HydrographicsCode, systemAge, moon.HighTemperatureK, moon.MeanTemperatureK, moon.AtmosphericTaint, moon.AtmosphericIrritant);
+            moon.BiocomplexityRating = CalculateBiocomplexityRating(moon.BiomassRating, moon.Atmosphere, systemAge);
+            moon.BiocomplexityDescription = GetBiocomplexityDescription(moon.BiocomplexityRating);
+
+            var sophontResult = CalculateNativeSophonts(moon.BiocomplexityRating, systemAge);
+            moon.CurrentNativeSophont = sophontResult.current;
+            moon.ExtinctNativeSophont = sophontResult.extinct;
+
+            moon.BiodiversityRating = CalculateBiodiversityRating(moon.BiomassRating, moon.BiocomplexityRating);
+            moon.CompatibilityRating = CalculateCompatibilityRating(moon.BiomassRating, moon.BiocomplexityRating, moon.Atmosphere, systemAge);
+            moon.ResourceRating = CalculateResourceRating(moon.Size, moon.Density, moon.BiomassRating, moon.BiodiversityRating, moon.CompatibilityRating);
+            moon.HabitabilityRating = CalculateHabitabilityRating(moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.TidalLockStatus, moon.HighTemperatureK, moon.MeanTemperatureK, moon.LowTemperatureK, moon.Gravity);
+
+            DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
+                moon.BiomassRating, moon.BiocomplexityRating, moon.BiodiversityRating, moon.CompatibilityRating, moon.ResourceRating, moon.HabitabilityRating);
+        }
+
+        private int CalculateBiomassRating(string atmosphereCode, string hydrographicsCode, float systemAge, int highTempK, int meanTempK, string atmosphericTaint, string atmosphericIrritant)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            // Atmosphere modifiers
+            int atmoValue = GetSizeValue(atmosphereCode);
+            if (atmoValue == 0) dm -= 6;
+            else if (atmoValue == 1) dm -= 4;
+            else if (atmoValue == 2 || atmoValue == 3 || atmoValue == 14) dm -= 3;
+            else if (atmoValue == 4 || atmoValue == 5) dm -= 2;
+            else if (atmoValue == 8 || atmoValue == 9 || atmoValue == 13) dm += 2;
+            else if (atmoValue == 10) dm -= 3;
+            else if (atmoValue == 11) dm -= 5;
+            else if (atmoValue == 12) dm -= 7;
+            else if (atmoValue >= 15) dm -= 5;
+
+            // Hydrographics modifiers
+            int hydroValue = GetSizeValue(hydrographicsCode);
+            if (hydroValue == 0) dm -= 4;
+            else if (hydroValue >= 1 && hydroValue <= 3) dm -= 2;
+            else if (hydroValue >= 6 && hydroValue <= 8) dm += 1;
+            else if (hydroValue >= 9) dm += 2;
+
+            // System age modifiers
+            if (systemAge < 0.2f) dm -= 6;
+            else if (systemAge < 1.0f) dm -= 2;
+            else if (systemAge > 4.0f) dm += 2;
+
+            // Temperature modifiers
+            if (highTempK < 353) dm -= 2;
+            if (highTempK < 273) dm -= 4;
+            if (meanTempK > 353) dm -= 4;
+            if (meanTempK < 273) dm -= 2;
+            if (meanTempK >= 279 && meanTempK <= 303) dm += 2;
+
+            // Clamp DM
+            if (dm < -12) dm = -12;
+            if (dm > 4) dm = 4;
+
+            int biomass = roll + dm;
+            if (biomass < 0) biomass = 0;
+
+            // Check for Biologic taint/irritant adjustment
+            if ((atmosphericTaint == "Biologic" || atmosphericIrritant == "Biologic") && biomass == 0)
+            {
+                biomass = 1;
+            }
+
+            // Atmosphere adjustment for non-standard atmospheres with biomass
+            if (biomass >= 1)
+            {
+                if (atmoValue == 0) biomass += 5;
+                else if (atmoValue == 1) biomass += 3;
+                else if (atmoValue == 10) biomass += 2;
+                else if (atmoValue == 11) biomass += 4;
+                else if (atmoValue == 12) biomass += 6;
+                else if (atmoValue >= 15) biomass += 4;
+            }
+
+            return biomass;
+        }
+
+        private int CalculateBiocomplexityRating(int biomassRating, string atmosphereCode, float systemAge)
+        {
+            if (biomassRating == 0)
+                return 0;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            // Atmosphere modifier
+            int atmoValue = GetSizeValue(atmosphereCode);
+            if (atmoValue < 4 || atmoValue > 9)
+                dm -= 2;
+
+            // System age modifiers
+            if (systemAge >= 3.0f && systemAge <= 4.0f) dm -= 2;
+            else if (systemAge >= 2.0f && systemAge < 3.0f) dm -= 4;
+            else if (systemAge >= 1.0f && systemAge < 2.0f) dm -= 8;
+            else if (systemAge < 1.0f) dm -= 10;
+
+            int biocomplexity = roll - 7 + biomassRating + dm;
+            if (biocomplexity < 0) biocomplexity = 0;
+
+            return biocomplexity;
+        }
+
+        private string GetBiocomplexityDescription(int biocomplexityRating)
+        {
+            return biocomplexityRating switch
+            {
+                0 => "",
+                1 => "Primitive single-cell organisms",
+                2 => "Advanced cellular organisms",
+                3 => "Primitive multicellular organisms",
+                4 => "Differentiated multicellular organisms",
+                5 => "Complex multicellular organisms",
+                6 => "Advanced multicellular organisms",
+                7 => "Socially advanced organisms",
+                8 => "Mentally advanced organisms",
+                9 => "Extant or extinct sophonts",
+                _ => "Ecosystem-wide superorganisms" // 10+
+            };
+        }
+
+        private (string current, bool extinct) CalculateNativeSophonts(int biocomplexityRating, float systemAge)
+        {
+            string current = "No";
+            bool extinct = false;
+
+            if (biocomplexityRating < 8)
+                return (current, extinct);
+
+            // Current sophonts
+            int bioForRoll = Math.Min(biocomplexityRating, 9);
+            int currentRoll = Starhelper.diceRoll(6, 2, dice) + bioForRoll - 7;
+            if (currentRoll >= 13)
+                current = "Yes";
+
+            // Extinct sophonts
+            int dm = 0;
+            if (systemAge > 5.0f) dm += 1;
+
+            int extinctRoll = Starhelper.diceRoll(6, 2, dice) + bioForRoll - 7 + dm;
+            if (extinctRoll >= 13)
+                extinct = true;
+
+            return (current, extinct);
+        }
+
+        private int CalculateBiodiversityRating(int biomassRating, int biocomplexityRating)
+        {
+            if (biomassRating == 0)
+                return 0;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float average = (biomassRating + biocomplexityRating) / 2.0f;
+            int biodiversity = (int)Math.Ceiling(roll - 7 + average);
+
+            if (biodiversity < 1)
+                biodiversity = 1;
+
+            return biodiversity;
+        }
+
+        private int CalculateCompatibilityRating(int biomassRating, int biocomplexityRating, string atmosphereCode, float systemAge)
+        {
+            if (biomassRating == 0)
+                return 0;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            int atmoValue = GetSizeValue(atmosphereCode);
+
+            // Atmosphere modifiers
+            if (atmoValue == 0 || atmoValue == 1 || atmoValue == 11 || atmoValue == 16 || atmoValue == 17)
+                dm -= 8;
+            else if (atmoValue == 2 || atmoValue == 4 || atmoValue == 7 || atmoValue == 9)
+                dm -= 2;
+            else if (atmoValue == 3 || atmoValue == 5 || atmoValue == 8)
+                dm += 1;
+            else if (atmoValue == 6)
+                dm += 2;
+            else if (atmoValue == 10 || atmoValue == 15)
+                dm -= 6;
+            else if (atmoValue == 12)
+                dm -= 10;
+            else if (atmoValue == 13 || atmoValue == 14)
+                dm -= 1;
+
+            // System age modifier
+            if (systemAge > 8.0f)
+                dm -= 2;
+
+            float bioComplexityHalf = biocomplexityRating / 2.0f;
+            int compatibility = (int)Math.Floor(roll - bioComplexityHalf + dm);
+
+            if (compatibility < 0)
+                compatibility = 0;
+
+            return compatibility;
+        }
+
+        private int CalculateResourceRating(string sizeCode, float density, int biomassRating, int biodiversityRating, int compatibilityRating)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int sizeValue = GetSizeValue(sizeCode);
+            int dm = 0;
+
+            // Density modifiers
+            if (density > 1.12f) dm += 2;
+            if (density < 0.5f) dm -= 2;
+
+            // Biomass modifier
+            if (biomassRating >= 3) dm += 2;
+
+            // Biodiversity modifiers
+            if (biodiversityRating >= 8 && biodiversityRating <= 10) dm += 1;
+            if (biodiversityRating >= 11) dm += 2;
+
+            // Compatibility modifier (only if biomass >= 1)
+            if (biomassRating >= 1)
+            {
+                if (compatibilityRating >= 0 && compatibilityRating <= 3) dm -= 1;
+            }
+            if (compatibilityRating >= 8) dm += 2;
+
+            int resource = roll - 7 + sizeValue + dm;
+
+            return resource;
+        }
+
+        private int CalculateHabitabilityRating(string sizeCode, string atmosphereCode, string hydrographicsCode, string tidalLockStatus, int highTempK, int meanTempK, int lowTempK, float gravity)
+        {
+            int dm = 0;
+
+            int sizeValue = GetSizeValue(sizeCode);
+            int atmoValue = GetSizeValue(atmosphereCode);
+            int hydroValue = GetSizeValue(hydrographicsCode);
+
+            // Size modifiers
+            if (sizeValue >= 0 && sizeValue <= 4) dm -= 1;
+            if (sizeValue >= 9) dm += 1;
+
+            // Atmosphere modifiers
+            if (atmoValue == 0 || atmoValue == 1 || atmoValue == 10) dm -= 8;
+            else if (atmoValue == 2 || atmoValue == 14) dm -= 4;
+            else if (atmoValue == 3 || atmoValue == 13) dm -= 3;
+            else if (atmoValue == 4 || atmoValue == 9) dm -= 2;
+            else if (atmoValue == 5 || atmoValue == 7 || atmoValue == 8) dm -= 1;
+            else if (atmoValue == 11) dm -= 10;
+            else if (atmoValue == 12 || atmoValue >= 15) dm -= 12;
+
+            // Hydrographics modifiers
+            if (hydroValue == 0) dm -= 4;
+            else if (hydroValue >= 1 && hydroValue <= 3) dm -= 2;
+            else if (hydroValue == 9) dm -= 1;
+            else if (hydroValue == 10) dm -= 2;
+
+            // Tidal lock modifier (1:1 solar lock)
+            if (tidalLockStatus.Contains("1:1"))
+                dm -= 2;
+
+            // Temperature modifiers
+            if (highTempK > 323) dm -= 2;
+            if (highTempK < 279) dm -= 2;
+            if (meanTempK > 323) dm -= 4;
+            if (meanTempK >= 304 && meanTempK <= 323) dm -= 2;
+            if (meanTempK < 273) dm -= 2;
+            if (lowTempK < 200) dm -= 2;
+
+            // Gravity modifiers
+            if (gravity < 0.2f) dm -= 4;
+            else if (gravity >= 0.2f && gravity < 0.4f) dm -= 2;
+            else if (gravity >= 0.4f && gravity < 0.7f) dm -= 1;
+            else if (gravity >= 0.7f && gravity <= 0.9f) dm += 1;
+            else if (gravity > 1.1f && gravity < 1.4f) dm -= 1;
+            else if (gravity >= 1.4f && gravity < 2.0f) dm -= 3;
+            else if (gravity >= 2.0f) dm -= 6;
+
+            int habitability = 10 + dm;
+            if (habitability < 0)
+                habitability = 0;
+
+            return habitability;
+        }
+
+        private bool IsInHabitableZone(float orbit, Star parentStar)
+        {
+            if (parentStar.HZCO <= 0)
+                return false;
+
+            float hzMin, hzMax;
+
+            // Calculate lower bound (same logic as BuildNotesString)
+            if (parentStar.HZCO >= 2.0f)
+            {
+                hzMin = parentStar.HZCO - 1.0f;
+            }
+            else if (parentStar.HZCO >= 1.0f)
+            {
+                hzMin = 1.0f - (2.0f - parentStar.HZCO) * 0.1f;
+            }
+            else
+            {
+                hzMin = Math.Max(0, parentStar.HZCO - 0.1f);
+            }
+
+            // Calculate upper bound
+            if (parentStar.HZCO >= 1.0f)
+            {
+                hzMax = parentStar.HZCO + 1.0f;
+            }
+            else
+            {
+                float effectiveDistToOne = (1.0f - parentStar.HZCO) * 10.0f;
+                if (effectiveDistToOne >= 1.0f)
+                {
+                    hzMax = 1.0f;
+                }
+                else
+                {
+                    float remaining = 1.0f - effectiveDistToOne;
+                    hzMax = 1.0f + remaining;
+                }
+            }
+
+            return orbit >= hzMin && orbit <= hzMax;
         }
 
         private CelestrialObject? FindCelestrialObjectForStar(Star star)
@@ -9053,11 +9509,15 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Notes</th>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.BiomassRating}</td>");
+            html.AppendLine($"                <td>{data.BiocomplexityRating}</td>");
+            html.AppendLine($"                <td>{data.CurrentNativeSophont}</td>");
+            html.AppendLine($"                <td>{data.BiodiversityRating}</td>");
+            html.AppendLine($"                <td>{data.CompatibilityRating}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            string lifeNotes = data.BiocomplexityDescription + (data.ExtinctNativeSophont ? "; Evidence of extinct native sophont species." : "");
+            html.AppendLine($"                <td colspan=\"6\">{lifeNotes}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
@@ -9070,7 +9530,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.ResourceRating}</td>");
             html.AppendLine("                <td colspan=\"4\"></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
@@ -9084,7 +9544,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.HabitabilityRating}</td>");
             html.AppendLine("                <td colspan=\"4\"></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
@@ -9233,6 +9693,15 @@ namespace TravellerSystemGenerator
                             TidalHeatingEffects = tp.TidalHeatingEffects,
                             TotalSeismicStress = tp.TotalSeismicStress,
                             NumberOfMajorTectonicPlates = tp.NumberOfMajorTectonicPlates,
+                            BiomassRating = tp.BiomassRating,
+                            BiocomplexityRating = tp.BiocomplexityRating,
+                            BiocomplexityDescription = tp.BiocomplexityDescription,
+                            CurrentNativeSophont = tp.CurrentNativeSophont,
+                            ExtinctNativeSophont = tp.ExtinctNativeSophont,
+                            BiodiversityRating = tp.BiodiversityRating,
+                            CompatibilityRating = tp.CompatibilityRating,
+                            ResourceRating = tp.ResourceRating,
+                            HabitabilityRating = tp.HabitabilityRating,
                             Moons = tp.Moons,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
@@ -9293,6 +9762,15 @@ namespace TravellerSystemGenerator
                                 TidalHeatingEffects = moon.TidalHeatingEffects,
                                 TotalSeismicStress = moon.TotalSeismicStress,
                                 NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                BiomassRating = moon.BiomassRating,
+                                BiocomplexityRating = moon.BiocomplexityRating,
+                                BiocomplexityDescription = moon.BiocomplexityDescription,
+                                CurrentNativeSophont = moon.CurrentNativeSophont,
+                                ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                BiodiversityRating = moon.BiodiversityRating,
+                                CompatibilityRating = moon.CompatibilityRating,
+                                ResourceRating = moon.ResourceRating,
+                                HabitabilityRating = moon.HabitabilityRating,
                                 Moons = new List<Moon>(),
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -9356,6 +9834,15 @@ namespace TravellerSystemGenerator
                                 TidalHeatingEffects = moon.TidalHeatingEffects,
                                 TotalSeismicStress = moon.TotalSeismicStress,
                                 NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                BiomassRating = moon.BiomassRating,
+                                BiocomplexityRating = moon.BiocomplexityRating,
+                                BiocomplexityDescription = moon.BiocomplexityDescription,
+                                CurrentNativeSophont = moon.CurrentNativeSophont,
+                                ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                BiodiversityRating = moon.BiodiversityRating,
+                                CompatibilityRating = moon.CompatibilityRating,
+                                ResourceRating = moon.ResourceRating,
+                                HabitabilityRating = moon.HabitabilityRating,
                                 Moons = new List<Moon>(),
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
@@ -9424,6 +9911,20 @@ namespace TravellerSystemGenerator
                                 TidalLockStatus = tp.TidalLockStatus,
                                 TotalTidalForce = tp.TotalTidalForce,
                                 TidalForceContributions = tp.TidalForceContributions,
+                                ResidualSeismicStress = tp.ResidualSeismicStress,
+                                TidalStressFactor = tp.TidalStressFactor,
+                                TidalHeatingEffects = tp.TidalHeatingEffects,
+                                TotalSeismicStress = tp.TotalSeismicStress,
+                                NumberOfMajorTectonicPlates = tp.NumberOfMajorTectonicPlates,
+                                BiomassRating = tp.BiomassRating,
+                                BiocomplexityRating = tp.BiocomplexityRating,
+                                BiocomplexityDescription = tp.BiocomplexityDescription,
+                                CurrentNativeSophont = tp.CurrentNativeSophont,
+                                ExtinctNativeSophont = tp.ExtinctNativeSophont,
+                                BiodiversityRating = tp.BiodiversityRating,
+                                CompatibilityRating = tp.CompatibilityRating,
+                                ResourceRating = tp.ResourceRating,
+                                HabitabilityRating = tp.HabitabilityRating,
                                 Moons = tp.Moons,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
@@ -9469,6 +9970,20 @@ namespace TravellerSystemGenerator
                                     TidalLockStatus = moon.TidalLockStatus,
                                     TotalTidalForce = moon.TotalTidalForce,
                                     TidalForceContributions = moon.TidalForceContributions,
+                                    ResidualSeismicStress = moon.ResidualSeismicStress,
+                                    TidalStressFactor = moon.TidalStressFactor,
+                                    TidalHeatingEffects = moon.TidalHeatingEffects,
+                                    TotalSeismicStress = moon.TotalSeismicStress,
+                                    NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                    BiomassRating = moon.BiomassRating,
+                                    BiocomplexityRating = moon.BiocomplexityRating,
+                                    BiocomplexityDescription = moon.BiocomplexityDescription,
+                                    CurrentNativeSophont = moon.CurrentNativeSophont,
+                                    ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                    BiodiversityRating = moon.BiodiversityRating,
+                                    CompatibilityRating = moon.CompatibilityRating,
+                                    ResourceRating = moon.ResourceRating,
+                                    HabitabilityRating = moon.HabitabilityRating,
                                     Moons = new List<Moon>(),
                                     Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
@@ -9509,8 +10024,39 @@ namespace TravellerSystemGenerator
                                     EscapeVelocity = moon.EscapeVelocity,
                                     Atmosphere = moon.Atmosphere,
                                     AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
                                     TotalTidalForce = moon.TotalTidalForce,
                                     TidalForceContributions = moon.TidalForceContributions,
+                                    ResidualSeismicStress = moon.ResidualSeismicStress,
+                                    TidalStressFactor = moon.TidalStressFactor,
+                                    TidalHeatingEffects = moon.TidalHeatingEffects,
+                                    TotalSeismicStress = moon.TotalSeismicStress,
+                                    NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                    BiomassRating = moon.BiomassRating,
+                                    BiocomplexityRating = moon.BiocomplexityRating,
+                                    BiocomplexityDescription = moon.BiocomplexityDescription,
+                                    CurrentNativeSophont = moon.CurrentNativeSophont,
+                                    ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                    BiodiversityRating = moon.BiodiversityRating,
+                                    CompatibilityRating = moon.CompatibilityRating,
+                                    ResourceRating = moon.ResourceRating,
+                                    HabitabilityRating = moon.HabitabilityRating,
                                     Moons = new List<Moon>(),
                                     Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
@@ -12128,6 +12674,8 @@ namespace TravellerSystemGenerator
 
         public float SystemTotalAvailableOrbits { get; private set; }
         public int SystemTotalWorlds { get; private set; }
+
+        public bool UnlikelyLife { get; private set; } = false;  // True if life exists outside HZ (2d6 = 12)
 
         public static Dictionary<int, float> orbitValues = new Dictionary<int, float>();
     }

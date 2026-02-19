@@ -72,6 +72,19 @@ namespace TravellerSystemGenerator
         public float TotalSeismicStress { get; set; } = 0;         // Total seismic stress
         public int NumberOfMajorTectonicPlates { get; set; } = 0;  // Number of major tectonic plates
 
+        // Native Lifeforms tracking
+        public string AtmosphericTaint { get; set; } = "None";     // Atmospheric taint type
+        public string AtmosphericIrritant { get; set; } = "None";  // Atmospheric irritant type
+        public int BiomassRating { get; set; } = 0;                // Biomass rating (0+)
+        public int BiocomplexityRating { get; set; } = 0;          // Biocomplexity rating (0-A+)
+        public string BiocomplexityDescription { get; set; } = ""; // Description of biocomplexity level
+        public string CurrentNativeSophont { get; set; } = "No";   // Yes/No for current native sophonts
+        public bool ExtinctNativeSophont { get; set; } = false;    // True if evidence of extinct sophonts
+        public int BiodiversityRating { get; set; } = 0;           // Biodiversity rating (1+)
+        public int CompatibilityRating { get; set; } = 0;          // Compatibility rating (0+)
+        public int ResourceRating { get; set; } = 0;               // Resource rating
+        public int HabitabilityRating { get; set; } = 0;           // Habitability rating (0+)
+
         public Moon() { }
     }
 
@@ -167,6 +180,19 @@ namespace TravellerSystemGenerator
         public float TidalHeatingEffects { get; set; } = 0;        // Tidal heating effects
         public float TotalSeismicStress { get; set; } = 0;         // Total seismic stress
         public int NumberOfMajorTectonicPlates { get; set; } = 0;  // Number of major tectonic plates
+
+        // Native Lifeforms tracking
+        public string AtmosphericTaint { get; set; } = "None";     // Atmospheric taint type
+        public string AtmosphericIrritant { get; set; } = "None";  // Atmospheric irritant type
+        public int BiomassRating { get; set; } = 0;                // Biomass rating (0+)
+        public int BiocomplexityRating { get; set; } = 0;          // Biocomplexity rating (0-A+)
+        public string BiocomplexityDescription { get; set; } = ""; // Description of biocomplexity level
+        public string CurrentNativeSophont { get; set; } = "No";   // Yes/No for current native sophonts
+        public bool ExtinctNativeSophont { get; set; } = false;    // True if evidence of extinct sophonts
+        public int BiodiversityRating { get; set; } = 0;           // Biodiversity rating (1+)
+        public int CompatibilityRating { get; set; } = 0;          // Compatibility rating (0+)
+        public int ResourceRating { get; set; } = 0;               // Resource rating
+        public int HabitabilityRating { get; set; } = 0;           // Habitability rating (0+)
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }

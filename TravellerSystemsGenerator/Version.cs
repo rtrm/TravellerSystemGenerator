@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 2;
-        public const int Minor = 1;
+        public const int Minor = 2;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -64,5 +64,6 @@ namespace TravellerSystemGenerator
         // 1.10.x - Mainworld and system name command line parameters (UWP specification, world counts, placement)
         // 2.0.0 - Major release with mainworld UWP and system name parameters
         // 2.1.x - Seismology calculations (tidal forces, seismic stress, tectonic plates), Type column in system overview
+        // 2.2.x - Native Lifeforms (biomass, biocomplexity, biodiversity, compatibility, resource, habitability ratings)
     }
 }
