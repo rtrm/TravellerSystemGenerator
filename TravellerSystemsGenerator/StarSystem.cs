@@ -8997,13 +8997,13 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th>Mean</th>");
             html.AppendLine($"                <td>{(data.MeanTemperatureK > 0 ? $"{data.MeanTemperatureK}K ({data.MeanTemperatureC}°C)" : "")}</td>");
             html.AppendLine("                <th colspan=\"2\">Albedo</th>");
-            html.AppendLine($"                <td colspan=\"2\">{(data.Albedo > 0 ? data.Albedo.ToString("F2") : "")}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.Albedo.ToString("F2")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <th>Low</th>");
             html.AppendLine($"                <td>{(data.LowTemperatureK > 0 ? $"{data.LowTemperatureK}K ({data.LowTemperatureC}°C)" : "")}</td>");
             html.AppendLine("                <th colspan=\"2\">Greenhouse</th>");
-            html.AppendLine($"                <td colspan=\"2\">{(data.Greenhouse > 0 ? data.Greenhouse.ToString("F2") : "")}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.Greenhouse.ToString("F2")}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
