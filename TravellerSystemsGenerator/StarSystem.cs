@@ -91,6 +91,7 @@ namespace TravellerSystemGenerator
         public float TidalHeatingEffects { get; set; } = 0;     // Tidal heating effects
         public float TotalSeismicStress { get; set; } = 0;      // Total seismic stress
         public int NumberOfMajorTectonicPlates { get; set; } = 0; // Number of major tectonic plates
+        public string AtmosphericTaint { get; set; } = "None";   // Atmospheric taint
         public int BiomassRating { get; set; } = 0;              // Biomass rating
         public int BiocomplexityRating { get; set; } = 0;        // Biocomplexity rating
         public string BiocomplexityDescription { get; set; } = ""; // Biocomplexity description
@@ -463,7 +464,16 @@ namespace TravellerSystemGenerator
             DebugLogger.Log("");
             DebugLogger.Log("Seismology calculation complete");
 
-            // Calculate native lifeforms (after seismology)
+            // Calculate atmospheric taints (after seismology, before lifeforms)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating atmospheric taints...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAtmosphericTaints();
+            DebugLogger.Log("");
+            DebugLogger.Log("Atmospheric taints calculation complete");
+
+            // Calculate native lifeforms (after atmospheric taints)
             DebugLogger.Log("");
             DebugLogger.Log("═══════════════════════════════════════════════════════════════");
             DebugLogger.Log("Calculating native lifeforms...");
@@ -4077,7 +4087,7 @@ namespace TravellerSystemGenerator
 
             // Calculate all ratings
             planet.BiomassRating = CalculateBiomassRating(planet.Atmosphere, planet.HydrographicsCode, systemAge, planet.HighTemperatureK, planet.MeanTemperatureK, planet.AtmosphericTaint, planet.AtmosphericIrritant);
-            planet.BiocomplexityRating = CalculateBiocomplexityRating(planet.BiomassRating, planet.Atmosphere, systemAge);
+            planet.BiocomplexityRating = CalculateBiocomplexityRating(planet.BiomassRating, planet.Atmosphere, systemAge, planet.AtmosphericTaint);
             planet.BiocomplexityDescription = GetBiocomplexityDescription(planet.BiocomplexityRating);
 
             var sophontResult = CalculateNativeSophonts(planet.BiocomplexityRating, systemAge);
@@ -4087,7 +4097,7 @@ namespace TravellerSystemGenerator
             planet.BiodiversityRating = CalculateBiodiversityRating(planet.BiomassRating, planet.BiocomplexityRating);
             planet.CompatibilityRating = CalculateCompatibilityRating(planet.BiomassRating, planet.BiocomplexityRating, planet.Atmosphere, systemAge);
             planet.ResourceRating = CalculateResourceRating(planet.Size, planet.Density, planet.BiomassRating, planet.BiodiversityRating, planet.CompatibilityRating);
-            planet.HabitabilityRating = CalculateHabitabilityRating(planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.TidalLockStatus, planet.HighTemperatureK, planet.MeanTemperatureK, planet.LowTemperatureK, planet.Gravity);
+            planet.HabitabilityRating = CalculateHabitabilityRating(planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.TidalLockStatus, planet.HighTemperatureK, planet.MeanTemperatureK, planet.LowTemperatureK, planet.Gravity, planet.AtmosphericTaint);
 
             DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
                 planet.BiomassRating, planet.BiocomplexityRating, planet.BiodiversityRating, planet.CompatibilityRating, planet.ResourceRating, planet.HabitabilityRating);
@@ -4104,7 +4114,7 @@ namespace TravellerSystemGenerator
 
             // Calculate all ratings
             moon.BiomassRating = CalculateBiomassRating(moon.Atmosphere, moon.HydrographicsCode, systemAge, moon.HighTemperatureK, moon.MeanTemperatureK, moon.AtmosphericTaint, moon.AtmosphericIrritant);
-            moon.BiocomplexityRating = CalculateBiocomplexityRating(moon.BiomassRating, moon.Atmosphere, systemAge);
+            moon.BiocomplexityRating = CalculateBiocomplexityRating(moon.BiomassRating, moon.Atmosphere, systemAge, moon.AtmosphericTaint);
             moon.BiocomplexityDescription = GetBiocomplexityDescription(moon.BiocomplexityRating);
 
             var sophontResult = CalculateNativeSophonts(moon.BiocomplexityRating, systemAge);
@@ -4114,7 +4124,7 @@ namespace TravellerSystemGenerator
             moon.BiodiversityRating = CalculateBiodiversityRating(moon.BiomassRating, moon.BiocomplexityRating);
             moon.CompatibilityRating = CalculateCompatibilityRating(moon.BiomassRating, moon.BiocomplexityRating, moon.Atmosphere, systemAge);
             moon.ResourceRating = CalculateResourceRating(moon.Size, moon.Density, moon.BiomassRating, moon.BiodiversityRating, moon.CompatibilityRating);
-            moon.HabitabilityRating = CalculateHabitabilityRating(moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.TidalLockStatus, moon.HighTemperatureK, moon.MeanTemperatureK, moon.LowTemperatureK, moon.Gravity);
+            moon.HabitabilityRating = CalculateHabitabilityRating(moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.TidalLockStatus, moon.HighTemperatureK, moon.MeanTemperatureK, moon.LowTemperatureK, moon.Gravity, moon.AtmosphericTaint);
 
             DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
                 moon.BiomassRating, moon.BiocomplexityRating, moon.BiodiversityRating, moon.CompatibilityRating, moon.ResourceRating, moon.HabitabilityRating);
@@ -4163,8 +4173,8 @@ namespace TravellerSystemGenerator
             int biomass = roll + dm;
             if (biomass < 0) biomass = 0;
 
-            // Check for Biologic taint/irritant adjustment
-            if ((atmosphericTaint == "Biologic" || atmosphericIrritant == "Biologic") && biomass == 0)
+            // Check for Biologic taint/irritant adjustment (includes "Biologic")
+            if ((atmosphericTaint.Contains("Biologic") || atmosphericIrritant.Contains("Biologic")) && biomass == 0)
             {
                 biomass = 1;
             }
@@ -4183,7 +4193,7 @@ namespace TravellerSystemGenerator
             return biomass;
         }
 
-        private int CalculateBiocomplexityRating(int biomassRating, string atmosphereCode, float systemAge)
+        private int CalculateBiocomplexityRating(int biomassRating, string atmosphereCode, float systemAge, string atmosphericTaint)
         {
             if (biomassRating == 0)
                 return 0;
@@ -4194,6 +4204,10 @@ namespace TravellerSystemGenerator
             // Atmosphere modifier
             int atmoValue = GetSizeValue(atmosphereCode);
             if (atmoValue < 4 || atmoValue > 9)
+                dm -= 2;
+
+            // Low Oxygen taint modifier
+            if (atmosphericTaint.Contains("Low Oxygen"))
                 dm -= 2;
 
             // System age modifiers
@@ -4334,7 +4348,7 @@ namespace TravellerSystemGenerator
             return resource;
         }
 
-        private int CalculateHabitabilityRating(string sizeCode, string atmosphereCode, string hydrographicsCode, string tidalLockStatus, int highTempK, int meanTempK, int lowTempK, float gravity)
+        private int CalculateHabitabilityRating(string sizeCode, string atmosphereCode, string hydrographicsCode, string tidalLockStatus, int highTempK, int meanTempK, int lowTempK, float gravity, string atmosphericTaint)
         {
             int dm = 0;
 
@@ -4354,6 +4368,10 @@ namespace TravellerSystemGenerator
             else if (atmoValue == 5 || atmoValue == 7 || atmoValue == 8) dm -= 1;
             else if (atmoValue == 11) dm -= 10;
             else if (atmoValue == 12 || atmoValue >= 15) dm -= 12;
+
+            // Low Oxygen taint modifier
+            if (atmosphericTaint.Contains("Low Oxygen"))
+                dm -= 2;
 
             // Hydrographics modifiers
             if (hydroValue == 0) dm -= 4;
@@ -4387,6 +4405,159 @@ namespace TravellerSystemGenerator
                 habitability = 0;
 
             return habitability;
+        }
+
+        // Atmospheric Taint Calculations
+
+        private void CalculateAtmosphericTaints()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING ATMOSPHERIC TAINTS");
+
+            // Calculate for primary star's worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateTaintsForStar(primaryObject);
+            }
+
+            // Calculate for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star)
+                {
+                    CalculateTaintsForStar(companionObj);
+                }
+            }
+        }
+
+        private void CalculateTaintsForStar(CelestrialObject starObj)
+        {
+            foreach (var bodyObj in starObj.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    planet.AtmosphericTaint = CalculateTaintForWorld(planet.Atmosphere, planet.Designation);
+
+                    // Calculate for moons
+                    foreach (var moon in planet.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            moon.AtmosphericTaint = CalculateTaintForWorld(moon.Atmosphere, $"{planet.Designation} {moon.Designation}");
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gasGiant)
+                {
+                    // Calculate for gas giant moons
+                    foreach (var moon in gasGiant.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            moon.AtmosphericTaint = CalculateTaintForWorld(moon.Atmosphere, $"{gasGiant.Designation} {moon.Designation}");
+                        }
+                    }
+                }
+            }
+        }
+
+        private string CalculateTaintForWorld(string atmosphereCode, string worldDesignation)
+        {
+            int atmoValue = GetSizeValue(atmosphereCode);
+
+            // Only calculate for atmosphere codes 2, 4, 7, or 9
+            if (atmoValue != 2 && atmoValue != 4 && atmoValue != 7 && atmoValue != 9)
+            {
+                return "None";
+            }
+
+            DebugLogger.LogFormat("  Calculating atmospheric taint for {0} (Atmosphere: {1})", worldDesignation, atmosphereCode);
+
+            List<string> taints = new List<string>();
+            int taintsGenerated = 0;
+            int maxTaints = 3;
+
+            // Initial roll
+            RollForTaint(atmoValue, taints, ref taintsGenerated, maxTaints, worldDesignation);
+
+            if (taints.Count == 0)
+            {
+                DebugLogger.LogFormat("    No taints generated");
+                return "None";
+            }
+
+            string result = string.Join(" and ", taints);
+            DebugLogger.LogFormat("    Atmospheric Taint: {0}", result);
+            return result;
+        }
+
+        private void RollForTaint(int atmoValue, List<string> taints, ref int taintsGenerated, int maxTaints, string worldDesignation)
+        {
+            if (taintsGenerated >= maxTaints)
+                return;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            if (atmoValue == 4) dm -= 2;
+            if (atmoValue == 9) dm += 2;
+
+            int result = roll + dm;
+
+            DebugLogger.LogDiceRoll(2, roll, $"Atmospheric taint (DM: {dm})");
+            DebugLogger.LogFormat("    Result: {0}", result);
+
+            string taint = GetTaintSubtype(result);
+
+            // If Particulates, roll again
+            if (result == 10)
+            {
+                taintsGenerated++;
+                if (!taints.Contains("Particulates"))
+                {
+                    taints.Add("Particulates");
+                }
+
+                // Roll again for additional taint
+                if (taintsGenerated < maxTaints)
+                {
+                    RollForTaint(atmoValue, taints, ref taintsGenerated, maxTaints, worldDesignation);
+                }
+            }
+            else
+            {
+                taintsGenerated++;
+
+                // Check for duplicate
+                if (taints.Contains(taint))
+                {
+                    DebugLogger.LogFormat("    Duplicate taint '{0}', rerolling...", taint);
+                    // Reroll to replace duplicate
+                    RollForTaint(atmoValue, taints, ref taintsGenerated, maxTaints, worldDesignation);
+                }
+                else
+                {
+                    taints.Add(taint);
+                }
+            }
+        }
+
+        private string GetTaintSubtype(int result)
+        {
+            return result switch
+            {
+                <= 2 => "Low Oxygen",
+                3 => "Radioactivity",
+                4 => "Biologic",
+                5 => "Gas Mix",
+                6 => "Particulates",
+                7 => "Gas Mix",
+                8 => "Sulphur Compounds",
+                9 => "Biologic",
+                10 => "Particulates",
+                11 => "Radioactivity",
+                _ => "High Oxygen" // >= 12
+            };
         }
 
         private bool IsInHabitableZone(float orbit, Star parentStar)
@@ -9385,7 +9556,7 @@ namespace TravellerSystemGenerator
             html.AppendLine($"                <td>{(data.AtmosphericPressure > 0 ? data.AtmosphericPressure.ToString("F2") : "")}</td>");
             html.AppendLine($"                <td>{data.AtmosphereComposition}</td>");
             html.AppendLine("                <td></td>");
-            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.AtmosphericTaint}</td>");
             html.AppendLine("                <td></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
@@ -9693,6 +9864,7 @@ namespace TravellerSystemGenerator
                             TidalHeatingEffects = tp.TidalHeatingEffects,
                             TotalSeismicStress = tp.TotalSeismicStress,
                             NumberOfMajorTectonicPlates = tp.NumberOfMajorTectonicPlates,
+                            AtmosphericTaint = tp.AtmosphericTaint,
                             BiomassRating = tp.BiomassRating,
                             BiocomplexityRating = tp.BiocomplexityRating,
                             BiocomplexityDescription = tp.BiocomplexityDescription,
@@ -9762,6 +9934,7 @@ namespace TravellerSystemGenerator
                                 TidalHeatingEffects = moon.TidalHeatingEffects,
                                 TotalSeismicStress = moon.TotalSeismicStress,
                                 NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                AtmosphericTaint = moon.AtmosphericTaint,
                                 BiomassRating = moon.BiomassRating,
                                 BiocomplexityRating = moon.BiocomplexityRating,
                                 BiocomplexityDescription = moon.BiocomplexityDescription,
@@ -9834,6 +10007,7 @@ namespace TravellerSystemGenerator
                                 TidalHeatingEffects = moon.TidalHeatingEffects,
                                 TotalSeismicStress = moon.TotalSeismicStress,
                                 NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                AtmosphericTaint = moon.AtmosphericTaint,
                                 BiomassRating = moon.BiomassRating,
                                 BiocomplexityRating = moon.BiocomplexityRating,
                                 BiocomplexityDescription = moon.BiocomplexityDescription,
