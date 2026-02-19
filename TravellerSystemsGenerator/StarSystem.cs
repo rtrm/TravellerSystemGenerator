@@ -2969,9 +2969,12 @@ namespace TravellerSystemGenerator
                     CalculateTemperatureFactors(planet);
                     CalculateTemperatures(planet, bodyObj.orbitAU, bodyObj.orbitEccentricity, totalLuminosity);
 
-                    DebugLogger.LogFormat("  {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Albedo={4:F2}, Greenhouse={5:F2}",
+                    // Calculate Resource and Habitability for all terrestrial planets
+                    CalculateResourceAndHabitabilityForPlanet(planet);
+
+                    DebugLogger.LogFormat("  {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Albedo={4:F2}, Greenhouse={5:F2}, Resource={6}, Habitability={7}",
                         planet.Designation, planet.MeanTemperatureK, planet.HighTemperatureK, planet.LowTemperatureK,
-                        planet.Albedo, planet.Greenhouse);
+                        planet.Albedo, planet.Greenhouse, planet.ResourceRating, planet.HabitabilityRating);
 
                     // Process moons
                     foreach (var moon in planet.Moons)
@@ -2982,8 +2985,11 @@ namespace TravellerSystemGenerator
                         float moonOrbitAU = moonOrbitKm / 149597870.7f; // Convert km to AU
                         CalculateTemperatures(moon, bodyObj.orbitAU, moonOrbitAU, moon.Eccentricity, totalLuminosity);
 
-                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K",
-                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK);
+                        // Calculate Resource and Habitability for all moons
+                        CalculateResourceAndHabitabilityForMoon(moon);
+
+                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Resource={4}, Habitability={5}",
+                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK, moon.ResourceRating, moon.HabitabilityRating);
                     }
                 }
                 else if (bodyObj.celestrialObject is GasGiant gasGiant)
@@ -3001,8 +3007,11 @@ namespace TravellerSystemGenerator
                         float moonOrbitAU = moonOrbitKm / 149597870.7f; // Convert km to AU
                         CalculateTemperatures(moon, bodyObj.orbitAU, moonOrbitAU, moon.Eccentricity, totalLuminosity);
 
-                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K",
-                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK);
+                        // Calculate Resource and Habitability for all moons
+                        CalculateResourceAndHabitabilityForMoon(moon);
+
+                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Resource={4}, Habitability={5}",
+                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK, moon.ResourceRating, moon.HabitabilityRating);
                     }
                 }
             }
@@ -4076,6 +4085,13 @@ namespace TravellerSystemGenerator
             }
         }
 
+        private void CalculateResourceAndHabitabilityForPlanet(TerrestrialPlanet planet)
+        {
+            // Calculate Resource and Habitability for ALL terrestrial planets (not just HZ)
+            planet.ResourceRating = CalculateResourceRating(planet.Size, planet.Density, planet.BiomassRating, planet.BiodiversityRating, planet.CompatibilityRating);
+            planet.HabitabilityRating = CalculateHabitabilityRating(planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.TidalLockStatus, planet.HighTemperatureK, planet.MeanTemperatureK, planet.LowTemperatureK, planet.Gravity, planet.AtmosphericTaint);
+        }
+
         private void CalculateLifeformsForPlanet(TerrestrialPlanet planet, CelestrialObject bodyObj, Star parentStar, float systemAge)
         {
             // Check if in HZ
@@ -4085,7 +4101,7 @@ namespace TravellerSystemGenerator
 
             DebugLogger.LogFormat("  Calculating lifeforms for planet {0} (HZ: {1})", planet.Designation, inHZ);
 
-            // Calculate all ratings
+            // Calculate life-related ratings
             planet.BiomassRating = CalculateBiomassRating(planet.Atmosphere, planet.HydrographicsCode, systemAge, planet.HighTemperatureK, planet.MeanTemperatureK, planet.AtmosphericTaint, planet.AtmosphericIrritant);
             planet.BiocomplexityRating = CalculateBiocomplexityRating(planet.BiomassRating, planet.Atmosphere, systemAge, planet.AtmosphericTaint);
             planet.BiocomplexityDescription = GetBiocomplexityDescription(planet.BiocomplexityRating);
@@ -4096,11 +4112,19 @@ namespace TravellerSystemGenerator
 
             planet.BiodiversityRating = CalculateBiodiversityRating(planet.BiomassRating, planet.BiocomplexityRating);
             planet.CompatibilityRating = CalculateCompatibilityRating(planet.BiomassRating, planet.BiocomplexityRating, planet.Atmosphere, systemAge);
-            planet.ResourceRating = CalculateResourceRating(planet.Size, planet.Density, planet.BiomassRating, planet.BiodiversityRating, planet.CompatibilityRating);
-            planet.HabitabilityRating = CalculateHabitabilityRating(planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.TidalLockStatus, planet.HighTemperatureK, planet.MeanTemperatureK, planet.LowTemperatureK, planet.Gravity, planet.AtmosphericTaint);
+
+            // Recalculate Resource and Habitability now that we have life ratings
+            CalculateResourceAndHabitabilityForPlanet(planet);
 
             DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
                 planet.BiomassRating, planet.BiocomplexityRating, planet.BiodiversityRating, planet.CompatibilityRating, planet.ResourceRating, planet.HabitabilityRating);
+        }
+
+        private void CalculateResourceAndHabitabilityForMoon(Moon moon)
+        {
+            // Calculate Resource and Habitability for ALL moons (not just HZ)
+            moon.ResourceRating = CalculateResourceRating(moon.Size, moon.Density, moon.BiomassRating, moon.BiodiversityRating, moon.CompatibilityRating);
+            moon.HabitabilityRating = CalculateHabitabilityRating(moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.TidalLockStatus, moon.HighTemperatureK, moon.MeanTemperatureK, moon.LowTemperatureK, moon.Gravity, moon.AtmosphericTaint);
         }
 
         private void CalculateLifeformsForMoon(Moon moon, CelestrialObject bodyObj, Star parentStar, float systemAge)
@@ -4112,7 +4136,7 @@ namespace TravellerSystemGenerator
 
             DebugLogger.LogFormat("  Calculating lifeforms for moon {0} (HZ: {1})", moon.Designation, inHZ);
 
-            // Calculate all ratings
+            // Calculate life-related ratings
             moon.BiomassRating = CalculateBiomassRating(moon.Atmosphere, moon.HydrographicsCode, systemAge, moon.HighTemperatureK, moon.MeanTemperatureK, moon.AtmosphericTaint, moon.AtmosphericIrritant);
             moon.BiocomplexityRating = CalculateBiocomplexityRating(moon.BiomassRating, moon.Atmosphere, systemAge, moon.AtmosphericTaint);
             moon.BiocomplexityDescription = GetBiocomplexityDescription(moon.BiocomplexityRating);
@@ -4123,8 +4147,9 @@ namespace TravellerSystemGenerator
 
             moon.BiodiversityRating = CalculateBiodiversityRating(moon.BiomassRating, moon.BiocomplexityRating);
             moon.CompatibilityRating = CalculateCompatibilityRating(moon.BiomassRating, moon.BiocomplexityRating, moon.Atmosphere, systemAge);
-            moon.ResourceRating = CalculateResourceRating(moon.Size, moon.Density, moon.BiomassRating, moon.BiodiversityRating, moon.CompatibilityRating);
-            moon.HabitabilityRating = CalculateHabitabilityRating(moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.TidalLockStatus, moon.HighTemperatureK, moon.MeanTemperatureK, moon.LowTemperatureK, moon.Gravity, moon.AtmosphericTaint);
+
+            // Recalculate Resource and Habitability now that we have life ratings
+            CalculateResourceAndHabitabilityForMoon(moon);
 
             DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
                 moon.BiomassRating, moon.BiocomplexityRating, moon.BiodiversityRating, moon.CompatibilityRating, moon.ResourceRating, moon.HabitabilityRating);
@@ -4344,6 +4369,10 @@ namespace TravellerSystemGenerator
             if (compatibilityRating >= 8) dm += 2;
 
             int resource = roll - 7 + sizeValue + dm;
+
+            // Clamp to minimum of 2 and maximum of C (12)
+            if (resource < 2) resource = 2;
+            if (resource > 12) resource = 12;
 
             return resource;
         }
