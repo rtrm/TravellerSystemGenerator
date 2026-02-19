@@ -9544,23 +9544,22 @@ namespace TravellerSystemGenerator
             // Atmosphere
             html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th>ATMOSPHERE</th>");
+            html.AppendLine("                <th rowspan=\"2\">ATMOSPHERE</th>");
             html.AppendLine("                <th>Pressure (bar)</th>");
-            html.AppendLine("                <th>Composition</th>");
-            html.AppendLine("                <th>O<sub>2</sub> (bar)</th>");
-            html.AppendLine("                <th>Taints</th>");
-            html.AppendLine("                <th>Scale Height</th>");
-            html.AppendLine("            </tr>");
-            html.AppendLine("            <tr>");
-            html.AppendLine("                <td style=\"background-color: #d3d3d3; border-top: none;\"></td>");
             html.AppendLine($"                <td>{(data.AtmosphericPressure > 0 ? data.AtmosphericPressure.ToString("F2") : "")}</td>");
-            html.AppendLine($"                <td>{data.AtmosphereComposition}</td>");
-            html.AppendLine("                <td></td>");
-            html.AppendLine($"                <td>{data.AtmosphericTaint}</td>");
+            html.AppendLine("                <th>Composition</th>");
+            html.AppendLine($"                <td colspan=\"2\">{data.AtmosphereComposition}</td>");
+            html.AppendLine("                <th>O<sub>2</sub> (bar)</th>");
             html.AppendLine("                <td></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td colspan=\"6\"><strong>Notes:</strong></td>");
+            html.AppendLine("                <th>Taints</th>");
+            html.AppendLine($"                <td colspan=\"4\">{data.AtmosphericTaint}</td>");
+            html.AppendLine("                <th>Scale Height</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"8\"><strong>Notes:</strong></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
