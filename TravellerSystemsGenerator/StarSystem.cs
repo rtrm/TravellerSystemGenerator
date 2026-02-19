@@ -9017,11 +9017,11 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <th>Major Tectonic Plates</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine($"                <td>{(data.TotalSeismicStress > 0 ? data.TotalSeismicStress.ToString("F1") : "")}</td>");
-            html.AppendLine($"                <td>{(data.ResidualSeismicStress > 0 ? data.ResidualSeismicStress.ToString("F1") : "")}</td>");
-            html.AppendLine($"                <td>{(data.TidalStressFactor > 0 ? data.TidalStressFactor.ToString("F1") : "")}</td>");
-            html.AppendLine($"                <td colspan=\"2\">{(data.TidalHeatingEffects > 0 ? data.TidalHeatingEffects.ToString("F1") : "")}</td>");
-            html.AppendLine($"                <td>{(data.NumberOfMajorTectonicPlates > 0 ? data.NumberOfMajorTectonicPlates.ToString() : "")}</td>");
+            html.AppendLine($"                <td>{data.TotalSeismicStress.ToString("F1")}</td>");
+            html.AppendLine($"                <td>{data.ResidualSeismicStress.ToString("F1")}</td>");
+            html.AppendLine($"                <td>{data.TidalStressFactor.ToString("F1")}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.TidalHeatingEffects.ToString("F1")}</td>");
+            html.AppendLine($"                <td>{data.NumberOfMajorTectonicPlates}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
