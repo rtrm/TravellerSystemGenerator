@@ -8043,9 +8043,10 @@ namespace TravellerSystemGenerator
                 return;
             }
 
-            // Chunk-based allocation algorithm for multiple cities
+            // Cascade allocation algorithm for multiple cities
+            // Creates more realistic variance with larger cities significantly bigger than smaller ones
 
-            // Step A: Initialize each city with 1%
+            // Step A: Initialize each city with base 1%
             double[] cityPercentages = new double[mainworld.NumberOfMajorCities];
             for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
             {
@@ -8053,51 +8054,64 @@ namespace TravellerSystemGenerator
             }
 
             // Step B: Calculate remaining pool
-            int remainingPool = 100 - mainworld.NumberOfMajorCities;
+            double remainingPool = 100.0 - mainworld.NumberOfMajorCities;
 
-            // Step C: Determine chunk size
-            // Maximum chunk = PCR
-            // Minimum chunk ensures at least 2x number of cities chunks
-            int minChunkSize = remainingPool / (2 * mainworld.NumberOfMajorCities);
-            int chunkSize = Math.Min(mainworld.PCR, Math.Max(1, minChunkSize));
-
-            // For better distribution, prefer smaller chunks if PCR allows
-            // Use PCR as chunk size (capped by max PCR value)
-            chunkSize = Math.Min(mainworld.PCR, Math.Max(1, chunkSize));
-
-            // Step D: Calculate number of chunks
-            int numChunks = remainingPool / chunkSize;
-            int remainder = remainingPool % chunkSize;
-
-            // Step E & F: Allocate chunks in rounds
-            int chunksAllocated = 0;
-            int cityIndex = 0;
-            int lastCityToGetChunk = 0;
-
-            while (chunksAllocated < numChunks)
+            // Step C: Cascade distribution with variance
+            // Allocate to cities in sequence, with each taking a percentage of the remaining pool
+            // This creates natural variance where earlier cities tend to be larger
+            for (int i = 0; i < mainworld.NumberOfMajorCities && remainingPool > 0; i++)
             {
-                // Roll 1d6 for current city
-                int roll = Starhelper.diceRoll(6, 1, dice);
+                // Calculate base allocation percentage for this city
+                // Higher PCR = more concentrated (larger percentage for top cities)
+                // Lower PCR = more distributed (smaller percentage for top cities)
+                double baseAllocationPercent;
 
-                // Allocate chunks (up to roll amount, or remaining chunks)
-                int chunksForThisCity = Math.Min(roll, numChunks - chunksAllocated);
-                cityPercentages[cityIndex] += chunksForThisCity * chunkSize;
-
-                if (chunksForThisCity > 0)
+                if (mainworld.PCR >= 7)
                 {
-                    lastCityToGetChunk = cityIndex;
-                    chunksAllocated += chunksForThisCity;
+                    // Very concentrated: First city gets 40-70% of remaining, others get less
+                    baseAllocationPercent = 55.0 - (i * 8.0);
+                }
+                else if (mainworld.PCR >= 4)
+                {
+                    // Moderately concentrated: First city gets 30-50% of remaining
+                    baseAllocationPercent = 40.0 - (i * 6.0);
+                }
+                else
+                {
+                    // More distributed: First city gets 20-40% of remaining
+                    baseAllocationPercent = 30.0 - (i * 5.0);
                 }
 
-                // Move to next city (cycle through all cities)
-                cityIndex = (cityIndex + 1) % mainworld.NumberOfMajorCities;
+                // Ensure minimum allocation
+                baseAllocationPercent = Math.Max(5.0, baseAllocationPercent);
+
+                // Add randomness: +/- (2d6-7) percent points
+                int variance = Starhelper.diceRoll(6, 2, dice) - 7;
+                double allocationPercent = baseAllocationPercent + variance;
+
+                // Clamp to reasonable range
+                allocationPercent = Math.Max(5.0, Math.Min(80.0, allocationPercent));
+
+                // Calculate actual allocation from remaining pool
+                double allocation = (remainingPool * allocationPercent) / 100.0;
+
+                // Don't allocate more than what's remaining
+                allocation = Math.Min(allocation, remainingPool);
+
+                // Add to this city's percentage
+                cityPercentages[i] += allocation;
+                remainingPool -= allocation;
             }
 
-            // Step G: Allocate remainder to the city that would get the next chunk
-            if (remainder > 0)
+            // Step D: Distribute any remaining pool across all cities proportionally
+            if (remainingPool > 0.1) // If there's a meaningful amount left
             {
-                int cityToGetRemainder = (lastCityToGetChunk + 1) % mainworld.NumberOfMajorCities;
-                cityPercentages[cityToGetRemainder] += remainder;
+                double totalAllocated = 100.0 - mainworld.NumberOfMajorCities - remainingPool;
+                for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
+                {
+                    double proportion = (cityPercentages[i] - 1.0) / totalAllocated;
+                    cityPercentages[i] += remainingPool * proportion;
+                }
             }
 
             // Step H: Total percentages (already calculated in cityPercentages array)
