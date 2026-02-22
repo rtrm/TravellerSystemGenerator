@@ -11587,7 +11587,7 @@ namespace TravellerSystemGenerator
                 var capitalCity = mainworld.MajorCities[0];
                 html.AppendLine("                <tr>");
                 html.AppendLine("                    <td class=\"field-label\">Capital/Port</td>");
-                html.AppendLine($"                    <td>{capitalCity.Name}: {capitalCity.Population:N0} (Class {GetCityClass(capitalCity.Population)})</td>");
+                html.AppendLine($"                    <td>{capitalCity.Population:N0} (Class {GetCityClass(capitalCity.Population)})</td>");
                 html.AppendLine("                </tr>");
 
                 // Other major cities
@@ -11595,8 +11595,8 @@ namespace TravellerSystemGenerator
                 {
                     var city = mainworld.MajorCities[i];
                     html.AppendLine("                <tr>");
-                    html.AppendLine($"                    <td class=\"field-label\">Major City {i + 1}</td>");
-                    html.AppendLine($"                    <td>{city.Name}: {city.Population:N0}</td>");
+                    html.AppendLine($"                    <td class=\"field-label\">{city.Name}</td>");
+                    html.AppendLine($"                    <td>{city.Population:N0}</td>");
                     html.AppendLine("                </tr>");
                 }
             }
