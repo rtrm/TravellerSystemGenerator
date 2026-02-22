@@ -11584,7 +11584,7 @@ namespace TravellerSystemGenerator
                 var capitalCity = mainworld.MajorCities[0];
                 html.AppendLine("            <tr>");
                 html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">Capital/Port:</td>");
-                html.AppendLine($"                <td colspan=\"5\">{systemName ?? "City"} ({capitalCity.Name}): {capitalCity.Population:N0} Class {GetCityClass(capitalCity.Population)}</td>");
+                html.AppendLine($"                <td colspan=\"5\">{capitalCity.Name}: {capitalCity.Population:N0} Class {mainworld.Starport}</td>");
                 html.AppendLine("            </tr>");
 
                 // Other cities - 3 per row
