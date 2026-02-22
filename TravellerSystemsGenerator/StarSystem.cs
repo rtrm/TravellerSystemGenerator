@@ -10824,8 +10824,14 @@ namespace TravellerSystemGenerator
                 string size1 = match.Groups[8].Value;
                 string sizeS = match.Groups[9].Value;
 
-                string tooltip = $"Belt Profile: {span} AU span | Composition: Main {mType}, Secondary {sType}, Type {cType}, Other {other} | " +
-                                $"Bulk Density: {bulk} | Resource Rating: {resource} | Bodies: {size1} size-1, {sizeS} size-S";
+                // Format tooltip with line breaks for better readability
+                string tooltip = $"Belt Profile: {beltCode}&#10;" +
+                                $"Span: {span} AU&#10;" +
+                                $"Composition: Main {mType}, Secondary {sType}&#10;" +
+                                $"             Type {cType}, Other {other}&#10;" +
+                                $"Bulk Density: {bulk}&#10;" +
+                                $"Resource Rating: {resource}&#10;" +
+                                $"Bodies: {size1} size-1, {sizeS} size-S";
 
                 // Replace the belt code with a span that has a CSS tooltip (larger font, better styling)
                 string replacement = $"<span class=\"belt-tooltip\" data-tooltip=\"{tooltip}\">{beltCode}</span>";
@@ -10919,10 +10925,11 @@ namespace TravellerSystemGenerator
             html.AppendLine("            color: white;");
             html.AppendLine("            padding: 10px 15px;");
             html.AppendLine("            border-radius: 4px;");
-            html.AppendLine("            white-space: nowrap;");
+            html.AppendLine("            white-space: pre-line;");
             html.AppendLine("            font-size: 14px;");
             html.AppendLine("            box-shadow: 0 2px 8px rgba(0,0,0,0.3);");
             html.AppendLine("            margin-top: 5px;");
+            html.AppendLine("            min-width: 300px;");
             html.AppendLine("        }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
