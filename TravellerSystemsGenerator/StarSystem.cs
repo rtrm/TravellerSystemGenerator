@@ -11477,25 +11477,29 @@ namespace TravellerSystemGenerator
                 primaryObjectName = star.Designation;
             }
 
+            // Format trade codes
+            string tradeCodes = mainworld.TradeCodes.Count > 0
+                ? string.Join(", ", mainworld.TradeCodes.Select(tc => tc.Code))
+                : "";
+
             html.AppendLine("<!DOCTYPE html>");
             html.AppendLine("<html lang=\"en\">");
             html.AppendLine("<head>");
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-            html.AppendLine($"    <title>Populated World Details - {systemName ?? "Mainworld"}</title>");
+            html.AppendLine($"    <title>Inhabited World - {systemName ?? "Mainworld"}</title>");
             html.AppendLine("    <style>");
             html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
-            html.AppendLine("        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
-            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; text-align: center; }");
-            html.AppendLine("        .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }");
-            html.AppendLine("        .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }");
-            html.AppendLine("        table { width: 100%; border-collapse: collapse; }");
-            html.AppendLine("        th, td { border: 1px solid #000; padding: 8px; text-align: left; }");
-            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; }");
-            html.AppendLine("        .field-label { font-weight: bold; width: 250px; background-color: #e8e8e8; }");
+            html.AppendLine("        .container { max-width: 900px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 6px; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }");
+            html.AppendLine("        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }");
             html.AppendLine("        .back-link { margin-bottom: 10px; }");
             html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
-            html.AppendLine("        .city-table { margin-top: 10px; }");
+            html.AppendLine("        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }");
+            html.AppendLine("        .empty-field { background-color: #f9f9f9; }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
             html.AppendLine("<body>");
@@ -11508,14 +11512,14 @@ namespace TravellerSystemGenerator
 
             // Title
             html.AppendLine("        <div class=\"header\">");
-            html.AppendLine("            <h1 style=\"margin: 0;\">POPULATED WORLD DETAILS</h1>");
+            html.AppendLine("            <h2 style=\"margin: 0;\">INHABITED WORLD</h2>");
             html.AppendLine("        </div>");
 
             // World and UWP
-            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("        <table>");
             html.AppendLine("            <tr>");
-            html.AppendLine($"                <th style=\"width: 70%;\">WORLD</th>");
-            html.AppendLine($"                <th>UWP</th>");
+            html.AppendLine($"                <th style=\"width: 60%;\">World</th>");
+            html.AppendLine($"                <th style=\"width: 40%;\">UWP</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine($"                <td>{systemName ?? "Mainworld"}</td>");
@@ -11523,131 +11527,119 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
-            // Primary Object(s)
-            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            // Primary Object
+            html.AppendLine("        <table>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th colspan=\"2\">PRIMARY OBJECT(S)</th>");
+            html.AppendLine("                <th>Primary Object(s)</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine($"                <td colspan=\"2\">{primaryObjectName}</td>");
+            html.AppendLine($"                <td>{primaryObjectName}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
-            // Population Details
-            html.AppendLine("        <div class=\"section\">");
-            html.AppendLine("            <div class=\"section-title\">POPULATION DETAILS</div>");
-            html.AppendLine("            <table>");
+            // POPULATION section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">POPULATION</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Total:</td>");
+            html.AppendLine($"                <td>{mainworld.ActualPopulation:N0}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Demographics:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
 
-            // Trade Codes
-            string tradeCodes = mainworld.TradeCodes.Count > 0
-                ? string.Join(", ", mainworld.TradeCodes.Select(tc => $"{tc.Name} ({tc.Code})"))
-                : "None";
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Trade Codes</td>");
-            html.AppendLine($"                    <td>{tradeCodes}</td>");
-            html.AppendLine("                </tr>");
+            // MAJOR CITIES section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th colspan=\"2\">Major Cities: {mainworld.NumberOfMajorCities}</th>");
+            html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">PCR:</td>");
+            html.AppendLine($"                <td style=\"width: 60px;\">{mainworld.PCR}</td>");
+            html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">Urbanisation%:</td>");
+            html.AppendLine($"                <td style=\"width: 60px;\">{mainworld.UrbanisationPercent}%</td>");
+            html.AppendLine("            </tr>");
 
-            // PCR
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Population Concentration Rating (PCR)</td>");
-            html.AppendLine($"                    <td>{mainworld.PCR} - {mainworld.PCRDescription}</td>");
-            html.AppendLine("                </tr>");
-
-            // Urbanisation
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Urbanisation</td>");
-            html.AppendLine($"                    <td>{mainworld.UrbanisationPercent}%</td>");
-            html.AppendLine("                </tr>");
-
-            // Total Urban Population
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Total Urban Population</td>");
-            html.AppendLine($"                    <td>{mainworld.TotalUrbanPopulation:N0}</td>");
-            html.AppendLine("                </tr>");
-
-            // Number of Major Cities
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Number of Major Cities</td>");
-            html.AppendLine($"                    <td>{mainworld.NumberOfMajorCities}</td>");
-            html.AppendLine("                </tr>");
-
-            // Major City Population
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Major City Population</td>");
-            html.AppendLine($"                    <td>{mainworld.MajorCityPopulation:N0}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("            </table>");
-            html.AppendLine("        </div>");
-
-            // Major Cities - individual fields
+            // Cities in grid layout
             if (mainworld.MajorCities.Count > 0)
             {
                 // Capital/Port (first city)
                 var capitalCity = mainworld.MajorCities[0];
-                html.AppendLine("                <tr>");
-                html.AppendLine("                    <td class=\"field-label\">Capital/Port</td>");
-                html.AppendLine($"                    <td>{capitalCity.Population:N0} (Class {GetCityClass(capitalCity.Population)})</td>");
-                html.AppendLine("                </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">Capital/Port:</td>");
+                html.AppendLine($"                <td colspan=\"5\">{systemName ?? "City"} ({capitalCity.Name}): {capitalCity.Population:N0} Class {GetCityClass(capitalCity.Population)}</td>");
+                html.AppendLine("            </tr>");
 
-                // Other major cities
-                for (int i = 1; i < mainworld.MajorCities.Count; i++)
+                // Other cities - 3 per row
+                for (int i = 1; i < mainworld.MajorCities.Count; i += 3)
                 {
-                    var city = mainworld.MajorCities[i];
-                    html.AppendLine("                <tr>");
-                    html.AppendLine($"                    <td class=\"field-label\">{city.Name}</td>");
-                    html.AppendLine($"                    <td>{city.Population:N0}</td>");
-                    html.AppendLine("                </tr>");
+                    html.AppendLine("            <tr>");
+
+                    // First city in row
+                    var city1 = mainworld.MajorCities[i];
+                    html.AppendLine($"                <td class=\"label\">{city1.Name}:</td>");
+                    html.AppendLine($"                <td>{city1.Population:N0}</td>");
+
+                    // Second city in row (if exists)
+                    if (i + 1 < mainworld.MajorCities.Count)
+                    {
+                        var city2 = mainworld.MajorCities[i + 1];
+                        html.AppendLine($"                <td class=\"label\">{city2.Name}:</td>");
+                        html.AppendLine($"                <td>{city2.Population:N0}</td>");
+                    }
+                    else
+                    {
+                        html.AppendLine("                <td colspan=\"2\"></td>");
+                    }
+
+                    // Third city in row (if exists)
+                    if (i + 2 < mainworld.MajorCities.Count)
+                    {
+                        var city3 = mainworld.MajorCities[i + 2];
+                        html.AppendLine($"                <td class=\"label\">{city3.Name}:</td>");
+                        html.AppendLine($"                <td>{city3.Population:N0}</td>");
+                    }
+                    else
+                    {
+                        html.AppendLine("                <td colspan=\"2\"></td>");
+                    }
+
+                    html.AppendLine("            </tr>");
                 }
             }
+            html.AppendLine("        </table>");
 
-            // Other UWP Details
-            html.AppendLine("        <div class=\"section\">");
-            html.AppendLine("            <div class=\"section-title\">OTHER UWP DETAILS</div>");
-            html.AppendLine("            <table>");
+            // NOTES section (placeholder for future)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"empty-field\" style=\"height: 80px;\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
 
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Starport</td>");
-            html.AppendLine($"                    <td>{mainworld.Starport}</td>");
-            html.AppendLine("                </tr>");
+            // TRADE CODE section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Trade Code(s)</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{tradeCodes}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
 
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Size</td>");
-            html.AppendLine($"                    <td>{mainworld.Size}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Atmosphere</td>");
-            html.AppendLine($"                    <td>{mainworld.Atmosphere}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Hydrographics</td>");
-            html.AppendLine($"                    <td>{mainworld.Hydrographics}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Population</td>");
-            html.AppendLine($"                    <td>{mainworld.Population} ({mainworld.ActualPopulation:N0})</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Government</td>");
-            html.AppendLine($"                    <td>{mainworld.Government} - {mainworld.GovernmentType}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Law Level</td>");
-            html.AppendLine($"                    <td>{mainworld.LawLevel}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"field-label\">Tech Level</td>");
-            html.AppendLine($"                    <td>{mainworld.TechLevel}</td>");
-            html.AppendLine("                </tr>");
-
-            html.AppendLine("            </table>");
-            html.AppendLine("        </div>");
+            // BASES section (placeholder for future)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Bases</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
 
             html.AppendLine("    </div>");
             html.AppendLine("</body>");
