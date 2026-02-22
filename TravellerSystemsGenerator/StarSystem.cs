@@ -8013,14 +8013,17 @@ namespace TravellerSystemGenerator
             double calculation = diceRoll - mainworld.PCR + ((mainworld.UrbanisationPercent * 20.0) / mainworld.PCR);
             mainworld.NumberOfMajorCities = (int)Math.Ceiling(calculation); // Round UP
 
+            // Ensure at least 1 major city
+            mainworld.NumberOfMajorCities = Math.Max(1, mainworld.NumberOfMajorCities);
+
+            // Cap at 31 major cities (per specification)
+            mainworld.NumberOfMajorCities = Math.Min(31, mainworld.NumberOfMajorCities);
+
             // Cap at population code for small worlds
             if (mainworld.Population < 6)
             {
                 mainworld.NumberOfMajorCities = Math.Min(mainworld.NumberOfMajorCities, mainworld.Population);
             }
-
-            // Ensure at least 1 major city
-            mainworld.NumberOfMajorCities = Math.Max(1, mainworld.NumberOfMajorCities);
 
             // Major Cities Population = PCR / (1d6 + 7) * Total Urban Population
             int divisor = Starhelper.diceRoll(6, 1, dice) + 7;
@@ -11447,6 +11450,20 @@ namespace TravellerSystemGenerator
             return html.ToString();
         }
 
+        private string GetCityClass(long population)
+        {
+            // City class based on population
+            if (population >= 10000000000) return "A"; // 10+ billion
+            if (population >= 1000000000) return "B";  // 1+ billion
+            if (population >= 100000000) return "C";   // 100+ million
+            if (population >= 10000000) return "D";    // 10+ million
+            if (population >= 1000000) return "E";     // 1+ million
+            if (population >= 100000) return "F";      // 100,000+
+            if (population >= 10000) return "G";       // 10,000+
+            if (population >= 1000) return "H";        // 1,000+
+            return "X";                                 // < 1,000
+        }
+
         private string GeneratePopulatedWorldDetailsFormHtml()
         {
             if (mainworld == null || mainworld.Population == 0) return "";
@@ -11563,32 +11580,25 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </table>");
             html.AppendLine("        </div>");
 
-            // Major Cities List
+            // Major Cities - individual fields
             if (mainworld.MajorCities.Count > 0)
             {
-                html.AppendLine("        <div class=\"section\">");
-                html.AppendLine("            <div class=\"section-title\">MAJOR CITIES</div>");
-                html.AppendLine("            <table class=\"city-table\">");
+                // Capital/Port (first city)
+                var capitalCity = mainworld.MajorCities[0];
                 html.AppendLine("                <tr>");
-                html.AppendLine("                    <th style=\"width: 10%;\">Rank</th>");
-                html.AppendLine("                    <th style=\"width: 20%;\">City</th>");
-                html.AppendLine("                    <th style=\"width: 35%;\">Population</th>");
-                html.AppendLine("                    <th style=\"width: 35%;\">% of Major City Pop</th>");
+                html.AppendLine("                    <td class=\"field-label\">Capital/Port</td>");
+                html.AppendLine($"                    <td>{capitalCity.Name}: {capitalCity.Population:N0} (Class {GetCityClass(capitalCity.Population)})</td>");
                 html.AppendLine("                </tr>");
 
-                for (int i = 0; i < mainworld.MajorCities.Count; i++)
+                // Other major cities
+                for (int i = 1; i < mainworld.MajorCities.Count; i++)
                 {
                     var city = mainworld.MajorCities[i];
                     html.AppendLine("                <tr>");
-                    html.AppendLine($"                    <td>{i + 1}</td>");
-                    html.AppendLine($"                    <td>City {city.Name}</td>");
-                    html.AppendLine($"                    <td>{city.Population:N0}</td>");
-                    html.AppendLine($"                    <td>{city.PercentOfMajorCityPop:F2}%</td>");
+                    html.AppendLine($"                    <td class=\"field-label\">Major City {i + 1}</td>");
+                    html.AppendLine($"                    <td>{city.Name}: {city.Population:N0}</td>");
                     html.AppendLine("                </tr>");
                 }
-
-                html.AppendLine("            </table>");
-                html.AppendLine("        </div>");
             }
 
             // Other UWP Details
