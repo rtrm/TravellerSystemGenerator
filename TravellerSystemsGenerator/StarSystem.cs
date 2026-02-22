@@ -11611,33 +11611,152 @@ namespace TravellerSystemGenerator
             }
             html.AppendLine("        </table>");
 
-            // NOTES section (placeholder for future)
+            // CULTURE section
             html.AppendLine("        <table>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("                <th colspan=\"2\">CULTURE</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td class=\"empty-field\" style=\"height: 80px;\"></td>");
+            html.AppendLine("                <td class=\"label\">Language(s):</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Cultural Traits:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // GOVERNMENT section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">GOVERNMENT</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Type:</td>");
+            html.AppendLine($"                <td>{mainworld.Government} - {mainworld.GovernmentType}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Contraband:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // LAW LEVEL section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">LAW LEVEL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Code:</td>");
+            html.AppendLine($"                <td>{mainworld.LawLevel}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Weapons:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Drugs:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Information:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Technology:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Travellers:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Psionics:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // TECH LEVEL section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">TECH LEVEL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Code:</td>");
+            html.AppendLine($"                <td>{mainworld.TechLevel}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Common Tech:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // FACTIONS section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>FACTIONS</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"empty-field\" style=\"height: 60px;\"></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
             // TRADE CODE section
             html.AppendLine("        <table>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th>Trade Code(s)</th>");
+            html.AppendLine("                <th>TRADE CODE(S)</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine($"                <td>{tradeCodes}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
-            // BASES section (placeholder for future)
+            // STARPORT section
             html.AppendLine("        <table>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <th>Bases</th>");
+            html.AppendLine("                <th colspan=\"2\">STARPORT</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Class:</td>");
+            html.AppendLine($"                <td>{mainworld.Starport}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Facilities:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Berthing Cost:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // BASES section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>BASES</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // TRAVEL ZONE section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>TRAVEL ZONE</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // NOTES section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>NOTES</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"empty-field\" style=\"height: 100px;\"></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
