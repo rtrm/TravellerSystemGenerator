@@ -106,6 +106,46 @@ namespace TravellerSystemGenerator
         public string Filename { get; set; } = "";
     }
 
+    internal class TradeCode
+    {
+        public string Name { get; set; } = "";
+        public string Code { get; set; } = "";
+
+        public TradeCode(string name, string code)
+        {
+            Name = name;
+            Code = code;
+        }
+    }
+
+    internal class MajorCity
+    {
+        public int Number { get; set; }
+        public string Name { get; set; } = "";
+        public long Population { get; set; }
+        public double PercentOfMajorCityPop { get; set; }
+
+        public MajorCity(int number, long population, double percent)
+        {
+            Number = number;
+            Name = ToRoman(number);
+            Population = population;
+            PercentOfMajorCityPop = percent;
+        }
+
+        private static string ToRoman(int number)
+        {
+            if (number < 1) return "";
+            if (number >= 40) return "XL" + ToRoman(number - 40);
+            if (number >= 10) return "X" + ToRoman(number - 10);
+            if (number >= 9) return "IX" + ToRoman(number - 9);
+            if (number >= 5) return "V" + ToRoman(number - 5);
+            if (number >= 4) return "IV" + ToRoman(number - 4);
+            if (number >= 1) return "I" + ToRoman(number - 1);
+            return "";
+        }
+    }
+
     internal class MainworldData
     {
         public char Starport { get; set; }
@@ -124,6 +164,16 @@ namespace TravellerSystemGenerator
         public int PopulationP { get; set; } // Population multiplier (0-9)
         public long ActualPopulation { get; set; } // Actual population count
         public string GovernmentType { get; set; } = ""; // Government type description
+
+        // Population Details
+        public List<TradeCode> TradeCodes { get; set; } = new List<TradeCode>();
+        public int PCR { get; set; } // Population Concentration Rating (0-9)
+        public string PCRDescription { get; set; } = ""; // Description of PCR
+        public int UrbanisationPercent { get; set; } // Urbanisation percentage (0-100)
+        public long TotalUrbanPopulation { get; set; } // Total urban population count
+        public int NumberOfMajorCities { get; set; } // Number of major cities
+        public long MajorCityPopulation { get; set; } // Total population in major cities
+        public List<MajorCity> MajorCities { get; set; } = new List<MajorCity>();
     }
 
     internal class StarSystem
@@ -511,6 +561,18 @@ namespace TravellerSystemGenerator
                 GenerateInitialUWP(dice);
                 DebugLogger.Log("");
                 DebugLogger.Log("Initial UWP generation complete");
+
+                // Generate population details for mainworld
+                if (mainworld.Population > 0)
+                {
+                    DebugLogger.Log("");
+                    DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                    DebugLogger.Log("Generating Population Details...");
+                    DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                    DeterminePopulationDetails(dice);
+                    DebugLogger.Log("");
+                    DebugLogger.Log("Population details generation complete");
+                }
             }
 
             // Generate UWPs for sophont worlds that are not the mainworld
@@ -7459,6 +7521,604 @@ namespace TravellerSystemGenerator
             sophontWorlds.Add(sophontWorld);
         }
 
+        private void DeterminePopulationDetails(Random dice)
+        {
+            if (mainworld == null || mainworld.Population == 0) return;
+
+            DebugLogger.Log("Determining trade codes...");
+
+            // Determine Trade Codes
+            DetermineTradeCodes();
+
+            DebugLogger.Log($"Trade Codes: {string.Join(", ", mainworld.TradeCodes.Select(tc => tc.Code))}");
+
+            // Calculate PCR (Population Concentration Rating)
+            DeterminePCR(dice);
+
+            DebugLogger.Log($"PCR: {mainworld.PCR} ({mainworld.PCRDescription})");
+
+            // Calculate Urbanisation
+            DetermineUrbanisation(dice);
+
+            DebugLogger.Log($"Urbanisation: {mainworld.UrbanisationPercent}% ({mainworld.TotalUrbanPopulation:N0} people)");
+
+            // Calculate Number of Major Cities
+            DetermineNumberOfMajorCities(dice);
+
+            DebugLogger.Log($"Number of Major Cities: {mainworld.NumberOfMajorCities}");
+
+            // Distribute Major City Populations
+            DistributeMajorCityPopulations(dice);
+
+            DebugLogger.Log($"Major Cities: {string.Join(", ", mainworld.MajorCities.Select(c => $"{c.Name}: {c.Population:N0}"))}");
+        }
+
+        private void DetermineTradeCodes()
+        {
+            if (mainworld == null) return;
+
+            mainworld.TradeCodes.Clear();
+
+            // Agricultural (Ag): Atm 4-9, Hyd 4-8, Pop 5-7
+            if (mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9 &&
+                mainworld.Hydrographics >= 4 && mainworld.Hydrographics <= 8 &&
+                mainworld.Population >= 5 && mainworld.Population <= 7)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Agricultural", "Ag"));
+            }
+
+            // Asteroid (As): Size 0, Atm 0, Hyd 0
+            if (mainworld.Size == 0 && mainworld.Atmosphere == 0 && mainworld.Hydrographics == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Asteroid", "As"));
+            }
+
+            // Barren (Ba): Pop 0, Gov 0, Law 0
+            if (mainworld.Population == 0 && mainworld.Government == 0 && mainworld.LawLevel == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Barren", "Ba"));
+            }
+
+            // Desert (De): Atm 2-9, Hyd 0
+            if (mainworld.Atmosphere >= 2 && mainworld.Atmosphere <= 9 && mainworld.Hydrographics == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Desert", "De"));
+            }
+
+            // Fluid Oceans (Fl): Atm >= A, Hyd >= 1
+            if (mainworld.Atmosphere >= 10 && mainworld.Hydrographics >= 1)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Fluid Oceans", "Fl"));
+            }
+
+            // Garden (Ga): Size 6-8, Atm 5/6/8, Hyd 5-7
+            if (mainworld.Size >= 6 && mainworld.Size <= 8 &&
+                (mainworld.Atmosphere == 5 || mainworld.Atmosphere == 6 || mainworld.Atmosphere == 8) &&
+                mainworld.Hydrographics >= 5 && mainworld.Hydrographics <= 7)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Garden", "Ga"));
+            }
+
+            // High Population (Hi): Pop >= 9
+            if (mainworld.Population >= 9)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("High Population", "Hi"));
+            }
+
+            // High Tech (Ht): TL >= C
+            if (mainworld.TechLevel >= 12)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("High Tech", "Ht"));
+            }
+
+            // Ice-Capped (Ic): Atm 0/1, Hyd >= 1
+            if ((mainworld.Atmosphere == 0 || mainworld.Atmosphere == 1) && mainworld.Hydrographics >= 1)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Ice-Capped", "Ic"));
+            }
+
+            // Industrial (In): Atm 0/1/2/4/7/9/A/B/C, Pop >= 9
+            if ((mainworld.Atmosphere == 0 || mainworld.Atmosphere == 1 || mainworld.Atmosphere == 2 ||
+                 mainworld.Atmosphere == 4 || mainworld.Atmosphere == 7 || mainworld.Atmosphere == 9 ||
+                 mainworld.Atmosphere == 10 || mainworld.Atmosphere == 11 || mainworld.Atmosphere == 12) &&
+                mainworld.Population >= 9)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Industrial", "In"));
+            }
+
+            // Low Population (Lo): Pop 1-3
+            if (mainworld.Population >= 1 && mainworld.Population <= 3)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Low Population", "Lo"));
+            }
+
+            // Low Tech (Lt): Pop >= 1, TL <= 5
+            if (mainworld.Population >= 1 && mainworld.TechLevel <= 5)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Low Tech", "Lt"));
+            }
+
+            // Non-Agricultural (Na): Atm 0-3, Hyd 0-3, Pop >= 6
+            if (mainworld.Atmosphere <= 3 && mainworld.Hydrographics <= 3 && mainworld.Population >= 6)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Non-Agricultural", "Na"));
+            }
+
+            // Non-Industrial (Ni): Pop 4-6
+            if (mainworld.Population >= 4 && mainworld.Population <= 6)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Non-Industrial", "Ni"));
+            }
+
+            // Poor (Po): Atm 2-5, Hyd 0-3
+            if (mainworld.Atmosphere >= 2 && mainworld.Atmosphere <= 5 &&
+                mainworld.Hydrographics <= 3)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Poor", "Po"));
+            }
+
+            // Rich (Ri): Atm 6/8, Pop 6-8, Gov 4-9
+            if ((mainworld.Atmosphere == 6 || mainworld.Atmosphere == 8) &&
+                mainworld.Population >= 6 && mainworld.Population <= 8 &&
+                mainworld.Government >= 4 && mainworld.Government <= 9)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Rich", "Ri"));
+            }
+
+            // Vacuum (Va): Atm 0
+            if (mainworld.Atmosphere == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Vacuum", "Va"));
+            }
+
+            // Waterworld (Wa): Atm 3-9 or >= D, Hyd >= A
+            if (((mainworld.Atmosphere >= 3 && mainworld.Atmosphere <= 9) || mainworld.Atmosphere >= 13) &&
+                mainworld.Hydrographics >= 10)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Waterworld", "Wa"));
+            }
+        }
+
+        private void DeterminePCR(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Initial check: Roll 1d6, if result > Population Code, PCR = 9
+            int initialRoll = Starhelper.diceRoll(6, 1, dice);
+            if (initialRoll > mainworld.Population)
+            {
+                mainworld.PCR = 9;
+                mainworld.PCRDescription = "Extremely Concentrated";
+                return;
+            }
+
+            // Calculate PCR with DMs
+            int dm = 0;
+
+            // Size DMs
+            if (mainworld.Size == 1) dm += 2;
+            else if (mainworld.Size == 2 || mainworld.Size == 3) dm += 1;
+
+            // Tidal Lock DM - check if placed world is tidally locked
+            if (mainworld.PlacedWorld != null)
+            {
+                string tidalLockStatus = "";
+                if (mainworld.PlacedWorld is TerrestrialPlanet planet)
+                {
+                    tidalLockStatus = planet.TidalLockStatus;
+                }
+                else if (mainworld.PlacedWorld is Moon moon)
+                {
+                    tidalLockStatus = moon.TidalLockStatus;
+                }
+                // PlanetoidBelt doesn't have TidalLockStatus
+
+                if (tidalLockStatus.Contains("1:1"))
+                {
+                    dm += 2;
+                }
+            }
+
+            // Minimum Sustainable Tech Level DMs
+            int minSustainableTechLevel = GetMinimalSustainableTechLevel();
+            if (minSustainableTechLevel >= 8) dm += 3;
+            else if (minSustainableTechLevel >= 3 && minSustainableTechLevel <= 7) dm += 1;
+
+            // Population DMs
+            if (mainworld.Population == 8) dm -= 1;
+            else if (mainworld.Population >= 9) dm -= 2;
+
+            // Government DMs
+            if (mainworld.Government == 7) dm -= 2;
+
+            // Tech Level DMs
+            if (mainworld.TechLevel <= 1) dm -= 2;
+            else if (mainworld.TechLevel >= 2 && mainworld.TechLevel <= 3) dm -= 1;
+            else if (mainworld.TechLevel >= 4 && mainworld.TechLevel <= 9) dm += 1;
+
+            // Trade Code DMs
+            bool hasAgricultural = mainworld.TradeCodes.Any(tc => tc.Code == "Ag");
+            bool hasIndustrial = mainworld.TradeCodes.Any(tc => tc.Code == "In");
+            bool hasNonIndustrial = mainworld.TradeCodes.Any(tc => tc.Code == "Ni");
+            bool hasRich = mainworld.TradeCodes.Any(tc => tc.Code == "Ri");
+
+            if (hasAgricultural) dm -= 2;
+            if (hasIndustrial) dm += 1;
+            if (hasNonIndustrial) dm -= 1;
+            if (hasRich) dm += 1;
+
+            // Final roll with DMs
+            int finalRoll = Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // Clamp to 0-9 range
+            mainworld.PCR = Math.Clamp(finalRoll, 0, 9);
+
+            // Set description
+            mainworld.PCRDescription = mainworld.PCR switch
+            {
+                0 => "Extremely Dispersed",
+                1 => "Highly Dispersed",
+                2 => "Moderately Dispersed",
+                3 => "Partially Dispersed",
+                4 => "Slightly Dispersed",
+                5 => "Slightly Concentrated",
+                6 => "Partially Concentrated",
+                7 => "Moderately Concentrated",
+                8 => "Highly Concentrated",
+                9 => "Extremely Concentrated",
+                _ => ""
+            };
+        }
+
+        private int GetMinimalSustainableTechLevel()
+        {
+            if (mainworld == null) return 0;
+
+            int minTech = 0;
+
+            // Atmosphere-based minimum tech level
+            switch (mainworld.Atmosphere)
+            {
+                case 0:
+                case 1:
+                case 10: // A
+                    minTech = Math.Max(minTech, 8);
+                    break;
+                case 2:
+                case 3:
+                case 13: // D
+                case 14: // E
+                    minTech = Math.Max(minTech, 5);
+                    break;
+                case 4:
+                case 7:
+                case 9:
+                    minTech = Math.Max(minTech, 3);
+                    break;
+                case 11: // B
+                    minTech = Math.Max(minTech, 9);
+                    break;
+                case 12: // C
+                case 15: // F
+                    minTech = Math.Max(minTech, 10); // A in hex
+                    break;
+                case 16: // G
+                case 17: // H
+                    minTech = Math.Max(minTech, 13); // D in hex
+                    break;
+            }
+
+            // Habitability Rating-based minimum tech level
+            int habitabilityRating = 0;
+            if (mainworld.PlacedWorld is TerrestrialPlanet planet)
+            {
+                habitabilityRating = planet.HabitabilityRating;
+            }
+            else if (mainworld.PlacedWorld is Moon moon)
+            {
+                habitabilityRating = moon.HabitabilityRating;
+            }
+            // PlanetoidBelt doesn't have HabitabilityRating, defaults to 0
+
+            if (habitabilityRating >= 3 && habitabilityRating <= 7)
+            {
+                minTech = Math.Max(minTech, 3);
+            }
+            else if (habitabilityRating >= 1 && habitabilityRating <= 2)
+            {
+                minTech = Math.Max(minTech, 5);
+            }
+            else if (habitabilityRating == 0)
+            {
+                minTech = Math.Max(minTech, 8);
+            }
+
+            return minTech;
+        }
+
+        private void DetermineUrbanisation(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Calculate DMs
+            int dm = 0;
+            int? maximumPercent = null;
+            int? minimumPercent = null;
+
+            // PCR DMs
+            if (mainworld.PCR <= 2)
+            {
+                dm += -3 + mainworld.PCR; // PCR 0 = -3, PCR 1 = -2, PCR 2 = -1
+            }
+            else if (mainworld.PCR >= 7)
+            {
+                dm += -6 + mainworld.PCR; // PCR 7 = +1, PCR 8 = +2, PCR 9 = +3
+            }
+
+            // Minimal Sustainable Tech Level DMs
+            int minSustainableTechLevel = GetMinimalSustainableTechLevel();
+            if (minSustainableTechLevel == 0 || minSustainableTechLevel == 1 || minSustainableTechLevel == 3)
+            {
+                dm -= 1;
+            }
+
+            // Size DMs
+            if (mainworld.Size == 0) dm += 2;
+
+            // Population DMs
+            if (mainworld.Population == 8)
+            {
+                dm += 1;
+            }
+            else if (mainworld.Population == 9)
+            {
+                dm += 2;
+                minimumPercent = 18 + Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (mainworld.Population >= 10) // A or higher
+            {
+                dm += 4;
+                minimumPercent = 50 + Starhelper.diceRoll(6, 1, dice);
+            }
+
+            // Government DMs
+            if (mainworld.Government == 0) dm -= 2;
+
+            // Law Level DMs
+            if (mainworld.LawLevel >= 9) dm += 1;
+
+            // Tech Level DMs (with caps)
+            if (mainworld.TechLevel <= 2)
+            {
+                dm -= 2;
+                int cap = 20 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel == 3)
+            {
+                dm -= 1;
+                int cap = 30 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel == 4)
+            {
+                dm += 1;
+                int cap = 60 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel >= 5 && mainworld.TechLevel <= 9)
+            {
+                dm += 1;
+                int cap = 90 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel >= 10) // A or higher
+            {
+                dm += 1;
+            }
+
+            // Trade Code DMs (with cap)
+            bool hasAgricultural = mainworld.TradeCodes.Any(tc => tc.Code == "Ag");
+            bool hasNonIndustrial = mainworld.TradeCodes.Any(tc => tc.Code == "Ni");
+
+            if (hasAgricultural)
+            {
+                dm -= 2;
+                int cap = 90 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            if (hasNonIndustrial) dm += 2;
+
+            // Roll 2d6 + DMs
+            int roll = Starhelper.diceRoll(6, 2, dice) + dm;
+
+            // Look up urbanisation % from table
+            int urbanisation = roll switch
+            {
+                <= 0 => 0,
+                1 => Starhelper.diceRoll(6, 1, dice),
+                2 => 6 + Starhelper.diceRoll(6, 1, dice),
+                3 => 12 + Starhelper.diceRoll(6, 1, dice),
+                4 => 18 + Starhelper.diceRoll(6, 1, dice),
+                5 => 22 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                6 => 34 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                7 => 46 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                8 => 58 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                9 => 70 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                10 => 84 + Starhelper.diceRoll(6, 1, dice),
+                11 => 90 + Starhelper.diceRoll(6, 1, dice),
+                12 => 96 + Starhelper.diceRoll(3, 1, dice),
+                >= 13 => 100
+            };
+
+            // Apply maximum cap first
+            if (maximumPercent.HasValue)
+            {
+                urbanisation = Math.Min(urbanisation, maximumPercent.Value);
+            }
+
+            // Then apply minimum
+            if (minimumPercent.HasValue)
+            {
+                urbanisation = Math.Max(urbanisation, minimumPercent.Value);
+            }
+
+            // Ensure result is in valid range 0-100
+            mainworld.UrbanisationPercent = Math.Clamp(urbanisation, 0, 100);
+
+            // Calculate total urban population
+            mainworld.TotalUrbanPopulation = (long)(mainworld.ActualPopulation * (mainworld.UrbanisationPercent / 100.0));
+        }
+
+        private void DetermineNumberOfMajorCities(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Case 1: PCR = 0 (Extremely Dispersed) - No major cities
+            if (mainworld.PCR == 0)
+            {
+                mainworld.NumberOfMajorCities = 0;
+                mainworld.MajorCityPopulation = 0;
+                return;
+            }
+
+            // Case 2: Population <= 5 AND PCR = 9 (Small world, Extremely Concentrated)
+            if (mainworld.Population <= 5 && mainworld.PCR == 9)
+            {
+                mainworld.NumberOfMajorCities = 1;
+                mainworld.MajorCityPopulation = mainworld.TotalUrbanPopulation;
+                return;
+            }
+
+            // Case 3: Population <= 5 AND PCR 1-8 (Small world, Moderately Concentrated)
+            if (mainworld.Population <= 5)
+            {
+                mainworld.NumberOfMajorCities = Math.Min(9 - mainworld.PCR, mainworld.Population);
+                mainworld.MajorCityPopulation = mainworld.TotalUrbanPopulation;
+                return;
+            }
+
+            // Case 4: Population >= 6 AND PCR = 9 (Large world, Extremely Concentrated)
+            if (mainworld.PCR == 9)
+            {
+                int roll = Starhelper.diceRoll(6, 2, dice);
+                mainworld.NumberOfMajorCities = Math.Max(mainworld.Population - roll, 1);
+                mainworld.MajorCityPopulation = mainworld.TotalUrbanPopulation;
+                return;
+            }
+
+            // Case 5: All other cases (Population >= 6 AND PCR 1-8)
+            // Number of Major Cities = (2d6) - PCR + ((Urbanisation% * 20) / PCR)
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            double calculation = diceRoll - mainworld.PCR + ((mainworld.UrbanisationPercent * 20.0) / mainworld.PCR);
+            mainworld.NumberOfMajorCities = (int)Math.Ceiling(calculation); // Round UP
+
+            // Cap at population code for small worlds
+            if (mainworld.Population < 6)
+            {
+                mainworld.NumberOfMajorCities = Math.Min(mainworld.NumberOfMajorCities, mainworld.Population);
+            }
+
+            // Ensure at least 1 major city
+            mainworld.NumberOfMajorCities = Math.Max(1, mainworld.NumberOfMajorCities);
+
+            // Major Cities Population = PCR / (1d6 + 7) * Total Urban Population
+            int divisor = Starhelper.diceRoll(6, 1, dice) + 7;
+            mainworld.MajorCityPopulation = (long)((mainworld.PCR / (double)divisor) * mainworld.TotalUrbanPopulation);
+        }
+
+        private void DistributeMajorCityPopulations(Random dice)
+        {
+            if (mainworld == null || mainworld.NumberOfMajorCities == 0) return;
+
+            mainworld.MajorCities.Clear();
+
+            // Special case: Single major city gets all the population
+            if (mainworld.NumberOfMajorCities == 1)
+            {
+                mainworld.MajorCities.Add(new MajorCity(1, mainworld.MajorCityPopulation, 100));
+                return;
+            }
+
+            // Chunk-based allocation algorithm for multiple cities
+
+            // Step A: Initialize each city with 1%
+            double[] cityPercentages = new double[mainworld.NumberOfMajorCities];
+            for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
+            {
+                cityPercentages[i] = 1.0;
+            }
+
+            // Step B: Calculate remaining pool
+            int remainingPool = 100 - mainworld.NumberOfMajorCities;
+
+            // Step C: Determine chunk size
+            // Maximum chunk = PCR
+            // Minimum chunk ensures at least 2x number of cities chunks
+            int minChunkSize = remainingPool / (2 * mainworld.NumberOfMajorCities);
+            int chunkSize = Math.Min(mainworld.PCR, Math.Max(1, minChunkSize));
+
+            // For better distribution, prefer smaller chunks if PCR allows
+            // Use PCR as chunk size (capped by max PCR value)
+            chunkSize = Math.Min(mainworld.PCR, Math.Max(1, chunkSize));
+
+            // Step D: Calculate number of chunks
+            int numChunks = remainingPool / chunkSize;
+            int remainder = remainingPool % chunkSize;
+
+            // Step E & F: Allocate chunks in rounds
+            int chunksAllocated = 0;
+            int cityIndex = 0;
+            int lastCityToGetChunk = 0;
+
+            while (chunksAllocated < numChunks)
+            {
+                // Roll 1d6 for current city
+                int roll = Starhelper.diceRoll(6, 1, dice);
+
+                // Allocate chunks (up to roll amount, or remaining chunks)
+                int chunksForThisCity = Math.Min(roll, numChunks - chunksAllocated);
+                cityPercentages[cityIndex] += chunksForThisCity * chunkSize;
+
+                if (chunksForThisCity > 0)
+                {
+                    lastCityToGetChunk = cityIndex;
+                    chunksAllocated += chunksForThisCity;
+                }
+
+                // Move to next city (cycle through all cities)
+                cityIndex = (cityIndex + 1) % mainworld.NumberOfMajorCities;
+            }
+
+            // Step G: Allocate remainder to the city that would get the next chunk
+            if (remainder > 0)
+            {
+                int cityToGetRemainder = (lastCityToGetChunk + 1) % mainworld.NumberOfMajorCities;
+                cityPercentages[cityToGetRemainder] += remainder;
+            }
+
+            // Step H: Total percentages (already calculated in cityPercentages array)
+
+            // Step I: Calculate actual populations
+            long onePercent = mainworld.MajorCityPopulation / 100;
+            List<MajorCity> cities = new List<MajorCity>();
+
+            for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
+            {
+                long population = (long)(onePercent * cityPercentages[i]);
+                cities.Add(new MajorCity(i + 1, population, cityPercentages[i]));
+            }
+
+            // Step J: Reorder by population (largest to smallest)
+            cities.Sort((a, b) => b.Population.CompareTo(a.Population));
+
+            // Reassign city numbers (I, II, III, etc.) based on size
+            for (int i = 0; i < cities.Count; i++)
+            {
+                mainworld.MajorCities.Add(new MajorCity(i + 1, cities[i].Population, cities[i].PercentOfMajorCityPop));
+            }
+        }
+
         private string GetGovernmentType(int governmentCode)
         {
             return governmentCode switch
@@ -10335,7 +10995,15 @@ namespace TravellerSystemGenerator
                         html.AppendLine($"                <td class=\"numeric\">{au}</td>");
                         html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
                         html.AppendLine($"                <td>{world.Period}</td>");
-                        html.AppendLine($"                <td class=\"center\">{world.Size}</td>");
+
+                        // Add link to Population Details form for mainworld with population
+                        string sizeCell = world.Size;
+                        if (world.Object.Contains("*") && mainworld != null && mainworld.Population > 0 && world.Size.Contains("-"))
+                        {
+                            sizeCell = $"<a href=\"surveys/PopulatedWorldDetails.html\">{world.Size}</a>";
+                        }
+
+                        html.AppendLine($"                <td class=\"center\">{sizeCell}</td>");
                         html.AppendLine($"                <td class=\"center\">{world.Sub}</td>");
                         html.AppendLine($"                <td>{notesCell}</td>");
                         html.AppendLine("            </tr>");
@@ -10755,6 +11423,205 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <td style=\"height: 100px;\"></td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private string GeneratePopulatedWorldDetailsFormHtml()
+        {
+            if (mainworld == null || mainworld.Population == 0) return "";
+
+            StringBuilder html = new StringBuilder();
+
+            // Get primary object name
+            string primaryObjectName = "";
+            if (this.primaryObject.celestrialObject is Star star)
+            {
+                primaryObjectName = star.Designation;
+            }
+
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine($"    <title>Populated World Details - {systemName ?? "Mainworld"}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; text-align: center; }");
+            html.AppendLine("        .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }");
+            html.AppendLine("        .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 8px; text-align: left; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; }");
+            html.AppendLine("        .field-label { font-weight: bold; width: 250px; background-color: #e8e8e8; }");
+            html.AppendLine("        .back-link { margin-bottom: 10px; }");
+            html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("        .city-table { margin-top: 10px; }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+
+            // Back link
+            html.AppendLine("        <div class=\"back-link\">");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
+            html.AppendLine("        </div>");
+
+            // Title
+            html.AppendLine("        <div class=\"header\">");
+            html.AppendLine("            <h1 style=\"margin: 0;\">POPULATED WORLD DETAILS</h1>");
+            html.AppendLine("        </div>");
+
+            // World and UWP
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th style=\"width: 70%;\">WORLD</th>");
+            html.AppendLine($"                <th>UWP</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{systemName ?? "Mainworld"}</td>");
+            html.AppendLine($"                <td>{mainworld.UWP}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Primary Object(s)
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">PRIMARY OBJECT(S)</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td colspan=\"2\">{primaryObjectName}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Population Details
+            html.AppendLine("        <div class=\"section\">");
+            html.AppendLine("            <div class=\"section-title\">POPULATION DETAILS</div>");
+            html.AppendLine("            <table>");
+
+            // Trade Codes
+            string tradeCodes = mainworld.TradeCodes.Count > 0
+                ? string.Join(", ", mainworld.TradeCodes.Select(tc => $"{tc.Name} ({tc.Code})"))
+                : "None";
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Trade Codes</td>");
+            html.AppendLine($"                    <td>{tradeCodes}</td>");
+            html.AppendLine("                </tr>");
+
+            // PCR
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Population Concentration Rating (PCR)</td>");
+            html.AppendLine($"                    <td>{mainworld.PCR} - {mainworld.PCRDescription}</td>");
+            html.AppendLine("                </tr>");
+
+            // Urbanisation
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Urbanisation</td>");
+            html.AppendLine($"                    <td>{mainworld.UrbanisationPercent}%</td>");
+            html.AppendLine("                </tr>");
+
+            // Total Urban Population
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Total Urban Population</td>");
+            html.AppendLine($"                    <td>{mainworld.TotalUrbanPopulation:N0}</td>");
+            html.AppendLine("                </tr>");
+
+            // Number of Major Cities
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Number of Major Cities</td>");
+            html.AppendLine($"                    <td>{mainworld.NumberOfMajorCities}</td>");
+            html.AppendLine("                </tr>");
+
+            // Major City Population
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Major City Population</td>");
+            html.AppendLine($"                    <td>{mainworld.MajorCityPopulation:N0}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("            </table>");
+            html.AppendLine("        </div>");
+
+            // Major Cities List
+            if (mainworld.MajorCities.Count > 0)
+            {
+                html.AppendLine("        <div class=\"section\">");
+                html.AppendLine("            <div class=\"section-title\">MAJOR CITIES</div>");
+                html.AppendLine("            <table class=\"city-table\">");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <th style=\"width: 10%;\">Rank</th>");
+                html.AppendLine("                    <th style=\"width: 20%;\">City</th>");
+                html.AppendLine("                    <th style=\"width: 35%;\">Population</th>");
+                html.AppendLine("                    <th style=\"width: 35%;\">% of Major City Pop</th>");
+                html.AppendLine("                </tr>");
+
+                for (int i = 0; i < mainworld.MajorCities.Count; i++)
+                {
+                    var city = mainworld.MajorCities[i];
+                    html.AppendLine("                <tr>");
+                    html.AppendLine($"                    <td>{i + 1}</td>");
+                    html.AppendLine($"                    <td>City {city.Name}</td>");
+                    html.AppendLine($"                    <td>{city.Population:N0}</td>");
+                    html.AppendLine($"                    <td>{city.PercentOfMajorCityPop:F2}%</td>");
+                    html.AppendLine("                </tr>");
+                }
+
+                html.AppendLine("            </table>");
+                html.AppendLine("        </div>");
+            }
+
+            // Other UWP Details
+            html.AppendLine("        <div class=\"section\">");
+            html.AppendLine("            <div class=\"section-title\">OTHER UWP DETAILS</div>");
+            html.AppendLine("            <table>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Starport</td>");
+            html.AppendLine($"                    <td>{mainworld.Starport}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Size</td>");
+            html.AppendLine($"                    <td>{mainworld.Size}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Atmosphere</td>");
+            html.AppendLine($"                    <td>{mainworld.Atmosphere}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Hydrographics</td>");
+            html.AppendLine($"                    <td>{mainworld.Hydrographics}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Population</td>");
+            html.AppendLine($"                    <td>{mainworld.Population} ({mainworld.ActualPopulation:N0})</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Government</td>");
+            html.AppendLine($"                    <td>{mainworld.Government} - {mainworld.GovernmentType}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Law Level</td>");
+            html.AppendLine($"                    <td>{mainworld.LawLevel}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"field-label\">Tech Level</td>");
+            html.AppendLine($"                    <td>{mainworld.TechLevel}</td>");
+            html.AppendLine("                </tr>");
+
+            html.AppendLine("            </table>");
+            html.AppendLine("        </div>");
 
             html.AppendLine("    </div>");
             html.AppendLine("</body>");
@@ -11433,6 +12300,28 @@ namespace TravellerSystemGenerator
             }
 
             Console.WriteLine($"Generated {surveyDataList.Count} IISS Class IV Survey forms in surveys/");
+
+            // Generate Populated World Details form for mainworld if it has population
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                string popDetailsHtml = GeneratePopulatedWorldDetailsFormHtml();
+                if (!string.IsNullOrEmpty(popDetailsHtml))
+                {
+                    string popDetailsFilename = "PopulatedWorldDetails.html";
+                    string popDetailsPath = System.IO.Path.Combine(surveysFolder, popDetailsFilename);
+
+                    try
+                    {
+                        System.IO.File.WriteAllText(popDetailsPath, popDetailsHtml);
+                        DebugLogger.Log($"Generated Populated World Details form: {popDetailsFilename}");
+                        Console.WriteLine($"Generated Populated World Details form in surveys/");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"ERROR: Failed to write Populated World Details file - {ex.Message}");
+                    }
+                }
+            }
         }
 
         private int CountDStarsInSystem()
