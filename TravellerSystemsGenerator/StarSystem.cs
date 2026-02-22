@@ -10797,6 +10797,43 @@ namespace TravellerSystemGenerator
             return string.Join(", ", processedParts);
         }
 
+        private string AddBeltProfileTooltip(string notes)
+        {
+            // Planetoid belt profile format: S-Cm.Cs.Cc.Co-B-R-#-s
+            // Where S = Belt Span (AU), Cm = Main Type, Cs = Secondary Type, Cc = Composition Code, Co = Other
+            // B = Bulk, R = Resource Rating, # = Size 1 Bodies, s = Size S Bodies (last 4 in ehex)
+
+            // Match the belt profile pattern (e.g., "1.1-02.17.70.11-7-B-3-C")
+            // Pattern: decimal-digit.digit.digit.digit-ehex-ehex-ehex-ehex
+            System.Text.RegularExpressions.Regex beltPattern = new System.Text.RegularExpressions.Regex(
+                @"(\d+\.\d+)-(\d{2})\.(\d{2})\.(\d{2})\.(\d{2})-([0-9A-Z])-([0-9A-Z])-([0-9A-Z])-([0-9A-Z])"
+            );
+
+            var match = beltPattern.Match(notes);
+            if (match.Success)
+            {
+                string beltCode = match.Value;
+                string span = match.Groups[1].Value;
+                string mType = match.Groups[2].Value;
+                string sType = match.Groups[3].Value;
+                string cType = match.Groups[4].Value;
+                string other = match.Groups[5].Value;
+                string bulk = match.Groups[6].Value;
+                string resource = match.Groups[7].Value;
+                string size1 = match.Groups[8].Value;
+                string sizeS = match.Groups[9].Value;
+
+                string tooltip = $"Belt Profile: {span} AU span | Composition: Main {mType}, Secondary {sType}, Type {cType}, Other {other} | " +
+                                $"Bulk Density: {bulk} | Resource Rating: {resource} | Bodies: {size1} size-1, {sizeS} size-S";
+
+                // Replace the belt code with a span that has a tooltip
+                string replacement = $"<span title=\"{tooltip}\" style=\"cursor: help; border-bottom: 1px dotted #666;\">{beltCode}</span>";
+                return notes.Replace(beltCode, replacement);
+            }
+
+            return notes;
+        }
+
         private void GenerateHtmlOutput(List<StarDisplayData> starData, List<WorldDisplayData> worldData)
         {
             StringBuilder html = new StringBuilder();
@@ -10998,6 +11035,12 @@ namespace TravellerSystemGenerator
 
                         // Add clickable links for moons in Notes field
                         string notesCell = AddMoonLinksToNotes(world.Notes, world.Object, world.Moons);
+
+                        // Add tooltip for planetoid belt profile codes
+                        if (world.Type == "Planetoid Belt" && !string.IsNullOrEmpty(notesCell))
+                        {
+                            notesCell = AddBeltProfileTooltip(notesCell);
+                        }
 
                         html.AppendLine("            <tr>");
 
