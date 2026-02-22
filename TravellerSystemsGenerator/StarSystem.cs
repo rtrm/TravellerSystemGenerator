@@ -39,7 +39,8 @@ namespace TravellerSystemGenerator
         public string Object { get; set; } = "";
         public string Type { get; set; } = "";  // Object type: Gas Giant, Planetoid Belt, Terrestrial Planet
         public string Size { get; set; } = ""; // Size code for terrestrial planets (or UWP for mainworld)
-        public float Orbit { get; set; }
+        public string Orbit { get; set; } = ""; // Orbit number (may include (R) suffix for Random orbit)
+        public float OrbitNumber { get; set; } // Numeric orbit for sorting
         public float AU { get; set; }
         public float Ecc { get; set; }
         public string Period { get; set; } = "";
@@ -133,6 +134,7 @@ namespace TravellerSystemGenerator
         private MainworldData? mainworld;
         private string? systemName;
         private bool NoMainworld;
+        private List<MainworldData> sophontWorlds = new List<MainworldData>(); // List of worlds/moons with native sophonts
 
         internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false)
         {
@@ -510,6 +512,129 @@ namespace TravellerSystemGenerator
                 DebugLogger.Log("");
                 DebugLogger.Log("Initial UWP generation complete");
             }
+
+            // Generate UWPs for sophont worlds that are not the mainworld
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Generating UWPs for sophont worlds...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+
+            // Iterate through all celestial bodies to find sophont worlds
+            foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.CurrentNativeSophont == "Yes")
+                {
+                    // Skip if this is the mainworld
+                    if (mainworld != null && tp == mainworld.PlacedWorld)
+                    {
+                        DebugLogger.Log($"Skipping {tp.Designation} - is mainworld");
+                        continue;
+                    }
+                    DebugLogger.Log($"Generating UWP for {tp.Designation} (sophont terrestrial planet)");
+                    GenerateSophontWorldUWP(tp, dice);
+                }
+                    else if (bodyObj.celestrialObject is GasGiant gg)
+                    {
+                        // Check moons of gas giants
+                        foreach (var moon in gg.Moons)
+                        {
+                            if (moon.CurrentNativeSophont == "Yes")
+                            {
+                                // Skip if this is the mainworld
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    DebugLogger.Log($"Skipping {gg.Designation} {moon.Designation} - is mainworld");
+                                    continue;
+                                }
+                                DebugLogger.Log($"Generating UWP for {gg.Designation} {moon.Designation} (sophont moon)");
+                                GenerateSophontWorldUWP(moon, dice);
+                            }
+                        }
+                    }
+                    else if (bodyObj.celestrialObject is TerrestrialPlanet tpMoons)
+                    {
+                        // Check moons of terrestrial planets
+                        foreach (var moon in tpMoons.Moons)
+                        {
+                            if (moon.CurrentNativeSophont == "Yes")
+                            {
+                                // Skip if this is the mainworld
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    DebugLogger.Log($"Skipping {tpMoons.Designation} {moon.Designation} - is mainworld");
+                                    continue;
+                                }
+                                DebugLogger.Log($"Generating UWP for {tpMoons.Designation} {moon.Designation} (sophont moon)");
+                                GenerateSophontWorldUWP(moon, dice);
+                            }
+                        }
+                    }
+                }
+
+                // Also check companion stars
+                var companionStarObjects = primaryObject.celestrialObjectOrbits
+                    .Where(obj => obj.celestrialObject is Star)
+                    .ToList();
+
+                foreach (var companionObj in companionStarObjects)
+                {
+                    if (companionObj.celestrialObject is Star companionStar)
+                    {
+                        foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.CurrentNativeSophont == "Yes")
+                        {
+                            // Skip if this is the mainworld
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                DebugLogger.Log($"Skipping {tp.Designation} - is mainworld");
+                                continue;
+                            }
+                            DebugLogger.Log($"Generating UWP for {tp.Designation} (sophont terrestrial planet)");
+                            GenerateSophontWorldUWP(tp, dice);
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            // Check moons of gas giants
+                            foreach (var moon in gg.Moons)
+                            {
+                                if (moon.CurrentNativeSophont == "Yes")
+                                {
+                                    // Skip if this is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        DebugLogger.Log($"Skipping {gg.Designation} {moon.Designation} - is mainworld");
+                                        continue;
+                                    }
+                                    DebugLogger.Log($"Generating UWP for {gg.Designation} {moon.Designation} (sophont moon)");
+                                    GenerateSophontWorldUWP(moon, dice);
+                                }
+                            }
+                        }
+                        else if (bodyObj.celestrialObject is TerrestrialPlanet tpMoons)
+                        {
+                            // Check moons of terrestrial planets
+                            foreach (var moon in tpMoons.Moons)
+                            {
+                                if (moon.CurrentNativeSophont == "Yes")
+                                {
+                                    // Skip if this is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        DebugLogger.Log($"Skipping {tpMoons.Designation} {moon.Designation} - is mainworld");
+                                        continue;
+                                    }
+                                    DebugLogger.Log($"Generating UWP for {tpMoons.Designation} {moon.Designation} (sophont moon)");
+                                    GenerateSophontWorldUWP(moon, dice);
+                                }
+                            }
+                        }
+                    }
+                    }
+                }
+
+            DebugLogger.Log("");
+            DebugLogger.Log($"Sophont world UWP generation complete ({sophontWorlds.Count} worlds)");
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -7175,6 +7300,165 @@ namespace TravellerSystemGenerator
             DebugLogger.Log($"  Government: {mainworld.GovernmentType}");
         }
 
+        private void GenerateSophontWorldUWP(object world, Random dice)
+        {
+            // Extract Size, Atmosphere, and Hydrographics from current SAH
+            string sah = "";
+            int habitabilityRating = 0;
+
+            if (world is TerrestrialPlanet tp)
+            {
+                sah = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                habitabilityRating = tp.HabitabilityRating;
+            }
+            else if (world is Moon m)
+            {
+                sah = m.Size + m.Atmosphere + m.HydrographicsCode;
+                habitabilityRating = m.HabitabilityRating;
+            }
+            else
+            {
+                return; // Not a valid world type
+            }
+
+            MainworldData sophontWorld = new MainworldData
+            {
+                PlacedWorld = world,
+                Size = FromEhex(sah.Substring(0, 1)),
+                Atmosphere = FromEhex(sah.Substring(1, 1)),
+                Hydrographics = FromEhex(sah.Substring(2, 1))
+            };
+
+            DebugLogger.Log($"  Sophont World SAH: Size={IntToEhex(sophontWorld.Size)}, Atmosphere={IntToEhex(sophontWorld.Atmosphere)}, Hydrographics={IntToEhex(sophontWorld.Hydrographics)}");
+
+            // 1. Calculate Population Code using one of three methods
+            int populationMethod = Starhelper.diceRoll(3, 1, dice); // Random 1-3
+
+            if (populationMethod == 1)
+            {
+                // Method 1: (2d6) - 2, but reroll if result < 6
+                do
+                {
+                    sophontWorld.Population = Starhelper.diceRoll(6, 2, dice) - 2;
+                } while (sophontWorld.Population < 6);
+                DebugLogger.Log($"  Population Code (Method 1 - reroll): {IntToEhex(sophontWorld.Population)}");
+            }
+            else if (populationMethod == 2)
+            {
+                // Method 2: (2d6) - 2, but change any result < 6 to 6 or 7
+                sophontWorld.Population = Starhelper.diceRoll(6, 2, dice) - 2;
+                if (sophontWorld.Population < 6)
+                {
+                    sophontWorld.Population = Starhelper.diceRoll(2, 1, dice) + 5; // Roll 1d2 + 5 = 6 or 7
+                }
+                DebugLogger.Log($"  Population Code (Method 2 - replace): {IntToEhex(sophontWorld.Population)}");
+            }
+            else
+            {
+                // Method 3: (2d3) + 4
+                sophontWorld.Population = Starhelper.diceRoll(3, 2, dice) + 4;
+                DebugLogger.Log($"  Population Code (Method 3 - 2d3+4): {IntToEhex(sophontWorld.Population)}");
+            }
+
+            if (sophontWorld.Population < 0) sophontWorld.Population = 0;
+
+            // Calculate PopulationP
+            if (sophontWorld.Population == 0)
+            {
+                sophontWorld.PopulationP = 0;
+            }
+            else if (sophontWorld.Population == 10) // A
+            {
+                sophontWorld.PopulationP = 1;
+                // Roll 1d6, on 5-6 add 2 and repeat
+                while (sophontWorld.PopulationP < 9)
+                {
+                    int roll = Starhelper.diceRoll(6, 1, dice);
+                    if (roll >= 5)
+                    {
+                        sophontWorld.PopulationP += 2;
+                        if (sophontWorld.PopulationP > 9)
+                        {
+                            sophontWorld.PopulationP = 9;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                sophontWorld.PopulationP = Starhelper.diceRoll(9, 1, dice) + 1;
+                if (sophontWorld.PopulationP > 9) sophontWorld.PopulationP = 9;
+            }
+
+            // Calculate actual population
+            if (sophontWorld.Population == 0)
+            {
+                sophontWorld.ActualPopulation = 0;
+            }
+            else
+            {
+                long basePopulation = (long)Math.Pow(10, sophontWorld.Population);
+                long minPop = basePopulation * (sophontWorld.PopulationP - 1);
+                long maxPop = basePopulation * sophontWorld.PopulationP;
+                sophontWorld.ActualPopulation = minPop + (long)(dice.NextDouble() * (maxPop - minPop));
+            }
+
+            DebugLogger.Log($"  PopulationP: {sophontWorld.PopulationP}, Actual Population: {sophontWorld.ActualPopulation:N0}");
+
+            // 2. Calculate Government Code
+            sophontWorld.Government = Starhelper.diceRoll(6, 2, dice) - 7 + sophontWorld.Population;
+            if (sophontWorld.Government < 0) sophontWorld.Government = 0;
+            if (sophontWorld.Government > 15) sophontWorld.Government = 15;
+
+            // Get Government Type
+            sophontWorld.GovernmentType = GetGovernmentType(sophontWorld.Government);
+
+            DebugLogger.Log($"  Government Code: {IntToEhex(sophontWorld.Government)} ({sophontWorld.GovernmentType})");
+
+            // 3. Calculate Law Level
+            sophontWorld.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + sophontWorld.Government;
+            if (sophontWorld.LawLevel < 0) sophontWorld.LawLevel = 0;
+
+            DebugLogger.Log($"  Law Level: {IntToEhex(sophontWorld.LawLevel)}");
+
+            // 4. Calculate Starport (with -2 DM for sophont worlds)
+            int starportRoll = Starhelper.diceRoll(6, 2, dice);
+            int starportDM = -2; // Sophont worlds have -2 DM
+
+            if (sophontWorld.Population >= 8 && sophontWorld.Population <= 9) starportDM += 1;
+            if (sophontWorld.Population >= 10) starportDM += 2;
+            if (sophontWorld.Population >= 3 && sophontWorld.Population <= 4) starportDM -= 1;
+            if (sophontWorld.Population <= 2) starportDM -= 2;
+
+            int starportResult = starportRoll + starportDM;
+            sophontWorld.Starport = GetStarportClass(starportResult);
+
+            DebugLogger.Log($"  Starport: {sophontWorld.Starport} (roll {starportRoll} + DM {starportDM} = {starportResult})");
+
+            // 5. Calculate Tech Level (no minimum check for sophont worlds)
+            int techLevelRoll = Starhelper.diceRoll(6, 1, dice);
+            int techLevelDM = GetTechLevelDM(sophontWorld);
+            sophontWorld.TechLevel = techLevelRoll + techLevelDM;
+            if (sophontWorld.TechLevel < 0) sophontWorld.TechLevel = 0;
+
+            DebugLogger.Log($"  Tech Level: {IntToEhex(sophontWorld.TechLevel)} (roll {techLevelRoll} + DM {techLevelDM}) - no minimum check");
+
+            // Build final UWP string
+            sophontWorld.UWP = $"{sophontWorld.Starport}{IntToEhex(sophontWorld.Size)}{IntToEhex(sophontWorld.Atmosphere)}{IntToEhex(sophontWorld.Hydrographics)}{IntToEhex(sophontWorld.Population)}{IntToEhex(sophontWorld.Government)}{IntToEhex(sophontWorld.LawLevel)}-{IntToEhex(sophontWorld.TechLevel)}";
+
+            DebugLogger.Log($"  Final UWP: {sophontWorld.UWP}");
+            DebugLogger.Log($"  Population: {sophontWorld.ActualPopulation:N0}");
+            DebugLogger.Log($"  Government: {sophontWorld.GovernmentType}");
+
+            // Add to sophont worlds list
+            sophontWorlds.Add(sophontWorld);
+        }
+
         private string GetGovernmentType(int governmentCode)
         {
             return governmentCode switch
@@ -8425,7 +8709,9 @@ namespace TravellerSystemGenerator
             if (body.Type == CelestialBodyType.Retrograde)
                 notes.Add("Retrograde orbit");
             else if (body.Type == CelestialBodyType.Random)
-                notes.Add("R01");
+            {
+                // Random orbit indicator added to orbit number as (R), not to notes
+            }
             else if (body.Type == CelestialBodyType.Eccentric)
             {
                 float inclination = 0;
@@ -9314,6 +9600,11 @@ namespace TravellerSystemGenerator
                                         string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
                                         string moonDesignation = $"{body.Designation} {moon.Designation}";
 
+                                        // Format orbit number with (R) suffix for Random orbit type
+                                        string moonOrbitString = body.Type == CelestialBodyType.Random
+                                            ? $"{bodyObj.orbit:F2}(R)"
+                                            : bodyObj.orbit.ToString("F2");
+
                                         mainworldMoonData = new WorldDisplayData
                                         {
                                             Name = moonName,
@@ -9321,7 +9612,8 @@ namespace TravellerSystemGenerator
                                             Object = moonDesignation + "*",
                                             Type = "Moon",
                                             Size = mainworld.UWP,
-                                            Orbit = bodyObj.orbit,
+                                            Orbit = moonOrbitString,
+                                            OrbitNumber = bodyObj.orbit,
                                             AU = bodyObj.orbitAU,
                                             Ecc = bodyObj.orbitEccentricity,
                                             Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
@@ -9336,7 +9628,17 @@ namespace TravellerSystemGenerator
                                     }
                                     else
                                     {
-                                        moonInfo.Add(moon.Size);
+                                        // Check if this moon is a sophont world
+                                        var sophontMoon = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == moon);
+                                        if (sophontMoon != null)
+                                        {
+                                            // Add sophont moon's UWP to parent's notes
+                                            moonInfo.Add(sophontMoon.UWP);
+                                        }
+                                        else
+                                        {
+                                            moonInfo.Add(moon.Size);
+                                        }
                                     }
                                 }
                             }
@@ -9362,12 +9664,31 @@ namespace TravellerSystemGenerator
                                 name = systemName;
                         }
 
+                        // Check if this is a sophont world and has a UWP
+                        var sophontWorld = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == body);
+                        if (sophontWorld != null)
+                        {
+                            // Override size with sophont world UWP
+                            size = sophontWorld.UWP;
+                            // Add (alien species) to notes
+                            if (!string.IsNullOrEmpty(notes))
+                                notes = $"{notes}, (alien species)";
+                            else
+                                notes = "(alien species)";
+                        }
+
                         // Check if this body is the mainworld and add * marker
                         string objectDesignation = body.Designation;
                         if (mainworld != null && body == mainworld.PlacedWorld)
                         {
                             objectDesignation += "*";
                         }
+
+                        // Format orbit number with (R) suffix for Random orbit type
+                        float orbitNumber = bodyObj.orbit;
+                        string orbitString = body.Type == CelestialBodyType.Random
+                            ? $"{orbitNumber:F2}(R)"
+                            : orbitNumber.ToString("F2");
 
                         worldData.Add(new WorldDisplayData
                         {
@@ -9376,7 +9697,8 @@ namespace TravellerSystemGenerator
                             Object = objectDesignation,
                             Type = type,
                             Size = size,
-                            Orbit = bodyObj.orbit,
+                            Orbit = orbitString,
+                            OrbitNumber = orbitNumber,
                             AU = bodyObj.orbitAU,
                             Ecc = bodyObj.orbitEccentricity,
                             Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
@@ -9497,6 +9819,11 @@ namespace TravellerSystemGenerator
                                             string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
                                             string moonDesignation = $"{body.Designation} {moon.Designation}";
 
+                                            // Format orbit number with (R) suffix for Random orbit type
+                                            string moonOrbitStringCompanion = body.Type == CelestialBodyType.Random
+                                                ? $"{bodyObj.orbit:F2}(R)"
+                                                : bodyObj.orbit.ToString("F2");
+
                                             mainworldMoonDataCompanion = new WorldDisplayData
                                             {
                                                 Name = moonName,
@@ -9504,7 +9831,8 @@ namespace TravellerSystemGenerator
                                                 Object = moonDesignation + "*",
                                                 Type = "Moon",
                                                 Size = mainworld.UWP,
-                                                Orbit = bodyObj.orbit,
+                                                Orbit = moonOrbitStringCompanion,
+                                                OrbitNumber = bodyObj.orbit,
                                                 AU = bodyObj.orbitAU,
                                                 Ecc = bodyObj.orbitEccentricity,
                                                 Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
@@ -9518,7 +9846,17 @@ namespace TravellerSystemGenerator
                                         }
                                         else
                                         {
-                                            moonInfo.Add(moon.Size);
+                                            // Check if this moon is a sophont world
+                                            var sophontMoon = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == moon);
+                                            if (sophontMoon != null)
+                                            {
+                                                // Add sophont moon's UWP to parent's notes
+                                                moonInfo.Add(sophontMoon.UWP);
+                                            }
+                                            else
+                                            {
+                                                moonInfo.Add(moon.Size);
+                                            }
                                         }
                                     }
                                 }
@@ -9544,12 +9882,31 @@ namespace TravellerSystemGenerator
                                     name = systemName;
                             }
 
+                            // Check if this is a sophont world and has a UWP
+                            var sophontWorldCompanion = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == body);
+                            if (sophontWorldCompanion != null)
+                            {
+                                // Override size with sophont world UWP
+                                size = sophontWorldCompanion.UWP;
+                                // Add (alien species) to notes
+                                if (!string.IsNullOrEmpty(notes))
+                                    notes = $"{notes}, (alien species)";
+                                else
+                                    notes = "(alien species)";
+                            }
+
                             // Check if this body is the mainworld and add * marker
                             string objectDesignationCompanion = body.Designation;
                             if (mainworld != null && body == mainworld.PlacedWorld)
                             {
                                 objectDesignationCompanion += "*";
                             }
+
+                            // Format orbit number with (R) suffix for Random orbit type
+                            float orbitNumberCompanion = bodyObj.orbit;
+                            string orbitStringCompanion = body.Type == CelestialBodyType.Random
+                                ? $"{orbitNumberCompanion:F2}(R)"
+                                : orbitNumberCompanion.ToString("F2");
 
                             worldData.Add(new WorldDisplayData
                             {
@@ -9558,7 +9915,8 @@ namespace TravellerSystemGenerator
                                 Object = objectDesignationCompanion,
                                 Type = type,
                                 Size = size,
-                                Orbit = bodyObj.orbit,
+                                Orbit = orbitStringCompanion,
+                                OrbitNumber = orbitNumberCompanion,
                                 AU = bodyObj.orbitAU,
                                 Ecc = bodyObj.orbitEccentricity,
                                 Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
@@ -9660,7 +10018,11 @@ namespace TravellerSystemGenerator
             int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
             int typeWidth = Math.Max("Type".Length, worldData.Max(w => w.Type.Length));
             int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("SAH/UWP".Length, worldData.Max(w => w.Size.Length)) : "SAH/UWP".Length;
-            int orbitWidth = Math.Max("Orbit#".Length, worldData.Max(w => w.Orbit.ToString("F2").Length));
+            // Calculate orbit width based on numeric part only (excluding (R) suffix)
+            // All numeric parts will be right-aligned, then (R) or spaces added
+            int maxOrbitNumericWidth = worldData.Max(w => w.Orbit.Replace("(R)", "").Length);
+            int orbitNumericWidth = Math.Max("Orbit#".Length, maxOrbitNumericWidth);
+            int orbitWidth = orbitNumericWidth + 3; // Add 3 for potential "(R)" suffix
             int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
             int eccWidth = Math.Max("Ecc".Length, worldData.Max(w => w.Ecc.ToString("F3").Length));
             int periodWidth = Math.Max("Period".Length, worldData.Max(w => w.Period.Length));
@@ -9681,19 +10043,32 @@ namespace TravellerSystemGenerator
             var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
             foreach (var group in groupedWorlds)
             {
-                foreach (var world in group.OrderBy(w => w.Orbit))
+                foreach (var world in group.OrderBy(w => w.OrbitNumber))
                 {
-                    string orbit = world.Orbit.ToString("F2");
+                    // Handle orbit alignment: right-align numeric part, append (R) or spaces
+                    string orbitDisplay;
+                    if (world.Orbit.EndsWith("(R)"))
+                    {
+                        string numericPart = world.Orbit.Substring(0, world.Orbit.Length - 3);
+                        // Pad numeric part, then add (R) - total width = orbitNumericWidth + 3
+                        orbitDisplay = numericPart.PadLeft(orbitNumericWidth) + "(R)";
+                    }
+                    else
+                    {
+                        // Pad numeric part, then add 3 spaces to match width of entries with (R)
+                        orbitDisplay = world.Orbit.PadLeft(orbitNumericWidth) + "   ";
+                    }
+
                     string au = world.AU.ToString("F2");
                     string ecc = world.Ecc.ToString("F3");
 
                     if (hasName)
                     {
-                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbitDisplay}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
                     }
                     else
                     {
-                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbit.PadLeft(orbitWidth)}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbitDisplay}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
                     }
                 }
             }
@@ -9718,7 +10093,7 @@ namespace TravellerSystemGenerator
             {
                 // Check if this is a moon size code (single character: 0-9, A-F, S, or single letter a-z for designation)
                 // Moon sizes are: R, S, 0, 1-9, A-F, GS, GM
-                // But we need to exclude things like "HZ", "ME", "R01", "R02", etc.
+                // But we need to exclude things like "HZ", "ME", "R01", "R02", "R×n", etc.
                 bool isMoonSize = false;
                 if (part.Length == 1)
                 {
@@ -9928,9 +10303,9 @@ namespace TravellerSystemGenerator
                 var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
                 foreach (var group in groupedWorlds)
                 {
-                    foreach (var world in group.OrderBy(w => w.Orbit))
+                    foreach (var world in group.OrderBy(w => w.OrbitNumber))
                     {
-                        string orbit = world.Orbit.ToString("F2");
+                        string orbit = world.Orbit; // Already formatted
                         string au = world.AU.ToString("F2");
                         string ecc = world.Ecc.ToString("F3");
 
@@ -10294,6 +10669,10 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             string lifeNotes = data.BiocomplexityDescription + (data.ExtinctNativeSophont ? "; Evidence of extinct native sophont species." : "");
+            if (data.CurrentNativeSophont == "Yes")
+            {
+                lifeNotes += (string.IsNullOrEmpty(lifeNotes) ? "" : "; ") + "(alien species)";
+            }
             html.AppendLine($"                <td colspan=\"6\">{lifeNotes}</td>");
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");

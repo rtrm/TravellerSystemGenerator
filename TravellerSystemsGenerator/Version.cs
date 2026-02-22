@@ -14,7 +14,7 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 2;
-        public const int Minor = 5;
+        public const int Minor = 6;
         public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
@@ -68,5 +68,6 @@ namespace TravellerSystemGenerator
         // 2.3.x - Atmospheric Taints (low oxygen, radioactivity, biologic, gas mix, particulates, sulphur compounds, high oxygen)
         // 2.4.x - Automatic mainworld selection (habitability, sophonts, resource rating criteria with weighted selection)
         // 2.5.x - Initial UWP generation (population, government, law level, starport, tech level with minimum requirements)
+        // 2.6.x - Sophont world UWP generation (when --no-mainworld flag used, generate UWPs for worlds/moons with native sophonts)
     }
 }
