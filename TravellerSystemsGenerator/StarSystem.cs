@@ -10801,12 +10801,13 @@ namespace TravellerSystemGenerator
         {
             // Planetoid belt profile format: S-Cm.Cs.Cc.Co-B-R-#-s
             // Where S = Belt Span (AU), Cm = Main Type, Cs = Secondary Type, Cc = Composition Code, Co = Other
-            // B = Bulk, R = Resource Rating, # = Size 1 Bodies, s = Size S Bodies (last 4 in ehex)
+            // B = Bulk, R = Resource Rating, # = Size 1 Bodies, s = Size S Bodies (last 4 can be negative or ehex)
 
-            // Match the belt profile pattern (e.g., "1.1-02.17.70.11-7-B-3-C")
-            // Pattern: decimal-digit.digit.digit.digit-ehex-ehex-ehex-ehex
+            // Match the belt profile pattern (e.g., "1.1-02.17.70.11-7-B-3-C" or "1.0-65.30.01.04--3-1-0-0")
+            // Pattern: decimal-digit.digit.digit.digit-value-value-value-value
+            // Values can be negative numbers or single ehex characters
             System.Text.RegularExpressions.Regex beltPattern = new System.Text.RegularExpressions.Regex(
-                @"(\d+\.\d+)-(\d{2})\.(\d{2})\.(\d{2})\.(\d{2})-([0-9A-Z])-([0-9A-Z])-([0-9A-Z])-([0-9A-Z])"
+                @"(\d+\.\d+)-(\d{2})\.(\d{2})\.(\d{2})\.(\d{2})-(-?[0-9A-Z]+)-(-?[0-9A-Z]+)-(-?[0-9A-Z]+)-(-?[0-9A-Z]+)"
             );
 
             var match = beltPattern.Match(notes);
@@ -10826,8 +10827,8 @@ namespace TravellerSystemGenerator
                 string tooltip = $"Belt Profile: {span} AU span | Composition: Main {mType}, Secondary {sType}, Type {cType}, Other {other} | " +
                                 $"Bulk Density: {bulk} | Resource Rating: {resource} | Bodies: {size1} size-1, {sizeS} size-S";
 
-                // Replace the belt code with a span that has a tooltip
-                string replacement = $"<span title=\"{tooltip}\" style=\"cursor: help; border-bottom: 1px dotted #666;\">{beltCode}</span>";
+                // Replace the belt code with a span that has a CSS tooltip (larger font, better styling)
+                string replacement = $"<span class=\"belt-tooltip\" data-tooltip=\"{tooltip}\">{beltCode}</span>";
                 return notes.Replace(beltCode, replacement);
             }
 
@@ -10902,6 +10903,26 @@ namespace TravellerSystemGenerator
             html.AppendLine("        }");
             html.AppendLine("        .italic {");
             html.AppendLine("            font-style: italic;");
+            html.AppendLine("        }");
+            html.AppendLine("        .belt-tooltip {");
+            html.AppendLine("            position: relative;");
+            html.AppendLine("            cursor: help;");
+            html.AppendLine("            border-bottom: 1px dotted #666;");
+            html.AppendLine("        }");
+            html.AppendLine("        .belt-tooltip:hover::after {");
+            html.AppendLine("            content: attr(data-tooltip);");
+            html.AppendLine("            position: absolute;");
+            html.AppendLine("            left: 0;");
+            html.AppendLine("            top: 100%;");
+            html.AppendLine("            z-index: 1000;");
+            html.AppendLine("            background-color: #333;");
+            html.AppendLine("            color: white;");
+            html.AppendLine("            padding: 10px 15px;");
+            html.AppendLine("            border-radius: 4px;");
+            html.AppendLine("            white-space: nowrap;");
+            html.AppendLine("            font-size: 14px;");
+            html.AppendLine("            box-shadow: 0 2px 8px rgba(0,0,0,0.3);");
+            html.AppendLine("            margin-top: 5px;");
             html.AppendLine("        }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
