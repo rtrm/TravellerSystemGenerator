@@ -10825,10 +10825,14 @@ namespace TravellerSystemGenerator
                 string sizeS = match.Groups[9].Value;
 
                 // Format tooltip with line breaks for better readability
-                string tooltip = $"Belt Profile: {beltCode}&#10;" +
+                string tooltip = $"Profile:&#10;" +
+                                $"{beltCode}&#10;" +
                                 $"Span: {span} AU&#10;" +
-                                $"Composition: Main {mType}, Secondary {sType}&#10;" +
-                                $"             Type {cType}, Other {other}&#10;" +
+                                $"Composition:&#10;" +
+                                $"  Metallic: {mType}%&#10;" +
+                                $"  Stony: {sType}%&#10;" +
+                                $"  Carbonaceous: {cType}%&#10;" +
+                                $"  Other: {other}%&#10;" +
                                 $"Bulk Density: {bulk}&#10;" +
                                 $"Resource Rating: {resource}&#10;" +
                                 $"Bodies: {size1} size-1, {sizeS} size-S";
