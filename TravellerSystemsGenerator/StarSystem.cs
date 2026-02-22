@@ -120,6 +120,9 @@ namespace TravellerSystemGenerator
         public int? OtherWorldCount { get; set; }
         public string UWP { get; set; } = ""; // The 8-character UWP (A123456-7)
         public object? PlacedWorld { get; set; } // The world/moon selected as mainworld (CelestialBody or Moon)
+        public int PopulationP { get; set; } // Population multiplier (0-9)
+        public long ActualPopulation { get; set; } // Actual population count
+        public string GovernmentType { get; set; } = ""; // Government type description
     }
 
     internal class StarSystem
@@ -494,6 +497,18 @@ namespace TravellerSystemGenerator
                 SelectMainworld(dice);
                 DebugLogger.Log("");
                 DebugLogger.Log("Mainworld selection complete");
+            }
+
+            // Generate Initial UWP for mainworld if not disabled
+            if (mainworld != null && !NoMainworld)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                DebugLogger.Log("Generating Initial UWP...");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                GenerateInitialUWP(dice);
+                DebugLogger.Log("");
+                DebugLogger.Log("Initial UWP generation complete");
             }
 
             // Collect data for table-based output
@@ -6978,6 +6993,285 @@ namespace TravellerSystemGenerator
                     CollectMainworldCandidates(bodyObj, candidates);
                 }
             }
+        }
+
+        private void GenerateInitialUWP(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Extract Size, Atmosphere, and Hydrographics from current UWP (SAH format)
+            mainworld.Size = FromEhex(mainworld.UWP.Substring(0, 1));
+            mainworld.Atmosphere = FromEhex(mainworld.UWP.Substring(1, 1));
+            mainworld.Hydrographics = FromEhex(mainworld.UWP.Substring(2, 1));
+
+            DebugLogger.Log($"  Mainworld SAH: Size={IntToEhex(mainworld.Size)}, Atmosphere={IntToEhex(mainworld.Atmosphere)}, Hydrographics={IntToEhex(mainworld.Hydrographics)}");
+
+            // Get habitability rating for tech level minimum checks
+            int habitabilityRating = 0;
+            if (mainworld.PlacedWorld is TerrestrialPlanet tp)
+            {
+                habitabilityRating = tp.HabitabilityRating;
+            }
+            else if (mainworld.PlacedWorld is Moon m)
+            {
+                habitabilityRating = m.HabitabilityRating;
+            }
+
+            bool validUWP = false;
+            int attempts = 0;
+            const int maxAttempts = 1000;
+
+            while (!validUWP && attempts < maxAttempts)
+            {
+                attempts++;
+
+                // 1. Calculate Population Code
+                mainworld.Population = Starhelper.diceRoll(6, 2, dice) - 2;
+                if (mainworld.Population < 0) mainworld.Population = 0;
+
+                DebugLogger.Log($"  Population Code: {IntToEhex(mainworld.Population)}");
+
+                // Calculate PopulationP
+                if (mainworld.Population == 0)
+                {
+                    mainworld.PopulationP = 0;
+                }
+                else if (mainworld.Population == 10) // A
+                {
+                    mainworld.PopulationP = 1;
+                    // Roll 1d6, on 5-6 add 2 and repeat
+                    while (mainworld.PopulationP < 9)
+                    {
+                        int roll = Starhelper.diceRoll(6, 1, dice);
+                        if (roll >= 5)
+                        {
+                            mainworld.PopulationP += 2;
+                            if (mainworld.PopulationP > 9)
+                            {
+                                mainworld.PopulationP = 9;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    mainworld.PopulationP = Starhelper.diceRoll(9, 1, dice) + 1;
+                    if (mainworld.PopulationP > 9) mainworld.PopulationP = 9;
+                }
+
+                // Calculate actual population
+                if (mainworld.Population == 0)
+                {
+                    mainworld.ActualPopulation = 0;
+                }
+                else
+                {
+                    long basePopulation = (long)Math.Pow(10, mainworld.Population);
+                    long minPop = basePopulation * (mainworld.PopulationP - 1);
+                    long maxPop = basePopulation * mainworld.PopulationP;
+                    mainworld.ActualPopulation = minPop + (long)(dice.NextDouble() * (maxPop - minPop));
+                }
+
+                DebugLogger.Log($"  PopulationP: {mainworld.PopulationP}, Actual Population: {mainworld.ActualPopulation:N0}");
+
+                // 2. Calculate Government Code
+                mainworld.Government = Starhelper.diceRoll(6, 2, dice) - 7 + mainworld.Population;
+                if (mainworld.Government < 0) mainworld.Government = 0;
+                if (mainworld.Government > 15) mainworld.Government = 15;
+
+                // Get Government Type
+                mainworld.GovernmentType = GetGovernmentType(mainworld.Government);
+
+                DebugLogger.Log($"  Government Code: {IntToEhex(mainworld.Government)} ({mainworld.GovernmentType})");
+
+                // 3. Calculate Law Level
+                mainworld.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + mainworld.Government;
+                if (mainworld.LawLevel < 0) mainworld.LawLevel = 0;
+
+                DebugLogger.Log($"  Law Level: {IntToEhex(mainworld.LawLevel)}");
+
+                // 4. Calculate Starport
+                int starportRoll = Starhelper.diceRoll(6, 2, dice);
+                int starportDM = 0;
+
+                if (mainworld.Population >= 8 && mainworld.Population <= 9) starportDM += 1;
+                if (mainworld.Population >= 10) starportDM += 2;
+                if (mainworld.Population >= 3 && mainworld.Population <= 4) starportDM -= 1;
+                if (mainworld.Population <= 2) starportDM -= 2;
+
+                int starportResult = starportRoll + starportDM;
+                mainworld.Starport = GetStarportClass(starportResult);
+
+                DebugLogger.Log($"  Starport: {mainworld.Starport} (roll {starportRoll} + DM {starportDM} = {starportResult})");
+
+                // 5. Calculate Tech Level
+                int techLevelRoll = Starhelper.diceRoll(6, 1, dice);
+                int techLevelDM = GetTechLevelDM(mainworld);
+                mainworld.TechLevel = techLevelRoll + techLevelDM;
+                if (mainworld.TechLevel < 0) mainworld.TechLevel = 0;
+
+                DebugLogger.Log($"  Tech Level: {IntToEhex(mainworld.TechLevel)} (roll {techLevelRoll} + DM {techLevelDM})");
+
+                // Check Tech Level minimums
+                int minimumTechLevel = GetMinimumTechLevel(mainworld.Atmosphere, habitabilityRating);
+
+                if (mainworld.TechLevel < minimumTechLevel)
+                {
+                    DebugLogger.Log($"  Tech Level {IntToEhex(mainworld.TechLevel)} below minimum {IntToEhex(minimumTechLevel)}");
+
+                    // Check if maximum possible roll can reach minimum
+                    int maxPossibleTechLevel = 6 + techLevelDM;
+                    if (maxPossibleTechLevel >= minimumTechLevel)
+                    {
+                        // Reroll until we get a valid tech level
+                        DebugLogger.Log($"  Rerolling Tech Level (max possible: {IntToEhex(maxPossibleTechLevel)})");
+                        continue; // Restart the while loop to reroll
+                    }
+                    else
+                    {
+                        // Cannot reach minimum, need to regenerate everything
+                        DebugLogger.Log($"  Cannot reach minimum Tech Level (max possible: {IntToEhex(maxPossibleTechLevel)})");
+
+                        if (attempts >= maxAttempts - 1)
+                        {
+                            // Last attempt failed, set to uninhabited
+                            DebugLogger.Log($"  Setting mainworld to uninhabited after {maxAttempts} attempts");
+                            mainworld.Population = 0;
+                            mainworld.Government = 0;
+                            mainworld.LawLevel = 0;
+                            mainworld.TechLevel = 0;
+                            mainworld.PopulationP = 0;
+                            mainworld.ActualPopulation = 0;
+
+                            // Recalculate starport for population 0
+                            starportRoll = Starhelper.diceRoll(6, 2, dice);
+                            starportResult = starportRoll - 2; // Population 0 has -2 DM
+                            mainworld.Starport = GetStarportClass(starportResult);
+
+                            validUWP = true;
+                        }
+                        else
+                        {
+                            continue; // Try again with new population/government/law level
+                        }
+                    }
+                }
+                else
+                {
+                    validUWP = true;
+                }
+            }
+
+            // Build final UWP string
+            mainworld.UWP = $"{mainworld.Starport}{IntToEhex(mainworld.Size)}{IntToEhex(mainworld.Atmosphere)}{IntToEhex(mainworld.Hydrographics)}{IntToEhex(mainworld.Population)}{IntToEhex(mainworld.Government)}{IntToEhex(mainworld.LawLevel)}-{IntToEhex(mainworld.TechLevel)}";
+
+            DebugLogger.Log($"  Final UWP: {mainworld.UWP}");
+            DebugLogger.Log($"  Population: {mainworld.ActualPopulation:N0}");
+            DebugLogger.Log($"  Government: {mainworld.GovernmentType}");
+        }
+
+        private string GetGovernmentType(int governmentCode)
+        {
+            return governmentCode switch
+            {
+                0 => "None",
+                1 => "Company / Corporation",
+                2 => "Participating Democracy",
+                3 => "Self-Perpetuating Oligarchy",
+                4 => "Representative Democracy",
+                5 => "Feudal Technocracy",
+                6 => "Captive Government",
+                7 => "Balkanisation",
+                8 => "Civil Service Bureaucracy",
+                9 => "Impersonal Bureaucracy",
+                10 => "Charismatic Dictatorship",
+                11 => "Non-Charismatic Dictatorship",
+                12 => "Charismatic Oligarchy",
+                13 => "Religious Dictatorship",
+                14 => "Religious Autocracy",
+                15 => "Totalitarian Oligarchy",
+                _ => "Unknown"
+            };
+        }
+
+        private char GetStarportClass(int result)
+        {
+            if (result <= 2) return 'X';
+            if (result <= 4) return 'E';
+            if (result <= 6) return 'D';
+            if (result <= 8) return 'C';
+            if (result <= 10) return 'B';
+            return 'A';
+        }
+
+        private int GetTechLevelDM(MainworldData mw)
+        {
+            int dm = 0;
+
+            // Starport DMs
+            if (mw.Starport == 'A') dm += 6;
+            else if (mw.Starport == 'B') dm += 4;
+            else if (mw.Starport == 'C') dm += 2;
+            else if (mw.Starport == 'X') dm -= 4;
+
+            // Size DMs
+            if (mw.Size == 0 || mw.Size == 1) dm += 2;
+            else if (mw.Size >= 2 && mw.Size <= 4) dm += 1;
+
+            // Atmosphere DMs
+            if (mw.Atmosphere <= 3 || mw.Atmosphere >= 10) dm += 1;
+
+            // Hydrographics DMs
+            if (mw.Hydrographics == 0) dm += 1;
+            else if (mw.Hydrographics == 9) dm += 1;
+            else if (mw.Hydrographics == 10) dm += 2;
+
+            // Population DMs
+            if (mw.Population >= 1 && mw.Population <= 5) dm += 1;
+            else if (mw.Population >= 8 && mw.Population <= 10) dm += 1;
+
+            // Government DMs
+            if (mw.Government == 0 || mw.Government == 5) dm += 1;
+            else if (mw.Government == 7) dm += 2;
+            else if (mw.Government == 13 || mw.Government == 14) dm -= 2;
+
+            return dm;
+        }
+
+        private int GetMinimumTechLevel(int atmosphere, int habitabilityRating)
+        {
+            int minTL = 0;
+
+            // Atmosphere-based minimums
+            if (atmosphere == 0 || atmosphere == 1 || atmosphere == 10) // 0, 1, or A
+                minTL = Math.Max(minTL, 8);
+            else if (atmosphere == 2 || atmosphere == 3 || atmosphere == 13 || atmosphere == 14) // 2, 3, D, E
+                minTL = Math.Max(minTL, 5);
+            else if (atmosphere == 4 || atmosphere == 7 || atmosphere == 9)
+                minTL = Math.Max(minTL, 3);
+            else if (atmosphere == 11) // B
+                minTL = Math.Max(minTL, 9);
+            else if (atmosphere == 12) // C
+                minTL = Math.Max(minTL, 10);
+            else if (atmosphere == 16 || atmosphere == 17) // G, H
+                minTL = Math.Max(minTL, 13);
+            else if (atmosphere == 15) // F
+                minTL = Math.Max(minTL, 10);
+
+            // Habitability-based minimums
+            if (habitabilityRating >= 3 && habitabilityRating <= 7)
+                minTL = Math.Max(minTL, 3);
+            else if (habitabilityRating >= 1 && habitabilityRating <= 2)
+                minTL = Math.Max(minTL, 5);
+            else if (habitabilityRating == 0)
+                minTL = Math.Max(minTL, 8);
+
+            return minTL;
         }
 
         private string IntToEhex(int value)
