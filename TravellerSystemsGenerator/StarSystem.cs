@@ -11063,6 +11063,22 @@ namespace TravellerSystemGenerator
             // Back link
             html.AppendLine("        <div class=\"back-link\">");
             html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
+
+            // Add link to Population Details if this is a mainworld with population
+            // Mainworlds have full UWP (contains dash), non-mainworlds have 3-char SAH
+            if (data.SAH_UWP.Contains("-"))
+            {
+                // Extract population code (5th character in UWP like "CCGA300-D")
+                if (data.SAH_UWP.Length >= 5)
+                {
+                    char popChar = data.SAH_UWP[4];
+                    if (popChar != '0')
+                    {
+                        html.AppendLine("            | <a href=\"PopulatedWorldDetails.html\">Population Details &rarr;</a>");
+                    }
+                }
+            }
+
             html.AppendLine("        </div>");
 
             // Title
