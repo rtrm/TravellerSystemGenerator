@@ -23,7 +23,11 @@
       "Bash(gh:*)",
       "Bash(git reset:*)",
       "Bash(python3:*)",
-      "Bash(/tmp/distance_test.txt:*)"
+      "Bash(/tmp/distance_test.txt:*)",
+      "Bash(dotnet publish:*)",
+      "Bash(where:*)",
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" installer.iss)",
+      "Bash(git tag:*)"
     ]
   }
 }

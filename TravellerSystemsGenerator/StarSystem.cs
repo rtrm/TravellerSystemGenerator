@@ -10314,7 +10314,8 @@ namespace TravellerSystemGenerator
                         string objectCell = world.Object;
                         if ((world.Size.Length == 3 && !world.Size.StartsWith("G")) || (world.Size.Contains("-") && world.Sub != "?"))
                         {
-                            string surveyFilename = world.Object.Replace(" ", "_");
+                            // Remove asterisk from filename (mainworld marker shouldn't be in filename)
+                            string surveyFilename = world.Object.Replace(" ", "_").Replace("*", "");
                             objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
                         }
 

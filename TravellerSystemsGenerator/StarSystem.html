@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traveller Star System - Seed 99999</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+        h1 {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 6px;
+            text-align: left;
+        }
+        th {
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+        .numeric {
+            text-align: right;
+        }
+        .center {
+            text-align: center;
+        }
+        .stellar-table {
+            width: auto;
+        }
+        .stellar-table td {
+            padding: 4px 12px;
+        }
+        .notes, .comments {
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .italic {
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TRAVELLER STAR SYSTEM GENERATION<br>Version 2.5.0<br>Seed: 99999</h1>
+        <h2>Stellar</h2>
+        <table class="stellar-table">
+            <tr>
+                <th>Stellar</th>
+                <th>Gas Giants</th>
+                <th>Planetoid Belts</th>
+                <th>Terrestrials</th>
+                <th>Class III Status?</th>
+            </tr>
+            <tr>
+                <td class="center">1</td>
+                <td class="center">4</td>
+                <td class="center">0</td>
+                <td class="center">4</td>
+                <td class="center">Yes</td>
+            </tr>
+        </table>
+        <h2>Stars</h2>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Class</th>
+                <th>Mass</th>
+                <th>Temp</th>
+                <th>Diameter</th>
+                <th>Luminosity</th>
+                <th>Orbit#</th>
+                <th>AU</th>
+                <th>Ecc</th>
+                <th>Period</th>
+                <th>MAO</th>
+                <th>HZCO</th>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td class="center">K8 V</td>
+                <td class="numeric">0.634</td>
+                <td class="numeric">4,260</td>
+                <td class="numeric">0.780</td>
+                <td class="numeric">0.1810</td>
+                <td class="numeric">—</td>
+                <td class="numeric">—</td>
+                <td class="numeric">—</td>
+                <td>—</td>
+                <td class="numeric">0.02</td>
+                <td class="numeric">1.08</td>
+            </tr>
+        </table>
+        <h2>Objects</h2>
+        <table>
+            <tr>
+                <th>Primary</th>
+                <th>Object</th>
+                <th>Type</th>
+                <th>Orbit#</th>
+                <th>AU</th>
+                <th>Ecc</th>
+                <th>Period</th>
+                <th>SAH/UWP</th>
+                <th>Sub</th>
+                <th>Notes</th>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>A I</td>
+                <td>Gas Giant</td>
+                <td class="numeric">0.52</td>
+                <td class="numeric">0.21</td>
+                <td class="numeric">0.005</td>
+                <td>43.6d</td>
+                <td class="center">GLA</td>
+                <td class="center">3</td>
+                <td>1400ME, R01, <a href="surveys/A_I_a.html">S</a>, <a href="surveys/A_I_b.html">S</a>, <a href="surveys/A_I_c.html">S</a></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>A II</td>
+                <td>Gas Giant</td>
+                <td class="numeric">0.75</td>
+                <td class="numeric">0.30</td>
+                <td class="numeric">0.025</td>
+                <td>75.1d</td>
+                <td class="center">GLD</td>
+                <td class="center">0</td>
+                <td>1800ME</td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>A III</td>
+                <td>Gas Giant</td>
+                <td class="numeric">1.38</td>
+                <td class="numeric">0.52</td>
+                <td class="numeric">0.060</td>
+                <td>169.8d</td>
+                <td class="center">GMA</td>
+                <td class="center">1</td>
+                <td>HZ, 90ME, <a href="surveys/A_III_a.html">S</a></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>A IV</td>
+                <td>Gas Giant</td>
+                <td class="numeric">1.75</td>
+                <td class="numeric">0.62</td>
+                <td class="numeric">0.004</td>
+                <td>226.5d</td>
+                <td class="center">GMA</td>
+                <td class="center">4</td>
+                <td>HZ, 70ME, <a href="surveys/A_IV_a.html">2</a>, <a href="surveys/A_IV_c.html">5</a>, <a href="surveys/A_IV_b.html">2</a>, <a href="surveys/A_IV_d.html">S</a></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_V.html">A V</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">2.20</td>
+                <td class="numeric">0.76</td>
+                <td class="numeric">0.003</td>
+                <td>304.6d</td>
+                <td class="center">AA2</td>
+                <td class="center">2</td>
+                <td>R01, <a href="surveys/A_V_c.html">S</a>, <a href="surveys/A_V_a.html">S</a></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_VI.html">A VI</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">2.66</td>
+                <td class="numeric">0.90</td>
+                <td class="numeric">0.250</td>
+                <td>1y 25d</td>
+                <td class="center">100</td>
+                <td class="center">0</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_VII*.html">A VII*</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">3.11</td>
+                <td class="numeric">1.07</td>
+                <td class="numeric">0.070</td>
+                <td>1y 141d</td>
+                <td class="center">ACHA663-F</td>
+                <td class="center">0</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_VIII.html">A VIII</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">3.56</td>
+                <td class="numeric">1.34</td>
+                <td class="numeric">0.350</td>
+                <td>1y 342d</td>
+                <td class="center">6AA</td>
+                <td class="center">0</td>
+                <td>R01</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
