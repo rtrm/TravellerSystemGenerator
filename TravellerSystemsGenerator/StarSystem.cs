@@ -7640,6 +7640,13 @@ namespace TravellerSystemGenerator
                     return;
                 }
 
+                // Exclude worlds with both low resource rating and low habitability rating
+                if (resourceRating <= 5 && habitabilityRating < 5)
+                {
+                    DebugLogger.Log($"  {designation}: skipped (RR={resourceRating} <= 5 and HR={habitabilityRating} < 5)");
+                    return;
+                }
+
                 // Resource Rating DM
                 int rrDM = resourceRating switch
                 {
