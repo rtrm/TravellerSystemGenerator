@@ -176,6 +176,15 @@ namespace TravellerSystemGenerator
         public List<MajorCity> MajorCities { get; set; } = new List<MajorCity>();
     }
 
+    internal class AdditionalInhabitedWorld
+    {
+        public object World { get; set; } = null!;  // TerrestrialPlanet, Moon, or PlanetoidBelt
+        public string WorldDesignation { get; set; } = "";
+        public int PopulationCode { get; set; }  // ehex digit 1+ (never 0 after checks)
+        public int PopulationP { get; set; }     // multiplier 0-9
+        public long ActualPopulation { get; set; }
+    }
+
     internal class StarSystem
     {
         private Random dice;
@@ -185,6 +194,7 @@ namespace TravellerSystemGenerator
         private string? systemName;
         private bool NoMainworld;
         private List<MainworldData> sophontWorlds = new List<MainworldData>(); // List of worlds/moons with native sophonts
+        private List<AdditionalInhabitedWorld> additionalInhabitedWorlds = new List<AdditionalInhabitedWorld>();
 
         internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false)
         {
@@ -697,6 +707,9 @@ namespace TravellerSystemGenerator
 
             DebugLogger.Log("");
             DebugLogger.Log($"Sophont world UWP generation complete ({sophontWorlds.Count} worlds)");
+
+            // Determine additional inhabited worlds (beyond mainworld and sophont worlds)
+            DetermineAdditionalInhabitedWorlds(dice);
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -7553,6 +7566,218 @@ namespace TravellerSystemGenerator
             DebugLogger.Log($"Major Cities: {string.Join(", ", mainworld.MajorCities.Select(c => $"{c.Name}: {c.Population:N0}"))}");
         }
 
+        private void DetermineAdditionalInhabitedWorlds(Random dice)
+        {
+            additionalInhabitedWorlds.Clear();
+
+            // Get effective mainworld TL and population cap
+            int effectiveTL;
+            int effectivePopulation;
+
+            if (mainworld != null)
+            {
+                effectiveTL = mainworld.TechLevel;
+                effectivePopulation = mainworld.Population;
+            }
+            else if (sophontWorlds.Count > 0)
+            {
+                // Use the highest-TL sophont world as effective mainworld
+                var bestSophont = sophontWorlds.OrderByDescending(sw => sw.TechLevel).First();
+                effectiveTL = bestSophont.TechLevel;
+                effectivePopulation = bestSophont.Population;
+            }
+            else
+            {
+                return; // No mainworld to drive expansion
+            }
+
+            if (effectiveTL <= 8) return;
+
+            // Base chance: TL9=5%, TL10=15%, TL11=25%, TL12=35%... capped at 90%
+            int baseChance = Math.Min(90, (effectiveTL - 9) * 10 + 5);
+
+            DebugLogger.Log($"Additional Inhabited Worlds: effectiveTL={effectiveTL}, baseChance={baseChance}%");
+
+            // Collect excluded worlds (mainworld + all sophont worlds)
+            var excludedWorlds = new HashSet<object>();
+            if (mainworld?.PlacedWorld != null) excludedWorlds.Add(mainworld.PlacedWorld);
+            foreach (var sw in sophontWorlds)
+                if (sw.PlacedWorld != null) excludedWorlds.Add(sw.PlacedWorld);
+
+            // Check candidate worlds across all stars
+            void CheckWorld(object world, string designation)
+            {
+                if (excludedWorlds.Contains(world)) return;
+
+                int atmosphere = 0, habitabilityRating = 0, resourceRating = 0;
+
+                if (world is TerrestrialPlanet tp)
+                {
+                    atmosphere = FromEhex(tp.Atmosphere);
+                    habitabilityRating = tp.HabitabilityRating;
+                    resourceRating = tp.ResourceRating;
+                }
+                else if (world is Moon moon)
+                {
+                    atmosphere = FromEhex(moon.Atmosphere);
+                    habitabilityRating = moon.HabitabilityRating;
+                    resourceRating = moon.ResourceRating;
+                }
+                else if (world is PlanetoidBelt belt)
+                {
+                    // Belts have no atmosphere or habitability
+                    atmosphere = 0;
+                    habitabilityRating = 0;
+                    resourceRating = belt.ResourceRating;
+                }
+                else return;
+
+                // Check minimum tech level requirement
+                int minTL = GetMinimumTechLevel(atmosphere, habitabilityRating);
+                if (effectiveTL < minTL)
+                {
+                    DebugLogger.Log($"  {designation}: skipped (minTL={minTL} > effectiveTL={effectiveTL})");
+                    return;
+                }
+
+                // Resource Rating DM
+                int rrDM = resourceRating switch
+                {
+                    >= 11 => 25,  // B+
+                    >= 9  => 10,  // 9-A
+                    >= 6  => 5,   // 6-8
+                    _     => 0
+                };
+
+                // Habitability Rating DM (not for belts)
+                int hrDM = (world is PlanetoidBelt) ? 0 : habitabilityRating switch
+                {
+                    >= 10 => 25,   // A+
+                    >= 8  => 15,   // 8-9
+                    < 3   => -10,  // 0-2
+                    _     => 0
+                };
+
+                int totalChance = Math.Max(0, baseChance + rrDM + hrDM);
+                int roll = dice.Next(1, 101);
+
+                DebugLogger.Log($"  {designation}: RR={resourceRating}(+{rrDM}%), HR={habitabilityRating}(+{hrDM}%), total={totalChance}%, roll={roll}");
+
+                if (roll > totalChance) return;
+
+                // Designated — generate population
+                int popCode = Starhelper.diceRoll(6, 2, dice) - 4;
+                if (popCode < 0) popCode = 0;
+                if (popCode >= effectivePopulation) popCode = effectivePopulation - 1;
+
+                if (popCode <= 0)
+                {
+                    // Re-roll once
+                    popCode = Starhelper.diceRoll(6, 2, dice) - 4;
+                    if (popCode < 0) popCode = 0;
+                    if (popCode >= effectivePopulation) popCode = effectivePopulation - 1;
+                    if (popCode <= 0)
+                    {
+                        DebugLogger.Log($"  {designation}: designated but population rolled 0 twice — removed");
+                        return;
+                    }
+                }
+
+                // Calculate PopulationP (same logic as mainworld)
+                int popP;
+                if (popCode == 10) // A
+                {
+                    popP = 1;
+                    while (popP < 9)
+                    {
+                        int r = Starhelper.diceRoll(6, 1, dice);
+                        if (r >= 5) { popP += 2; if (popP > 9) { popP = 9; break; } }
+                        else break;
+                    }
+                }
+                else
+                {
+                    popP = Starhelper.diceRoll(9, 1, dice) + 1;
+                    if (popP > 9) popP = 9;
+                }
+
+                // Calculate actual population
+                long basePop = (long)Math.Pow(10, popCode);
+                long minPop = basePop * (popP - 1);
+                long maxPop = basePop * popP;
+                long actualPop = minPop + (long)(dice.NextDouble() * (maxPop - minPop));
+
+                additionalInhabitedWorlds.Add(new AdditionalInhabitedWorld
+                {
+                    World = world,
+                    WorldDesignation = designation,
+                    PopulationCode = popCode,
+                    PopulationP = popP,
+                    ActualPopulation = actualPop
+                });
+
+                DebugLogger.Log($"  {designation}: Additional Inhabited World — pop {IntToEhex(popCode)}, P={popP}, actual={actualPop:N0}");
+            }
+
+            // Iterate primary star's orbits
+            foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    CheckWorld(tp, tp.Designation);
+                    foreach (var moon in tp.Moons)
+                        CheckWorld(moon, $"{tp.Designation} {moon.Designation}");
+                }
+                else if (bodyObj.celestrialObject is GasGiant gg)
+                {
+                    foreach (var moon in gg.Moons)
+                        CheckWorld(moon, $"{gg.Designation} {moon.Designation}");
+                }
+                else if (bodyObj.celestrialObject is PlanetoidBelt belt)
+                {
+                    CheckWorld(belt, belt.Designation);
+                }
+            }
+
+            // Iterate companion stars
+            var companionStarObjects = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .ToList();
+
+            foreach (var companionObj in companionStarObjects)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                        {
+                            CheckWorld(tp, tp.Designation);
+                            foreach (var moon in tp.Moons)
+                                CheckWorld(moon, $"{tp.Designation} {moon.Designation}");
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            foreach (var moon in gg.Moons)
+                                CheckWorld(moon, $"{gg.Designation} {moon.Designation}");
+                        }
+                        else if (bodyObj.celestrialObject is PlanetoidBelt belt)
+                        {
+                            CheckWorld(belt, belt.Designation);
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.Log($"Additional Inhabited Worlds total: {additionalInhabitedWorlds.Count}");
+        }
+
+        private string? GetAdditionalInhabitedPopDigit(object world)
+        {
+            var aiw = additionalInhabitedWorlds.FirstOrDefault(w => w.World == world);
+            return aiw != null ? IntToEhex(aiw.PopulationCode) : null;
+        }
+
         private void DetermineTradeCodes()
         {
             if (mainworld == null) return;
@@ -10314,7 +10539,12 @@ namespace TravellerSystemGenerator
                                         }
                                         else
                                         {
-                                            moonInfo.Add(moon.Size);
+                                            // Check if this moon is an additional inhabited world
+                                            string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                            if (moonPopDigit != null)
+                                                moonInfo.Add(moon.Size + moon.Atmosphere + moon.HydrographicsCode + moonPopDigit);
+                                            else
+                                                moonInfo.Add(moon.Size);
                                         }
                                     }
                                 }
@@ -10352,6 +10582,14 @@ namespace TravellerSystemGenerator
                                 notes = $"{notes}, (alien species)";
                             else
                                 notes = "(alien species)";
+                        }
+
+                        // Check if this is an additional inhabited world (only if not mainworld or sophont world)
+                        if (mainworld?.PlacedWorld != body && !sophontWorlds.Any(sw => sw.PlacedWorld == body))
+                        {
+                            string? popDigit = GetAdditionalInhabitedPopDigit(body);
+                            if (popDigit != null)
+                                size = (body is PlanetoidBelt) ? "000" + popDigit : size + popDigit;
                         }
 
                         // Check if this body is the mainworld and add * marker
@@ -10532,7 +10770,12 @@ namespace TravellerSystemGenerator
                                             }
                                             else
                                             {
-                                                moonInfo.Add(moon.Size);
+                                                // Check if this moon is an additional inhabited world
+                                                string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                                if (moonPopDigit != null)
+                                                    moonInfo.Add(moon.Size + moon.Atmosphere + moon.HydrographicsCode + moonPopDigit);
+                                                else
+                                                    moonInfo.Add(moon.Size);
                                             }
                                         }
                                     }
@@ -10570,6 +10813,14 @@ namespace TravellerSystemGenerator
                                     notes = $"{notes}, (alien species)";
                                 else
                                     notes = "(alien species)";
+                            }
+
+                            // Check if this is an additional inhabited world (only if not mainworld or sophont world)
+                            if (mainworld?.PlacedWorld != body && !sophontWorlds.Any(sw => sw.PlacedWorld == body))
+                            {
+                                string? popDigit = GetAdditionalInhabitedPopDigit(body);
+                                if (popDigit != null)
+                                    size = (body is PlanetoidBelt) ? "000" + popDigit : size + popDigit;
                             }
 
                             // Check if this body is the mainworld and add * marker
@@ -11923,6 +12174,19 @@ namespace TravellerSystemGenerator
                                 worldName = $"{systemName} ({tp.Designation})";
                             sahUwp = mainworld.UWP;
                         }
+                        else
+                        {
+                            // Check sophont world override
+                            var sophontTp = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == tp);
+                            if (sophontTp != null)
+                                sahUwp = sophontTp.UWP;
+                            else
+                            {
+                                // Check additional inhabited world — append population digit
+                                string? popDigit = GetAdditionalInhabitedPopDigit(tp);
+                                if (popDigit != null) sahUwp += popDigit;
+                            }
+                        }
 
                         SurveyData surveyData = new SurveyData
                         {
@@ -11996,6 +12260,11 @@ namespace TravellerSystemGenerator
                                     moonWorldName = $"{systemName} ({tp.Designation} {moon.Designation})";
                                 moonSahUwp = mainworld.UWP;
                             }
+                            else
+                            {
+                                string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                            }
 
                             SurveyData moonSurvey = new SurveyData
                             {
@@ -12068,6 +12337,11 @@ namespace TravellerSystemGenerator
                                 if (!string.IsNullOrEmpty(systemName))
                                     moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
                                 moonSahUwp = mainworld.UWP;
+                            }
+                            else
+                            {
+                                string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                if (moonPopDigit != null) moonSahUwp += moonPopDigit;
                             }
 
                             SurveyData moonSurvey = new SurveyData
@@ -12148,6 +12422,11 @@ namespace TravellerSystemGenerator
                                 if (!string.IsNullOrEmpty(systemName))
                                     worldName = $"{systemName} ({tp.Designation})";
                                 sahUwp = mainworld.UWP;
+                            }
+                            else
+                            {
+                                string? popDigit = GetAdditionalInhabitedPopDigit(tp);
+                                if (popDigit != null) sahUwp += popDigit;
                             }
 
                             SurveyData surveyData = new SurveyData
@@ -12283,6 +12562,11 @@ namespace TravellerSystemGenerator
                                         moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
                                     moonSahUwp = mainworld.UWP;
                                 }
+                                else
+                                {
+                                    string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                    if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                                }
 
                                 SurveyData moonSurvey = new SurveyData
                                 {
@@ -12364,6 +12648,11 @@ namespace TravellerSystemGenerator
                                     worldName = $"{systemName} ({tp.Designation})";
                                 sahUwp = mainworld.UWP;
                             }
+                            else
+                            {
+                                string? popDigit = GetAdditionalInhabitedPopDigit(tp);
+                                if (popDigit != null) sahUwp += popDigit;
+                            }
 
                             SurveyData surveyData = new SurveyData
                             {
@@ -12421,6 +12710,11 @@ namespace TravellerSystemGenerator
                                     if (!string.IsNullOrEmpty(systemName))
                                         moonWorldName = $"{systemName} ({tp.Designation} {moon.Designation})";
                                     moonSahUwp = mainworld.UWP;
+                                }
+                                else
+                                {
+                                    string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                    if (moonPopDigit != null) moonSahUwp += moonPopDigit;
                                 }
 
                                 SurveyData moonSurvey = new SurveyData
@@ -12482,6 +12776,11 @@ namespace TravellerSystemGenerator
                                     if (!string.IsNullOrEmpty(systemName))
                                         moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
                                     moonSahUwp = mainworld.UWP;
+                                }
+                                else
+                                {
+                                    string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
+                                    if (moonPopDigit != null) moonSahUwp += moonPopDigit;
                                 }
 
                                 SurveyData moonSurvey = new SurveyData

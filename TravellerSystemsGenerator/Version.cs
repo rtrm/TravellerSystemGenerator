@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 2;
-        public const int Minor = 7;
-        public const int Build = 12;
+        public const int Minor = 8;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -70,5 +70,6 @@ namespace TravellerSystemGenerator
         // 2.5.x - Initial UWP generation (population, government, law level, starport, tech level with minimum requirements)
         // 2.6.x - Sophont world UWP generation (when --no-mainworld flag used, generate UWPs for worlds/moons with native sophonts)
         // 2.7.x - Population details (trade codes, PCR, urbanisation, major cities with distribution algorithm, Populated World Details form)
+        // 2.8.x - Additional Inhabited Worlds (TL-based probability, RR/HR modifiers, population generation, SAH+pop display)
     }
 }
