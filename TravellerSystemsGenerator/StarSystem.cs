@@ -7673,14 +7673,14 @@ namespace TravellerSystemGenerator
                 if (roll > totalChance) return;
 
                 // Designated — generate population
-                int popCode = Starhelper.diceRoll(6, 2, dice) - 4;
+                int popCode = Starhelper.diceRoll(6, 2, dice) - 3;
                 if (popCode < 0) popCode = 0;
                 if (popCode >= effectivePopulation) popCode = effectivePopulation - 1;
 
                 if (popCode <= 0)
                 {
                     // Re-roll once
-                    popCode = Starhelper.diceRoll(6, 2, dice) - 4;
+                    popCode = Starhelper.diceRoll(6, 2, dice) - 3;
                     if (popCode < 0) popCode = 0;
                     if (popCode >= effectivePopulation) popCode = effectivePopulation - 1;
                     if (popCode <= 0)
