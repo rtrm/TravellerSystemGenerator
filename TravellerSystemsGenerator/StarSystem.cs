@@ -104,6 +104,8 @@ namespace TravellerSystemGenerator
         public int HabitabilityRating { get; set; } = 0;         // Habitability rating
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
+        public AdditionalInhabitedWorld? AIWData { get; set; } = null;  // non-null if this is an AIW world
+        public object? WorldObject { get; set; } = null;  // the actual world object (TP, Moon, Belt)
     }
 
     internal class TradeCode
@@ -192,6 +194,33 @@ namespace TravellerSystemGenerator
         public int PopulationCode { get; set; }  // ehex digit 1+ (never 0 after checks)
         public int PopulationP { get; set; }     // multiplier 0-9
         public long ActualPopulation { get; set; }
+
+        // Stored world properties (captured at generation time)
+        public int HabitabilityRating { get; set; }
+        public int ResourceRating { get; set; }
+        public int Atmosphere { get; set; }       // numeric value
+        public int Hydrographics { get; set; }    // numeric 0-10
+        public bool IsInHabitableZone { get; set; }
+
+        // Government (set by DetermineSecondaryWorldGovernments)
+        public bool IsIndependent { get; set; } = true;
+        public string AuthorityDesignation { get; set; } = "";  // e.g. "A VI"
+        public int GovernmentCode { get; set; }
+        public string GovernmentType { get; set; } = "";
+        public string CentralisationCode { get; set; } = "";
+        public string CentralisationType { get; set; } = "";
+        public string AuthorityCode { get; set; } = "";
+        public string AuthorityType { get; set; } = "";
+        public string StructureCode { get; set; } = "";
+        public string StructureType { get; set; } = "";
+        public string GovernmentProfile { get; set; } = "";
+
+        // Classifications (set by DetermineSecondaryWorldTradeCodes)
+        public int TechLevel { get; set; }
+        public int LawLevel { get; set; }
+        public List<TradeCode> TradeCodes { get; set; } = new();
+        public string SizeCode { get; set; } = "0";  // Size character from world object (e.g. "7", "S", "0")
+        public string UWP { get; set; } = "";        // Full UWP: X{Size}{Atm}{Hyd}{Pop}{Gov}{Law}-{TL}
     }
 
     internal class GovernmentData
@@ -760,6 +789,8 @@ namespace TravellerSystemGenerator
 
             // Determine additional inhabited worlds (beyond mainworld and sophont worlds)
             DetermineAdditionalInhabitedWorlds(dice);
+            DetermineSecondaryWorldGovernments(dice);
+            DetermineSecondaryWorldTradeCodes(dice);
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -7658,23 +7689,28 @@ namespace TravellerSystemGenerator
                 if (sw.PlacedWorld != null) excludedWorlds.Add(sw.PlacedWorld);
 
             // Check candidate worlds across all stars
-            void CheckWorld(object world, string designation)
+            void CheckWorld(object world, string designation, bool isInHabitableZone)
             {
                 if (excludedWorlds.Contains(world)) return;
 
-                int atmosphere = 0, habitabilityRating = 0, resourceRating = 0;
+                int atmosphere = 0, habitabilityRating = 0, resourceRating = 0, hydrographics = 0;
+                string sizeCode = "0";
 
                 if (world is TerrestrialPlanet tp)
                 {
                     atmosphere = FromEhex(tp.Atmosphere);
                     habitabilityRating = tp.HabitabilityRating;
                     resourceRating = tp.ResourceRating;
+                    hydrographics = FromEhex(tp.HydrographicsCode);
+                    sizeCode = tp.Size;
                 }
                 else if (world is Moon moon)
                 {
                     atmosphere = FromEhex(moon.Atmosphere);
                     habitabilityRating = moon.HabitabilityRating;
                     resourceRating = moon.ResourceRating;
+                    hydrographics = FromEhex(moon.HydrographicsCode);
+                    sizeCode = moon.Size;
                 }
                 else if (world is PlanetoidBelt belt)
                 {
@@ -7682,6 +7718,7 @@ namespace TravellerSystemGenerator
                     atmosphere = 0;
                     habitabilityRating = 0;
                     resourceRating = belt.ResourceRating;
+                    hydrographics = 0;
                 }
                 else return;
 
@@ -7773,29 +7810,40 @@ namespace TravellerSystemGenerator
                     WorldDesignation = designation,
                     PopulationCode = popCode,
                     PopulationP = popP,
-                    ActualPopulation = actualPop
+                    ActualPopulation = actualPop,
+                    HabitabilityRating = habitabilityRating,
+                    ResourceRating = resourceRating,
+                    Atmosphere = atmosphere,
+                    Hydrographics = hydrographics,
+                    IsInHabitableZone = isInHabitableZone,
+                    SizeCode = sizeCode,
                 });
 
                 DebugLogger.Log($"  {designation}: Additional Inhabited World — pop {IntToEhex(popCode)}, P={popP}, actual={actualPop:N0}");
             }
 
             // Iterate primary star's orbits
-            foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+            if (primaryObject.celestrialObject is Star primaryStar2)
             {
-                if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                var (phzMin, phzMax) = CalculateHabitableZone(primaryStar2);
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
                 {
-                    CheckWorld(tp, tp.Designation);
-                    foreach (var moon in tp.Moons)
-                        CheckWorld(moon, $"{tp.Designation} {moon.Designation}");
-                }
-                else if (bodyObj.celestrialObject is GasGiant gg)
-                {
-                    foreach (var moon in gg.Moons)
-                        CheckWorld(moon, $"{gg.Designation} {moon.Designation}");
-                }
-                else if (bodyObj.celestrialObject is PlanetoidBelt belt)
-                {
-                    CheckWorld(belt, belt.Designation);
+                    bool inHz = phzMin > 0 && bodyObj.orbit >= phzMin && bodyObj.orbit <= phzMax;
+                    if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                    {
+                        CheckWorld(tp, tp.Designation, inHz);
+                        foreach (var moon in tp.Moons)
+                            CheckWorld(moon, $"{tp.Designation} {moon.Designation}", inHz);
+                    }
+                    else if (bodyObj.celestrialObject is GasGiant gg)
+                    {
+                        foreach (var moon in gg.Moons)
+                            CheckWorld(moon, $"{gg.Designation} {moon.Designation}", inHz);
+                    }
+                    else if (bodyObj.celestrialObject is PlanetoidBelt belt)
+                    {
+                        CheckWorld(belt, belt.Designation, inHz);
+                    }
                 }
             }
 
@@ -7808,22 +7856,24 @@ namespace TravellerSystemGenerator
             {
                 if (companionObj.celestrialObject is Star companionStar)
                 {
+                    var (chzMin, chzMax) = CalculateHabitableZone(companionStar);
                     foreach (var bodyObj in companionObj.celestrialObjectOrbits)
                     {
+                        bool inHz = chzMin > 0 && bodyObj.orbit >= chzMin && bodyObj.orbit <= chzMax;
                         if (bodyObj.celestrialObject is TerrestrialPlanet tp)
                         {
-                            CheckWorld(tp, tp.Designation);
+                            CheckWorld(tp, tp.Designation, inHz);
                             foreach (var moon in tp.Moons)
-                                CheckWorld(moon, $"{tp.Designation} {moon.Designation}");
+                                CheckWorld(moon, $"{tp.Designation} {moon.Designation}", inHz);
                         }
                         else if (bodyObj.celestrialObject is GasGiant gg)
                         {
                             foreach (var moon in gg.Moons)
-                                CheckWorld(moon, $"{gg.Designation} {moon.Designation}");
+                                CheckWorld(moon, $"{gg.Designation} {moon.Designation}", inHz);
                         }
                         else if (bodyObj.celestrialObject is PlanetoidBelt belt)
                         {
-                            CheckWorld(belt, belt.Designation);
+                            CheckWorld(belt, belt.Designation, inHz);
                         }
                     }
                 }
@@ -7836,6 +7886,237 @@ namespace TravellerSystemGenerator
         {
             var aiw = additionalInhabitedWorlds.FirstOrDefault(w => w.World == world);
             return aiw != null ? IntToEhex(aiw.PopulationCode) : null;
+        }
+
+        private AdditionalInhabitedWorld? GetAdditionalInhabitedWorld(object world)
+        {
+            return additionalInhabitedWorlds.FirstOrDefault(w => w.World == world);
+        }
+
+        private string GetMainworldDesignation()
+        {
+            if (mainworld?.PlacedWorld == null) return "";
+            if (mainworld.PlacedWorld is TerrestrialPlanet mwTp)
+                return mwTp.Designation;
+            if (mainworld.PlacedWorld is PlanetoidBelt mwBelt)
+                return mwBelt.Designation;
+            if (mainworld.PlacedWorld is Moon mwMoon)
+            {
+                // Search primary star orbits for parent
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.Moons.Contains(mwMoon))
+                        return $"{tp.Designation} {mwMoon.Designation}";
+                    if (bodyObj.celestrialObject is GasGiant gg && gg.Moons.Contains(mwMoon))
+                        return $"{gg.Designation} {mwMoon.Designation}";
+                }
+                // Search companion stars
+                foreach (var compObj in primaryObject.celestrialObjectOrbits.Where(o => o.celestrialObject is Star))
+                {
+                    if (compObj.celestrialObject is Star compStar)
+                    {
+                        foreach (var bodyObj in compObj.celestrialObjectOrbits)
+                        {
+                            if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.Moons.Contains(mwMoon))
+                                return $"{tp.Designation} {mwMoon.Designation}";
+                            if (bodyObj.celestrialObject is GasGiant gg && gg.Moons.Contains(mwMoon))
+                                return $"{gg.Designation} {mwMoon.Designation}";
+                        }
+                    }
+                }
+                return mwMoon.Designation; // fallback
+            }
+            return "";
+        }
+
+        private string FormatTradeCodesWithTooltips(IEnumerable<TradeCode> codes)
+        {
+            return string.Join(", ", codes.Select(tc =>
+                $"<span class=\"gov-tooltip\" data-tooltip=\"{tc.Name}\">{tc.Code}</span>"));
+        }
+
+        // ─── Secondary World Governments & Classifications ─────────────────────────
+
+        private void DetermineSecondaryWorldGovernments(Random dice)
+        {
+            if (mainworld == null || additionalInhabitedWorlds.Count == 0) return;
+
+            string mainworldDesig = GetMainworldDesignation();
+            bool anyUnderAuthority = false;
+
+            // Process in descending population order
+            var sorted = additionalInhabitedWorlds.OrderByDescending(w => w.PopulationCode).ToList();
+
+            foreach (var aiw in sorted)
+            {
+                // Initial government code
+                int govCode = Math.Clamp(Starhelper.diceRoll(6, 2, dice) - 7 + aiw.PopulationCode, 0, 15);
+
+                // Independence roll — capture raw die before DMs
+                int rawRoll = Starhelper.diceRoll(6, 1, dice);
+                int dm = 0;
+                if (aiw.PopulationCode == 2) dm -= 1;
+                if (aiw.PopulationCode == 1) dm -= 2;
+                if (mainworld.Government == 1) dm += 1;
+                if (mainworld.Government == 2 || mainworld.Government == 4) dm -= 1;
+                if (aiw.HabitabilityRating >= 8) dm += 1;
+                if (aiw.ResourceRating >= 9) dm += 1;
+                if (anyUnderAuthority) dm += 1;
+                int finalRoll = rawRoll + dm;
+
+                bool isIndependent = (rawRoll == 1) || (finalRoll <= 3);
+
+                if (!isIndependent)
+                {
+                    // Under authority: replace government code via table
+                    int underDM = 0;
+                    if (mainworld.Government == 0) underDM = -2;
+                    else if (mainworld.Government == 6) underDM = mainworld.Population;
+                    int underResult = Starhelper.diceRoll(6, 1, dice) + underDM;
+                    govCode = underResult switch
+                    {
+                        <= 1 => 0,
+                        2    => 1,
+                        3    => 2,
+                        4    => 3,
+                        _    => 6
+                    };
+                    aiw.AuthorityDesignation = mainworldDesig;
+                    anyUnderAuthority = true;
+                }
+
+                aiw.IsIndependent = isIndependent;
+                aiw.GovernmentCode = govCode;
+                aiw.GovernmentType = GetGovernmentType(govCode);
+
+                // Law Level from final government code
+                aiw.LawLevel = Math.Clamp(Starhelper.diceRoll(6, 2, dice) - 7 + govCode, 0, 15);
+
+                // Government profile
+                if (govCode == 0)
+                {
+                    aiw.GovernmentProfile = "0";
+                }
+                else if (govCode == 7)
+                {
+                    aiw.CentralisationCode = "n/a";
+                    aiw.CentralisationType = "";
+                    aiw.AuthorityCode = "n/a";
+                    aiw.AuthorityType = "";
+                    aiw.StructureCode = "n/a";
+                    aiw.StructureType = "";
+                    aiw.GovernmentProfile = "7-n/a";
+                }
+                else
+                {
+                    var govData = GenerateGovernmentDetails(govCode, mainworld.PCR, 0, dice);
+                    aiw.CentralisationCode = govData.CentralisationCode;
+                    aiw.CentralisationType = govData.CentralisationType;
+                    aiw.AuthorityCode = govData.AuthorityCode;
+                    aiw.AuthorityType = govData.AuthorityType;
+                    aiw.StructureCode = govData.StructureCode;
+                    aiw.StructureType = govData.StructureType;
+                    aiw.GovernmentProfile = govData.Profile;
+                }
+
+                DebugLogger.Log($"  {aiw.WorldDesignation}: {(isIndependent ? "Independent" : $"Under authority of {mainworldDesig}")}, Gov={IntToEhex(govCode)}, LL={IntToEhex(aiw.LawLevel)}, Profile={aiw.GovernmentProfile}");
+            }
+        }
+
+        private void DetermineSecondaryWorldTradeCodes(Random dice)
+        {
+            if (mainworld == null || additionalInhabitedWorlds.Count == 0) return;
+
+            bool mainworldHasIn = mainworld.TradeCodes.Any(tc => tc.Code == "In");
+            bool mainworldHasPo = mainworld.TradeCodes.Any(tc => tc.Code == "Po");
+
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.TradeCodes.Clear();
+
+                // Numeric size of the world
+                int size = 0;
+                if (aiw.World is TerrestrialPlanet tp)
+                    size = (tp.Size == "S" || tp.Size == "R") ? 0 : FromEhex(tp.Size);
+                else if (aiw.World is Moon m)
+                    size = (m.Size == "S" || m.Size == "R") ? 0 : FromEhex(m.Size);
+                // PlanetoidBelt: size stays 0
+
+                // TechLevel (1d6 + DMs, no starport DM)
+                int tlDM = 0;
+                if (size == 0 || size == 1) tlDM += 2;
+                else if (size >= 2 && size <= 4) tlDM += 1;
+                if (aiw.Atmosphere <= 3 || aiw.Atmosphere >= 10) tlDM += 1;
+                if (aiw.Hydrographics == 0) tlDM += 1;
+                else if (aiw.Hydrographics == 9) tlDM += 1;
+                else if (aiw.Hydrographics == 10) tlDM += 2;
+                if (aiw.PopulationCode >= 1 && aiw.PopulationCode <= 5) tlDM += 1;
+                else if (aiw.PopulationCode >= 8 && aiw.PopulationCode <= 10) tlDM += 1;
+                if (aiw.GovernmentCode == 0 || aiw.GovernmentCode == 5) tlDM += 1;
+                else if (aiw.GovernmentCode == 7) tlDM += 2;
+                else if (aiw.GovernmentCode == 13 || aiw.GovernmentCode == 14) tlDM -= 2;
+
+                int tl = Math.Max(0, Starhelper.diceRoll(6, 1, dice) + tlDM);
+                int minTL = GetMinimumTechLevel(aiw.Atmosphere, aiw.HabitabilityRating);
+                if (tl < minTL) tl = minTL;
+                aiw.TechLevel = tl;
+
+                // Build full UWP for this secondary world (Starport always X)
+                aiw.UWP = $"X{aiw.SizeCode}{IntToEhex(aiw.Atmosphere)}{IntToEhex(aiw.Hydrographics)}{IntToEhex(aiw.PopulationCode)}{IntToEhex(aiw.GovernmentCode)}{IntToEhex(aiw.LawLevel)}-{IntToEhex(tl)}";
+
+                // Colony (Cy): Pop >= 5 AND Gov >= 6
+                if (aiw.PopulationCode >= 5 && aiw.GovernmentCode >= 6)
+                    aiw.TradeCodes.Add(new TradeCode("Colony", "Cy"));
+
+                // Farming (Fa): IsInHabitableZone AND Atm 4-9 AND Hyd 4-8 AND Pop >= 2
+                if (aiw.IsInHabitableZone &&
+                    aiw.Atmosphere >= 4 && aiw.Atmosphere <= 9 &&
+                    aiw.Hydrographics >= 4 && aiw.Hydrographics <= 8 &&
+                    aiw.PopulationCode >= 2)
+                    aiw.TradeCodes.Add(new TradeCode("Farming", "Fa"));
+
+                // Freeport (Fp): Gov 0-5 AND TL >= 8; roll 2d6 >= 10 (+2 if mainworld A/B starport)
+                if (aiw.GovernmentCode >= 0 && aiw.GovernmentCode <= 5 && aiw.TechLevel >= 8)
+                {
+                    int fpDM = (mainworld.Starport == 'A' || mainworld.Starport == 'B') ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + fpDM >= 10)
+                        aiw.TradeCodes.Add(new TradeCode("Freeport", "Fp"));
+                }
+
+                // Military Base (Mb): Mainworld TL >= 8 AND mainworld not Po AND Gov 6; roll 2d6 >= 12 (+2 if mainworld gov 6)
+                if (mainworld.TechLevel >= 8 && !mainworldHasPo && aiw.GovernmentCode == 6)
+                {
+                    int mbDM = mainworld.Government == 6 ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + mbDM >= 12)
+                        aiw.TradeCodes.Add(new TradeCode("Military Base", "Mb"));
+                }
+
+                // Mining Facility (Mi): Mainworld has In AND Pop >= 2
+                if (mainworldHasIn && aiw.PopulationCode >= 2)
+                {
+                    int miTarget = (aiw.World is PlanetoidBelt) ? 6 : 10;
+                    if (Starhelper.diceRoll(6, 2, dice) >= miTarget)
+                        aiw.TradeCodes.Add(new TradeCode("Mining Facility", "Mi"));
+                }
+
+                // Penal Colony (Pe): Mainworld TL >= 9 AND mainworld LL >= 8 AND Gov 6; roll 2d6 >= 10 (+2 if aiw LL >= 8)
+                if (mainworld.TechLevel >= 9 && mainworld.LawLevel >= 8 && aiw.GovernmentCode == 6)
+                {
+                    int peDM = aiw.LawLevel >= 8 ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + peDM >= 10)
+                        aiw.TradeCodes.Add(new TradeCode("Penal Colony", "Pe"));
+                }
+
+                // Research Base (Rb): Mainworld Pop >= 6 AND mainworld TL >= 8 AND mainworld not Po; roll 2d6 >= 10 (+2 if mainworld TL >= 12)
+                if (mainworld.Population >= 6 && mainworld.TechLevel >= 8 && !mainworldHasPo)
+                {
+                    int rbDM = mainworld.TechLevel >= 12 ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + rbDM >= 10)
+                        aiw.TradeCodes.Add(new TradeCode("Research Base", "Rb"));
+                }
+
+                DebugLogger.Log($"  {aiw.WorldDesignation}: TL={IntToEhex(aiw.TechLevel)}, LL={IntToEhex(aiw.LawLevel)}, TradeCodes={string.Join(" ", aiw.TradeCodes.Select(tc => tc.Code))}");
+            }
         }
 
         // ─── Faction & Government Profile Generation ──────────────────────────────
@@ -10186,6 +10467,18 @@ namespace TravellerSystemGenerator
                 notes.Add(planetoidBelt.BeltProfile);
             }
 
+            // Add AIW authority/trade code info
+            var aiw = GetAdditionalInhabitedWorld(body);
+            if (aiw != null)
+            {
+                if (aiw.IsIndependent)
+                    notes.Add("Ind");
+                else
+                    notes.Add($"Auth: {aiw.AuthorityDesignation}");
+                if (aiw.TradeCodes.Count > 0)
+                    notes.Add(string.Join(" ", aiw.TradeCodes.Select(tc => tc.Code)));
+            }
+
             return string.Join(", ", notes);
         }
 
@@ -11021,9 +11314,9 @@ namespace TravellerSystemGenerator
                                         else
                                         {
                                             // Check if this moon is an additional inhabited world
-                                            string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                            if (moonPopDigit != null)
-                                                moonInfo.Add(moon.Size + moon.Atmosphere + moon.HydrographicsCode + moonPopDigit);
+                                            var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                            if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP))
+                                                moonInfo.Add(moonAiw.UWP);
                                             else
                                                 moonInfo.Add(moon.Size);
                                         }
@@ -11068,9 +11361,9 @@ namespace TravellerSystemGenerator
                         // Check if this is an additional inhabited world (only if not mainworld or sophont world)
                         if (mainworld?.PlacedWorld != body && !sophontWorlds.Any(sw => sw.PlacedWorld == body))
                         {
-                            string? popDigit = GetAdditionalInhabitedPopDigit(body);
-                            if (popDigit != null)
-                                size = (body is PlanetoidBelt) ? "000" + popDigit : size + popDigit;
+                            var aiwBody = GetAdditionalInhabitedWorld(body);
+                            if (aiwBody != null && !string.IsNullOrEmpty(aiwBody.UWP))
+                                size = aiwBody.UWP;
                         }
 
                         // Check if this body is the mainworld and add * marker
@@ -11252,9 +11545,9 @@ namespace TravellerSystemGenerator
                                             else
                                             {
                                                 // Check if this moon is an additional inhabited world
-                                                string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                                if (moonPopDigit != null)
-                                                    moonInfo.Add(moon.Size + moon.Atmosphere + moon.HydrographicsCode + moonPopDigit);
+                                                var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                                if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP))
+                                                    moonInfo.Add(moonAiw.UWP);
                                                 else
                                                     moonInfo.Add(moon.Size);
                                             }
@@ -11299,9 +11592,9 @@ namespace TravellerSystemGenerator
                             // Check if this is an additional inhabited world (only if not mainworld or sophont world)
                             if (mainworld?.PlacedWorld != body && !sophontWorlds.Any(sw => sw.PlacedWorld == body))
                             {
-                                string? popDigit = GetAdditionalInhabitedPopDigit(body);
-                                if (popDigit != null)
-                                    size = (body is PlanetoidBelt) ? "000" + popDigit : size + popDigit;
+                                var aiwBody = GetAdditionalInhabitedWorld(body);
+                                if (aiwBody != null && !string.IsNullOrEmpty(aiwBody.UWP))
+                                    size = aiwBody.UWP;
                             }
 
                             // Check if this body is the mainworld and add * marker
@@ -11655,7 +11948,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            content: attr(data-tooltip);");
             html.AppendLine("            position: absolute;");
             html.AppendLine("            left: 0;");
-            html.AppendLine("            top: 100%;");
+            html.AppendLine("            bottom: 100%;");
             html.AppendLine("            z-index: 1000;");
             html.AppendLine("            background-color: #333;");
             html.AppendLine("            color: white;");
@@ -11664,7 +11957,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            white-space: pre-line;");
             html.AppendLine("            font-size: 14px;");
             html.AppendLine("            box-shadow: 0 2px 8px rgba(0,0,0,0.3);");
-            html.AppendLine("            margin-top: 5px;");
+            html.AppendLine("            margin-bottom: 5px;");
             html.AppendLine("            min-width: 300px;");
             html.AppendLine("        }");
             html.AppendLine("    </style>");
@@ -11826,6 +12119,12 @@ namespace TravellerSystemGenerator
                         {
                             sizeCell = $"<a href=\"surveys/PopulatedWorldDetails.html\">{world.Size}</a>";
                         }
+                        // Add link to inhabited world form for secondary worlds (UWP starts with X = secondary world starport)
+                        else if (world.Size.StartsWith("X") && world.Size.Contains("-") && world.Sub != "?")
+                        {
+                            string surveyFilename = world.Object.Replace(" ", "_").Replace("*", "");
+                            sizeCell = $"<a href=\"surveys/{surveyFilename}_inhabited.html\">{world.Size}</a>";
+                        }
 
                         html.AppendLine($"                <td class=\"center\">{sizeCell}</td>");
                         html.AppendLine($"                <td class=\"center\">{world.Sub}</td>");
@@ -11879,6 +12178,9 @@ namespace TravellerSystemGenerator
             html.AppendLine("        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }");
             html.AppendLine("        .back-link { margin-bottom: 10px; }");
             html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }");
+            html.AppendLine("        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }");
+            html.AppendLine("        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
             html.AppendLine("<body>");
@@ -12264,6 +12566,59 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
+            // AIW STATUS section (only for Additional Inhabited Worlds)
+            if (data.AIWData != null)
+            {
+                var aiw = data.AIWData;
+                string govCodeStr = IntToEhex(aiw.GovernmentCode);
+                string govTypeDisplay = (aiw.GovernmentCode == 6 && !aiw.IsIndependent)
+                    ? $"6 - Captive Government (under {aiw.AuthorityDesignation})"
+                    : $"{govCodeStr} - {aiw.GovernmentType}";
+                string authStr = aiw.IsIndependent
+                    ? "Independent World"
+                    : $"Under the authority of {aiw.AuthorityDesignation}";
+
+                html.AppendLine("        <table style=\"margin-top: 10px;\">");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th colspan=\"2\">SECONDARY WORLD STATUS</th>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Authority</th>");
+                html.AppendLine($"                <td>{authStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Government</th>");
+                html.AppendLine($"                <td>{govTypeDisplay}</td>");
+                html.AppendLine("            </tr>");
+                if (aiw.GovernmentCode != 0 && aiw.GovernmentCode != 7 && !string.IsNullOrEmpty(aiw.GovernmentProfile))
+                {
+                    string govTooltip = BuildGovernmentTooltip(aiw.GovernmentCode, aiw.GovernmentType,
+                        aiw.CentralisationCode, aiw.CentralisationType,
+                        aiw.AuthorityCode, aiw.AuthorityType,
+                        aiw.StructureCode, aiw.StructureType);
+                    html.AppendLine("            <tr>");
+                    html.AppendLine("                <th>Gov Profile</th>");
+                    html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{aiw.GovernmentProfile}</span></td>");
+                    html.AppendLine("            </tr>");
+                }
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Tech Level</th>");
+                html.AppendLine($"                <td>{IntToEhex(aiw.TechLevel)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Law Level</th>");
+                html.AppendLine($"                <td>{IntToEhex(aiw.LawLevel)}</td>");
+                html.AppendLine("            </tr>");
+                if (aiw.TradeCodes.Count > 0)
+                {
+                    html.AppendLine("            <tr>");
+                    html.AppendLine("                <th>Trade Code(s)</th>");
+                    html.AppendLine($"                <td>{FormatTradeCodesWithTooltips(aiw.TradeCodes)}</td>");
+                    html.AppendLine("            </tr>");
+                }
+                html.AppendLine("        </table>");
+            }
+
             html.AppendLine("    </div>");
             html.AppendLine("</body>");
             html.AppendLine("</html>");
@@ -12285,6 +12640,156 @@ namespace TravellerSystemGenerator
             return "X";                                 // < 1,000
         }
 
+        private string GenerateInhabitedWorldFormHtml(AdditionalInhabitedWorld aiw)
+        {
+            string designation = aiw.WorldDesignation;
+            string surveyLink = designation.Replace(" ", "_") + ".html";
+
+            string govCodeStr = IntToEhex(aiw.GovernmentCode);
+            string govTypeDisplay = (aiw.GovernmentCode == 6 && !aiw.IsIndependent)
+                ? $"6 - Captive Government (under {aiw.AuthorityDesignation})"
+                : $"{govCodeStr} - {aiw.GovernmentType}";
+            string authStr = aiw.IsIndependent
+                ? "Independent World"
+                : $"Under the authority of {aiw.AuthorityDesignation}";
+
+            StringBuilder html = new StringBuilder();
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine($"    <title>Inhabited World - {designation}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1100px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 6px; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }");
+            html.AppendLine("        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }");
+            html.AppendLine("        .back-link { margin-bottom: 10px; }");
+            html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; font-family: monospace; font-weight: bold; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+
+            // Navigation
+            html.AppendLine("        <div class=\"back-link\">");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
+            html.AppendLine($"            &nbsp;|&nbsp; <a href=\"{surveyLink}\">IISS Class IV Survey</a>");
+            html.AppendLine("        </div>");
+
+            // Title
+            html.AppendLine("        <div class=\"header\">");
+            html.AppendLine("            <h2 style=\"margin: 0;\">INHABITED WORLD</h2>");
+            html.AppendLine("        </div>");
+
+            // World and UWP
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th style=\"width: 60%;\">World</th>");
+            html.AppendLine("                <th style=\"width: 40%;\">UWP</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{designation}</td>");
+            html.AppendLine($"                <td>{aiw.UWP}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Authority
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">AUTHORITY</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Status:</td>");
+            html.AppendLine($"                <td>{authStr}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Population
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">POPULATION</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Population Code:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.PopulationCode)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Total:</td>");
+            html.AppendLine($"                <td>{aiw.ActualPopulation:N0}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Demographics:</td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Government
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">GOVERNMENT</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Type:</td>");
+            html.AppendLine($"                <td>{govTypeDisplay}</td>");
+            html.AppendLine("            </tr>");
+            if (aiw.GovernmentCode != 0 && aiw.GovernmentCode != 7 && !string.IsNullOrEmpty(aiw.GovernmentProfile))
+            {
+                string govTooltip = BuildGovernmentTooltip(aiw.GovernmentCode, aiw.GovernmentType,
+                    aiw.CentralisationCode, aiw.CentralisationType,
+                    aiw.AuthorityCode, aiw.AuthorityType,
+                    aiw.StructureCode, aiw.StructureType);
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Gov Profile:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{aiw.GovernmentProfile}</span></td>");
+                html.AppendLine("            </tr>");
+            }
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Tech Level:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.TechLevel)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Law Level:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.LawLevel)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Trade Codes
+            if (aiw.TradeCodes.Count > 0)
+            {
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>TRADE CODE(S)</th>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine($"                <td>{FormatTradeCodesWithTooltips(aiw.TradeCodes)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // Comments
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>COMMENTS</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td style=\"height: 100px;\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
         private string GeneratePopulatedWorldDetailsFormHtml()
         {
             if (mainworld == null || mainworld.Population == 0) return "";
@@ -12298,9 +12803,9 @@ namespace TravellerSystemGenerator
                 primaryObjectName = star.Designation;
             }
 
-            // Format trade codes
+            // Format trade codes with tooltips
             string tradeCodes = mainworld.TradeCodes.Count > 0
-                ? string.Join(", ", mainworld.TradeCodes.Select(tc => tc.Code))
+                ? FormatTradeCodesWithTooltips(mainworld.TradeCodes)
                 : "";
 
             html.AppendLine("<!DOCTYPE html>");
@@ -12326,7 +12831,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("        .indent-2 { padding-left: 40px; }");
             html.AppendLine("        .indent-3 { padding-left: 60px; }");
             html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; font-family: monospace; font-weight: bold; }");
-            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; top: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-top: 5px; min-width: 260px; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
             html.AppendLine("<body>");
@@ -12823,8 +13328,9 @@ namespace TravellerSystemGenerator
                             else
                             {
                                 // Check additional inhabited world — append population digit
-                                string? popDigit = GetAdditionalInhabitedPopDigit(tp);
-                                if (popDigit != null) sahUwp += popDigit;
+                                var aiwTp = GetAdditionalInhabitedWorld(tp);
+                                if (aiwTp != null && !string.IsNullOrEmpty(aiwTp.UWP)) sahUwp = aiwTp.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
                             }
                         }
 
@@ -12883,6 +13389,7 @@ namespace TravellerSystemGenerator
                             ResourceRating = tp.ResourceRating,
                             HabitabilityRating = tp.HabitabilityRating,
                             Moons = tp.Moons,
+                            WorldObject = tp,
                             Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                         };
                         surveyDataList.Add(surveyData);
@@ -12902,8 +13409,9 @@ namespace TravellerSystemGenerator
                             }
                             else
                             {
-                                string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                                var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                             }
 
                             SurveyData moonSurvey = new SurveyData
@@ -12958,6 +13466,7 @@ namespace TravellerSystemGenerator
                                 ResourceRating = moon.ResourceRating,
                                 HabitabilityRating = moon.HabitabilityRating,
                                 Moons = new List<Moon>(),
+                                WorldObject = moon,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
                             surveyDataList.Add(moonSurvey);
@@ -12980,8 +13489,9 @@ namespace TravellerSystemGenerator
                             }
                             else
                             {
-                                string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                                var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                             }
 
                             SurveyData moonSurvey = new SurveyData
@@ -13036,6 +13546,7 @@ namespace TravellerSystemGenerator
                                 ResourceRating = moon.ResourceRating,
                                 HabitabilityRating = moon.HabitabilityRating,
                                 Moons = new List<Moon>(),
+                                WorldObject = moon,
                                 Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                             };
                             surveyDataList.Add(moonSurvey);
@@ -13065,8 +13576,9 @@ namespace TravellerSystemGenerator
                             }
                             else
                             {
-                                string? popDigit = GetAdditionalInhabitedPopDigit(tp);
-                                if (popDigit != null) sahUwp += popDigit;
+                                var aiwTp = GetAdditionalInhabitedWorld(tp);
+                                if (aiwTp != null && !string.IsNullOrEmpty(aiwTp.UWP)) sahUwp = aiwTp.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
                             }
 
                             SurveyData surveyData = new SurveyData
@@ -13123,6 +13635,7 @@ namespace TravellerSystemGenerator
                                 ResourceRating = tp.ResourceRating,
                                 HabitabilityRating = tp.HabitabilityRating,
                                 Moons = tp.Moons,
+                                WorldObject = tp,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
                             surveyDataList.Add(surveyData);
@@ -13182,6 +13695,7 @@ namespace TravellerSystemGenerator
                                     ResourceRating = moon.ResourceRating,
                                     HabitabilityRating = moon.HabitabilityRating,
                                     Moons = new List<Moon>(),
+                                    WorldObject = moon,
                                     Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
                                 surveyDataList.Add(moonSurvey);
@@ -13204,8 +13718,9 @@ namespace TravellerSystemGenerator
                                 }
                                 else
                                 {
-                                    string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                    if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                                    var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                    if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                    else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                                 }
 
                                 SurveyData moonSurvey = new SurveyData
@@ -13260,6 +13775,7 @@ namespace TravellerSystemGenerator
                                     ResourceRating = moon.ResourceRating,
                                     HabitabilityRating = moon.HabitabilityRating,
                                     Moons = new List<Moon>(),
+                                    WorldObject = moon,
                                     Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
                                 surveyDataList.Add(moonSurvey);
@@ -13290,8 +13806,9 @@ namespace TravellerSystemGenerator
                             }
                             else
                             {
-                                string? popDigit = GetAdditionalInhabitedPopDigit(tp);
-                                if (popDigit != null) sahUwp += popDigit;
+                                var aiwTp = GetAdditionalInhabitedWorld(tp);
+                                if (aiwTp != null && !string.IsNullOrEmpty(aiwTp.UWP)) sahUwp = aiwTp.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
                             }
 
                             SurveyData surveyData = new SurveyData
@@ -13334,6 +13851,7 @@ namespace TravellerSystemGenerator
                                 TotalTidalForce = tp.TotalTidalForce,
                                 TidalForceContributions = tp.TidalForceContributions,
                                 Moons = tp.Moons,
+                                WorldObject = tp,
                                 Filename = $"{tp.Designation.Replace(" ", "_")}.html"
                             };
                             surveyDataList.Add(surveyData);
@@ -13353,8 +13871,9 @@ namespace TravellerSystemGenerator
                                 }
                                 else
                                 {
-                                    string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                    if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                                    var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                    if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                    else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                                 }
 
                                 SurveyData moonSurvey = new SurveyData
@@ -13397,6 +13916,7 @@ namespace TravellerSystemGenerator
                                     TotalTidalForce = moon.TotalTidalForce,
                                     TidalForceContributions = moon.TidalForceContributions,
                                     Moons = new List<Moon>(),
+                                    WorldObject = moon,
                                     Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
                                 surveyDataList.Add(moonSurvey);
@@ -13419,8 +13939,9 @@ namespace TravellerSystemGenerator
                                 }
                                 else
                                 {
-                                    string? moonPopDigit = GetAdditionalInhabitedPopDigit(moon);
-                                    if (moonPopDigit != null) moonSahUwp += moonPopDigit;
+                                    var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                    if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                    else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                                 }
 
                                 SurveyData moonSurvey = new SurveyData
@@ -13463,11 +13984,31 @@ namespace TravellerSystemGenerator
                                     TotalTidalForce = moon.TotalTidalForce,
                                     TidalForceContributions = moon.TidalForceContributions,
                                     Moons = new List<Moon>(),
+                                    WorldObject = moon,
                                     Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
                                 };
                                 surveyDataList.Add(moonSurvey);
                             }
                         }
+                    }
+                }
+            }
+
+            // Post-process: attach AIW data and update WorldName with authority status
+            foreach (var sd in surveyDataList)
+            {
+                if (sd.WorldObject != null)
+                {
+                    var aiw = GetAdditionalInhabitedWorld(sd.WorldObject);
+                    if (aiw != null)
+                    {
+                        sd.AIWData = aiw;
+                        string authStatus = aiw.IsIndependent
+                            ? "Independent World"
+                            : $"Under the authority of {aiw.AuthorityDesignation}";
+                        // Only update if the WorldName doesn't already contain a system name override
+                        if (!sd.WorldName.Contains("<br>"))
+                            sd.WorldName += $"<br>{authStatus}";
                     }
                 }
             }
@@ -13512,6 +14053,28 @@ namespace TravellerSystemGenerator
                     }
                 }
             }
+
+            // Generate Inhabited World forms for secondary worlds
+            int inhabitedCount = 0;
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                string inhabitedHtml = GenerateInhabitedWorldFormHtml(aiw);
+                string inhabitedFilename = aiw.WorldDesignation.Replace(" ", "_") + "_inhabited.html";
+                string inhabitedPath = System.IO.Path.Combine(surveysFolder, inhabitedFilename);
+
+                try
+                {
+                    System.IO.File.WriteAllText(inhabitedPath, inhabitedHtml);
+                    DebugLogger.Log($"Generated Inhabited World form: {inhabitedFilename}");
+                    inhabitedCount++;
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ERROR: Failed to write Inhabited World file {inhabitedFilename} - {ex.Message}");
+                }
+            }
+            if (inhabitedCount > 0)
+                Console.WriteLine($"Generated {inhabitedCount} Inhabited World form(s) in surveys/");
         }
 
         private int CountDStarsInSystem()

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IISS Class IV Survey - A I c</title>
+    <title>IISS Class IV Survey - A XII</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
@@ -18,12 +18,16 @@
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .back-link { margin-bottom: 10px; }
         .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }
+        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }
+        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="back-link">
             <a href="../StarSystem.html">&larr; Back to System Overview</a>
+            | <a href="PopulatedWorldDetails.html">Population Details &rarr;</a>
         </div>
         <div class="header" style="text-align: center;">
             <h1 style="margin: 0;">IISS CLASS IV SURVEY</h1>
@@ -35,8 +39,8 @@
                 <th>SAH/UWP</th>
             </tr>
             <tr>
-                <td>A I c</td>
-                <td>S00</td>
+                <td>A XII</td>
+                <td>ABHA79D-D</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -58,8 +62,8 @@
                 <th>Travel Zone</th>
             </tr>
             <tr>
-                <td colspan="2">A I</td>
-                <td>6.20</td>
+                <td colspan="2">A</td>
+                <td>5.20</td>
                 <td></td>
             </tr>
         </table>
@@ -67,16 +71,16 @@
             <tr>
                 <th>ORBIT</th>
                 <th>O#</th>
-                <th colspan="2">Distance</th>
+                <th colspan="2">AU</th>
                 <th>Eccentricity</th>
                 <th colspan="2">Period</th>
             </tr>
             <tr>
                 <td><strong>Notes:</strong></td>
-                <td>4.00</td>
-                <td colspan="2">509680 km</td>
-                <td>0.010</td>
-                <td colspan="2">1d 2.9h</td>
+                <td>1.60</td>
+                <td colspan="2">0.58</td>
+                <td>0.400</td>
+                <td colspan="2">223.8d</td>
             </tr>
             <tr>
                 <td colspan="7"></td>
@@ -94,12 +98,12 @@
             </tr>
             <tr>
                 <td style="background-color: #d3d3d3; border-top: none;"></td>
-                <td>583</td>
-                <td>Mostly Rock</td>
-                <td>0.71</td>
-                <td>0.03</td>
-                <td>0.00</td>
-                <td>2.02</td>
+                <td>17,073</td>
+                <td>Rock and Metal</td>
+                <td>1.09</td>
+                <td>1.46</td>
+                <td>1.96</td>
+                <td>13.52</td>
             </tr>
             <tr>
                 <td colspan="7"><strong>Notes:</strong></td>
@@ -111,7 +115,7 @@
                 <th>Pressure (bar)</th>
                 <td></td>
                 <th>Composition</th>
-                <td colspan="2">None</td>
+                <td colspan="2">Gas, Hydrogen</td>
                 <th>O<sub>2</sub> (bar)</th>
                 <td></td>
             </tr>
@@ -133,9 +137,9 @@
                 <th colspan="2">Distribution</th>
             </tr>
             <tr>
+                <td colspan="2">96.2%</td>
                 <td colspan="2"></td>
-                <td colspan="2"></td>
-                <td colspan="2"></td>
+                <td colspan="2">Concentrated</td>
             </tr>
             <tr>
                 <th>Major bodies</th>
@@ -152,19 +156,19 @@
             <tr>
                 <th rowspan="2">ROTATION</th>
                 <th>Sidereal</th>
-                <td style="background-color: white;">50d 0h 0m (50.00)</td>
+                <td style="background-color: white;">24h 28m 0s (24.47)</td>
                 <th>Solar</th>
-                <td style="background-color: white;"></td>
+                <td style="background-color: white;">24h 34m 43s (24.58)</td>
                 <th>Solar days/year</th>
-                <td style="background-color: white;"></td>
+                <td style="background-color: white;">218.5110</td>
                 <th>Axial Tilt</th>
-                <td style="background-color: white;"></td>
+                <td style="background-color: white;">1° 0' (1.00°)</td>
             </tr>
             <tr>
                 <th>Tidal lock?</th>
                 <td style="background-color: white;">No</td>
                 <th>Tides</th>
-                <td colspan="5" style="background-color: white;">Total: 1233.9m; A: 0.8m; A I: 1232.9m</td>
+                <td colspan="5" style="background-color: white;"></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -172,26 +176,26 @@
                 <th>Notes</th>
             </tr>
             <tr>
-                <td>Very slow retrograde</td>
+                <td></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="3">TEMPERATURE</th>
                 <th>High</th>
-                <td>420K (147°C)</td>
+                <td>244K (-29°C)</td>
                 <th colspan="2">Luminosity</th>
                 <th colspan="2"><strong>Notes:</strong></th>
             </tr>
             <tr>
                 <th>Mean</th>
-                <td>379K (106°C)</td>
+                <td>165K (-108°C)</td>
                 <th colspan="2">Albedo</th>
-                <td colspan="2">0.00</td>
+                <td colspan="2">0.50</td>
             </tr>
             <tr>
                 <th>Low</th>
-                <td>319K (46°C)</td>
+                <td>101K (-172°C)</td>
                 <th colspan="2">Greenhouse</th>
                 <td colspan="2">0.00</td>
             </tr>
@@ -205,10 +209,10 @@
                 <th>Major Tectonic Plates</th>
             </tr>
             <tr>
-                <td>1263.9</td>
                 <td>0.0</td>
-                <td>123.0</td>
-                <td colspan="2">1140.9</td>
+                <td>0.0</td>
+                <td>0.0</td>
+                <td colspan="2">0.0</td>
                 <td>0</td>
             </tr>
         </table>
@@ -241,7 +245,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td>3</td>
+                <td>12</td>
                 <td colspan="4"></td>
             </tr>
         </table>
@@ -255,6 +259,60 @@
                 <td></td>
                 <td>0</td>
                 <td colspan="4"></td>
+            </tr>
+        </table>
+        <table style="margin-bottom: 10px;">
+            <tr>
+                <th>SUBORDINATES</th>
+                <th>SAH/UWP</th>
+                <th>Orbit (PD)</th>
+                <th>Orbit (km)</th>
+                <th>Ecc</th>
+                <th>Diameter</th>
+                <th>Density</th>
+                <th>Mass</th>
+                <th>Period (h)</th>
+                <th>Size(°)</th>
+            </tr>
+            <tr>
+                <td><a href="A_XII_a.html">A XII a</a></td>
+                <td>8</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>13,606</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="A_XII_b.html">A XII b</a></td>
+                <td>S</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>580</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="A_XII_c.html">A XII c</a></td>
+                <td>S</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>445</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <th>Notes</th>
+                <td colspan="9"></td>
             </tr>
         </table>
         <table>

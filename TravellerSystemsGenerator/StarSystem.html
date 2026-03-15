@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traveller Star System - Seed 99999</title>
+    <title>Traveller Star System - Seed 700</title>
     <style>
         body {
             font-family: 'Courier New', monospace;
@@ -62,11 +62,32 @@
         .italic {
             font-style: italic;
         }
+        .belt-tooltip {
+            position: relative;
+            cursor: help;
+            border-bottom: 1px dotted #666;
+        }
+        .belt-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 0;
+            top: 100%;
+            z-index: 1000;
+            background-color: #333;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            white-space: pre-line;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            margin-top: 5px;
+            min-width: 300px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>TRAVELLER STAR SYSTEM GENERATION<br>Version 2.5.0<br>Seed: 99999</h1>
+        <h1>TRAVELLER STAR SYSTEM GENERATION<br>Version 2.10.2<br>Seed: 700</h1>
         <h2>Stellar</h2>
         <table class="stellar-table">
             <tr>
@@ -78,9 +99,9 @@
             </tr>
             <tr>
                 <td class="center">1</td>
-                <td class="center">4</td>
-                <td class="center">0</td>
-                <td class="center">4</td>
+                <td class="center">3</td>
+                <td class="center">2</td>
+                <td class="center">10</td>
                 <td class="center">Yes</td>
             </tr>
         </table>
@@ -102,17 +123,17 @@
             </tr>
             <tr>
                 <td>A</td>
-                <td class="center">K8 V</td>
-                <td class="numeric">0.634</td>
-                <td class="numeric">4,260</td>
-                <td class="numeric">0.780</td>
-                <td class="numeric">0.1810</td>
+                <td class="center">M0 V</td>
+                <td class="numeric">0.520</td>
+                <td class="numeric">3,700</td>
+                <td class="numeric">0.700</td>
+                <td class="numeric">0.0830</td>
                 <td class="numeric">—</td>
                 <td class="numeric">—</td>
                 <td class="numeric">—</td>
                 <td>—</td>
                 <td class="numeric">0.02</td>
-                <td class="numeric">1.08</td>
+                <td class="numeric">0.72</td>
             </tr>
         </table>
         <h2>Objects</h2>
@@ -131,98 +152,182 @@
             </tr>
             <tr>
                 <td>A</td>
-                <td>A I</td>
-                <td>Gas Giant</td>
-                <td class="numeric">0.52</td>
-                <td class="numeric">0.21</td>
-                <td class="numeric">0.005</td>
-                <td>43.6d</td>
-                <td class="center">GLA</td>
-                <td class="center">3</td>
-                <td>1400ME, R01, <a href="surveys/A_I_a.html">S</a>, <a href="surveys/A_I_b.html">S</a>, <a href="surveys/A_I_c.html">S</a></td>
+                <td><a href="surveys/A_I.html">A I</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">0.10</td>
+                <td class="numeric">0.04</td>
+                <td class="numeric">0.000</td>
+                <td>4d 4.6h</td>
+                <td class="center"><a href="surveys/A_I_inhabited.html">X9A3112-8</a></td>
+                <td class="center">0</td>
+                <td>Auth: A XII</td>
             </tr>
             <tr>
                 <td>A</td>
                 <td>A II</td>
                 <td>Gas Giant</td>
-                <td class="numeric">0.75</td>
-                <td class="numeric">0.30</td>
-                <td class="numeric">0.025</td>
-                <td>75.1d</td>
-                <td class="center">GLD</td>
+                <td class="numeric">0.21</td>
+                <td class="numeric">0.08</td>
+                <td class="numeric">0.001</td>
+                <td>11.9d</td>
+                <td class="center">GS3</td>
                 <td class="center">0</td>
-                <td>1800ME</td>
+                <td>30ME</td>
             </tr>
             <tr>
                 <td>A</td>
-                <td>A III</td>
-                <td>Gas Giant</td>
-                <td class="numeric">1.38</td>
-                <td class="numeric">0.52</td>
-                <td class="numeric">0.060</td>
-                <td>169.8d</td>
-                <td class="center">GMA</td>
+                <td><a href="surveys/A_III.html">A III</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">0.29</td>
+                <td class="numeric">0.12</td>
+                <td class="numeric">0.005</td>
+                <td>19.8d</td>
+                <td class="center">200</td>
+                <td class="center">0</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>A PI</td>
+                <td>Planetoid Belt</td>
+                <td class="numeric">0.41</td>
+                <td class="numeric">0.16</td>
+                <td class="numeric">0.003</td>
+                <td>33.8d</td>
+                <td class="center"></td>
+                <td class="center">?</td>
+                <td><span class="belt-tooltip" data-tooltip="Profile:&#10;1.1-25.25.00.50-A-8-4-E&#10;Span: 1.1 AU&#10;Composition:&#10;  Metallic: 25%&#10;  Stony: 25%&#10;  Carbonaceous: 00%&#10;  Other: 50%&#10;Bulk Density: A&#10;Resource Rating: 8&#10;Bodies: 4 size-1, E size-S">1.1-25.25.00.50-A-8-4-E</span></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_IV.html">A IV</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">0.50</td>
+                <td class="numeric">0.20</td>
+                <td class="numeric">0.010</td>
+                <td>45.8d</td>
+                <td class="center">8A5</td>
                 <td class="center">1</td>
-                <td>HZ, 90ME, <a href="surveys/A_III_a.html">S</a></td>
-            </tr>
-            <tr>
-                <td>A</td>
-                <td>A IV</td>
-                <td>Gas Giant</td>
-                <td class="numeric">1.75</td>
-                <td class="numeric">0.62</td>
-                <td class="numeric">0.004</td>
-                <td>226.5d</td>
-                <td class="center">GMA</td>
-                <td class="center">4</td>
-                <td>HZ, 70ME, <a href="surveys/A_IV_a.html">2</a>, <a href="surveys/A_IV_c.html">5</a>, <a href="surveys/A_IV_b.html">2</a>, <a href="surveys/A_IV_d.html">S</a></td>
+                <td><a href="surveys/A_IV_a.html">1</a></td>
             </tr>
             <tr>
                 <td>A</td>
                 <td><a href="surveys/A_V.html">A V</a></td>
                 <td>Terrestrial Planet</td>
-                <td class="numeric">2.20</td>
-                <td class="numeric">0.76</td>
+                <td class="numeric">0.63</td>
+                <td class="numeric">0.25</td>
                 <td class="numeric">0.003</td>
-                <td>304.6d</td>
-                <td class="center">AA2</td>
-                <td class="center">2</td>
-                <td>R01, <a href="surveys/A_V_c.html">S</a>, <a href="surveys/A_V_a.html">S</a></td>
+                <td>63.6d</td>
+                <td class="center">CEA</td>
+                <td class="center">0</td>
+                <td>HZ</td>
             </tr>
             <tr>
                 <td>A</td>
                 <td><a href="surveys/A_VI.html">A VI</a></td>
                 <td>Terrestrial Planet</td>
-                <td class="numeric">2.66</td>
-                <td class="numeric">0.90</td>
-                <td class="numeric">0.250</td>
-                <td>1y 25d</td>
-                <td class="center">100</td>
+                <td class="numeric">0.74</td>
+                <td class="numeric">0.30</td>
+                <td class="numeric">0.001</td>
+                <td>81.6d</td>
+                <td class="center">DD8</td>
                 <td class="center">0</td>
-                <td></td>
+                <td>HZ</td>
             </tr>
             <tr>
                 <td>A</td>
-                <td><a href="surveys/A_VII*.html">A VII*</a></td>
+                <td><a href="surveys/A_VII.html">A VII</a></td>
                 <td>Terrestrial Planet</td>
-                <td class="numeric">3.11</td>
-                <td class="numeric">1.07</td>
-                <td class="numeric">0.070</td>
-                <td>1y 141d</td>
-                <td class="center">ACHA663-F</td>
+                <td class="numeric">0.82</td>
+                <td class="numeric">0.33</td>
+                <td class="numeric">0.004</td>
+                <td>95.6d</td>
+                <td class="center">777</td>
                 <td class="center">0</td>
-                <td></td>
+                <td>HZ</td>
             </tr>
             <tr>
                 <td>A</td>
                 <td><a href="surveys/A_VIII.html">A VIII</a></td>
                 <td>Terrestrial Planet</td>
-                <td class="numeric">3.56</td>
-                <td class="numeric">1.34</td>
-                <td class="numeric">0.350</td>
-                <td>1y 342d</td>
-                <td class="center">6AA</td>
+                <td class="numeric">0.93</td>
+                <td class="numeric">0.37</td>
+                <td class="numeric">0.000</td>
+                <td>114.1d</td>
+                <td class="center">8B3</td>
                 <td class="center">0</td>
+                <td>HZ</td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_IX.html">A IX</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">1.06</td>
+                <td class="numeric">0.42</td>
+                <td class="numeric">0.004</td>
+                <td>136.8d</td>
+                <td class="center"><a href="surveys/A_IX_inhabited.html">X7A1664-8</a></td>
+                <td class="center">0</td>
+                <td>Auth: A XII, Cy Pe Rb</td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_X.html">A X</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">1.14</td>
+                <td class="numeric">0.44</td>
+                <td class="numeric">0.030</td>
+                <td>149.1d</td>
+                <td class="center">5A7</td>
+                <td class="center">0</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td>A XI</td>
+                <td>Gas Giant</td>
+                <td class="numeric">1.21</td>
+                <td class="numeric">0.46</td>
+                <td class="numeric">0.004</td>
+                <td>160.1d</td>
+                <td class="center">GS3</td>
+                <td class="center">6</td>
+                <td>10ME, <a href="surveys/A_XI_a.html">S</a>, <a href="surveys/A_XI_b.html">S</a>, <a href="surveys/A_XI_d.html">S</a>, <a href="surveys/A_XI_c.html">S</a>, <a href="surveys/A_XI_f.html">S</a>, <a href="surveys/A_XI_e.html">S</a></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_XII.html">A XII*</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">1.60(R)</td>
+                <td class="numeric">0.58</td>
+                <td class="numeric">0.400</td>
+                <td>223.8d</td>
+                <td class="center"><a href="surveys/PopulatedWorldDetails.html">ABHA79D-D</a></td>
+                <td class="center">3</td>
+                <td><a href="surveys/A_XII*_a.html">8</a>, <a href="surveys/A_XII*_b.html">S</a>, <a href="surveys/A_XII*_c.html">S</a></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_XIII.html">A XIII</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">2.08(R)</td>
+                <td class="numeric">0.73</td>
+                <td class="numeric">0.005</td>
+                <td>312.7d</td>
+                <td class="center">6BA</td>
+                <td class="center">0</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>A</td>
+                <td><a href="surveys/A_XIV.html">A XIV</a></td>
+                <td>Terrestrial Planet</td>
+                <td class="numeric">2.69(R)</td>
+                <td class="numeric">0.91</td>
+                <td class="numeric">0.450</td>
+                <td>1y 72d</td>
+                <td class="center">4A9</td>
+                <td class="center">R</td>
                 <td>R01</td>
             </tr>
         </table>
