@@ -18,6 +18,9 @@
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .back-link { margin-bottom: 10px; }
         .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }
+        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }
+        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
@@ -36,7 +39,7 @@
             </tr>
             <tr>
                 <td>A V</td>
-                <td>AA2</td>
+                <td>CEA</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -59,7 +62,7 @@
             </tr>
             <tr>
                 <td colspan="2">A</td>
-                <td>6.20</td>
+                <td>5.20</td>
                 <td></td>
             </tr>
         </table>
@@ -73,10 +76,10 @@
             </tr>
             <tr>
                 <td><strong>Notes:</strong></td>
-                <td>2.20</td>
-                <td colspan="2">0.76</td>
+                <td>0.63</td>
+                <td colspan="2">0.25</td>
                 <td>0.003</td>
-                <td colspan="2">304.6d</td>
+                <td colspan="2">63.6d</td>
             </tr>
             <tr>
                 <td colspan="7"></td>
@@ -94,12 +97,12 @@
             </tr>
             <tr>
                 <td style="background-color: #d3d3d3; border-top: none;"></td>
-                <td>16,266</td>
-                <td>Rock and Metal</td>
-                <td>0.97</td>
-                <td>1.24</td>
-                <td>1.58</td>
-                <td>12.45</td>
+                <td>18,665</td>
+                <td>Mostly Metal</td>
+                <td>1.30</td>
+                <td>1.90</td>
+                <td>2.79</td>
+                <td>15.44</td>
             </tr>
             <tr>
                 <td colspan="7"><strong>Notes:</strong></td>
@@ -109,9 +112,9 @@
             <tr>
                 <th rowspan="2">ATMOSPHERE</th>
                 <th>Pressure (bar)</th>
-                <td></td>
+                <td>0.51</td>
                 <th>Composition</th>
-                <td colspan="2">Exotic</td>
+                <td colspan="2">Low, Oxygen 46%</td>
                 <th>O<sub>2</sub> (bar)</th>
                 <td></td>
             </tr>
@@ -133,9 +136,9 @@
                 <th colspan="2">Distribution</th>
             </tr>
             <tr>
-                <td colspan="2">24.5%</td>
+                <td colspan="2">96.4%</td>
                 <td colspan="2"></td>
-                <td colspan="2">Very Concentrated</td>
+                <td colspan="2">Mixed</td>
             </tr>
             <tr>
                 <th>Major bodies</th>
@@ -152,19 +155,19 @@
             <tr>
                 <th rowspan="2">ROTATION</th>
                 <th>Sidereal</th>
-                <td style="background-color: white;">20d 0h 0m (20.00)</td>
+                <td style="background-color: white;">23h 38m 59s (23.65)</td>
                 <th>Solar</th>
-                <td style="background-color: white;">21d 9h 43m (21.41)</td>
+                <td style="background-color: white;">24h 1m 19s (24.02)</td>
                 <th>Solar days/year</th>
-                <td style="background-color: white;">14.2294</td>
+                <td style="background-color: white;">63.5690</td>
                 <th>Axial Tilt</th>
-                <td style="background-color: white;">1° 0' (1.00°)</td>
+                <td style="background-color: white;">6° 0' (6.00°)</td>
             </tr>
             <tr>
                 <th>Tidal lock?</th>
-                <td style="background-color: white;">No</td>
+                <td style="background-color: white;">3:2</td>
                 <th>Tides</th>
-                <td colspan="5" style="background-color: white;">Total: 22.4m; A: 0.5m; A V c: 17.6m</td>
+                <td colspan="5" style="background-color: white;">Total: 12.2m; A: 12.2m</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -172,28 +175,28 @@
                 <th>Notes</th>
             </tr>
             <tr>
-                <td>Very slow rotation</td>
+                <td>3:2 lock to star</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="3">TEMPERATURE</th>
                 <th>High</th>
-                <td>212K (-61°C)</td>
+                <td>324K (51°C)</td>
                 <th colspan="2">Luminosity</th>
                 <th colspan="2"><strong>Notes:</strong></th>
             </tr>
             <tr>
                 <th>Mean</th>
-                <td>178K (-95°C)</td>
+                <td>291K (18°C)</td>
                 <th colspan="2">Albedo</th>
-                <td colspan="2">0.64</td>
+                <td colspan="2">0.36</td>
             </tr>
             <tr>
                 <th>Low</th>
-                <td>56K (-217°C)</td>
+                <td>241K (-32°C)</td>
                 <th colspan="2">Greenhouse</th>
-                <td colspan="2">0.50</td>
+                <td colspan="2">0.42</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -205,11 +208,11 @@
                 <th>Major Tectonic Plates</th>
             </tr>
             <tr>
-                <td>16.4</td>
-                <td>14.4</td>
-                <td>2.0</td>
+                <td>78.4</td>
+                <td>77.4</td>
+                <td>1.0</td>
                 <td colspan="2">0.0</td>
-                <td>8</td>
+                <td>15</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -223,14 +226,14 @@
             </tr>
             <tr>
                 <th>Notes</th>
-                <td>0</td>
-                <td>0</td>
+                <td>6</td>
+                <td>5</td>
                 <td>No</td>
-                <td>0</td>
-                <td>0</td>
+                <td>5</td>
+                <td>7</td>
             </tr>
             <tr>
-                <td colspan="6"></td>
+                <td colspan="6">Complex multicellular organisms</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -241,7 +244,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td>8</td>
+                <td>12</td>
                 <td colspan="4"></td>
             </tr>
         </table>
@@ -255,48 +258,6 @@
                 <td></td>
                 <td>0</td>
                 <td colspan="4"></td>
-            </tr>
-        </table>
-        <table style="margin-bottom: 10px;">
-            <tr>
-                <th>SUBORDINATES</th>
-                <th>SAH/UWP</th>
-                <th>Orbit (PD)</th>
-                <th>Orbit (km)</th>
-                <th>Ecc</th>
-                <th>Diameter</th>
-                <th>Density</th>
-                <th>Mass</th>
-                <th>Period (h)</th>
-                <th>Size(°)</th>
-            </tr>
-            <tr>
-                <td><a href="A_V_c.html">A V c</a></td>
-                <td>S</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>818</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td><a href="A_V_a.html">A V a</a></td>
-                <td>S</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>890</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <th>Notes</th>
-                <td colspan="9"></td>
             </tr>
         </table>
         <table>

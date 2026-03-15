@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IISS Class IV Survey - A IV c</title>
+    <title>IISS Class IV Survey - A XIII</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
@@ -18,6 +18,9 @@
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .back-link { margin-bottom: 10px; }
         .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }
+        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }
+        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
@@ -35,8 +38,8 @@
                 <th>SAH/UWP</th>
             </tr>
             <tr>
-                <td>A IV c</td>
-                <td>575</td>
+                <td>A XIII</td>
+                <td>6BA</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -58,8 +61,8 @@
                 <th>Travel Zone</th>
             </tr>
             <tr>
-                <td colspan="2">A IV</td>
-                <td>6.20</td>
+                <td colspan="2">A</td>
+                <td>5.20</td>
                 <td></td>
             </tr>
         </table>
@@ -67,16 +70,16 @@
             <tr>
                 <th>ORBIT</th>
                 <th>O#</th>
-                <th colspan="2">Distance</th>
+                <th colspan="2">AU</th>
                 <th>Eccentricity</th>
                 <th colspan="2">Period</th>
             </tr>
             <tr>
                 <td><strong>Notes:</strong></td>
-                <td>3.33</td>
-                <td colspan="2">424733 km</td>
-                <td>0.400</td>
-                <td colspan="2">3d 19.5h</td>
+                <td>2.08</td>
+                <td colspan="2">0.73</td>
+                <td>0.005</td>
+                <td colspan="2">312.7d</td>
             </tr>
             <tr>
                 <td colspan="7"></td>
@@ -94,12 +97,12 @@
             </tr>
             <tr>
                 <td style="background-color: #d3d3d3; border-top: none;"></td>
-                <td>7,697</td>
-                <td>Rock and Metal</td>
-                <td>1.00</td>
-                <td>0.60</td>
-                <td>0.36</td>
-                <td>8.69</td>
+                <td>9,228</td>
+                <td>Mostly Rock</td>
+                <td>0.53</td>
+                <td>0.38</td>
+                <td>0.28</td>
+                <td>6.93</td>
             </tr>
             <tr>
                 <td colspan="7"><strong>Notes:</strong></td>
@@ -109,15 +112,15 @@
             <tr>
                 <th rowspan="2">ATMOSPHERE</th>
                 <th>Pressure (bar)</th>
-                <td>0.99</td>
+                <td></td>
                 <th>Composition</th>
-                <td colspan="2">Standard, Tainted, Oxygen 47%</td>
+                <td colspan="2">Corrosive</td>
                 <th>O<sub>2</sub> (bar)</th>
                 <td></td>
             </tr>
             <tr>
                 <th>Taints</th>
-                <td colspan="4">Particulates</td>
+                <td colspan="4">None</td>
                 <th>Scale Height</th>
                 <td></td>
             </tr>
@@ -133,9 +136,9 @@
                 <th colspan="2">Distribution</th>
             </tr>
             <tr>
-                <td colspan="2">51.3%</td>
+                <td colspan="2">96.3%</td>
                 <td colspan="2"></td>
-                <td colspan="2"></td>
+                <td colspan="2">Slightly Scattered</td>
             </tr>
             <tr>
                 <th>Major bodies</th>
@@ -152,19 +155,19 @@
             <tr>
                 <th rowspan="2">ROTATION</th>
                 <th>Sidereal</th>
-                <td style="background-color: white;">200d 0h 0m (200.00)</td>
+                <td style="background-color: white;">79h 30m 0s (79.50)</td>
                 <th>Solar</th>
-                <td style="background-color: white;">1712d 5h 8m (1712.21)</td>
+                <td style="background-color: white;">80h 21m 3s (80.35)</td>
                 <th>Solar days/year</th>
-                <td style="background-color: white;">0.1323</td>
+                <td style="background-color: white;">93.4124</td>
                 <th>Axial Tilt</th>
-                <td style="background-color: white;">70° 0' (70.00°)</td>
+                <td style="background-color: white;">0° 12' (0.20°)</td>
             </tr>
             <tr>
                 <th>Tidal lock?</th>
                 <td style="background-color: white;">No</td>
                 <th>Tides</th>
-                <td colspan="5" style="background-color: white;">Total: 19820.2m; A: 0.4m; A IV b: 18375.8m</td>
+                <td colspan="5" style="background-color: white;"></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -172,26 +175,26 @@
                 <th>Notes</th>
             </tr>
             <tr>
-                <td>Very slow retrograde</td>
+                <td>Slowed (3x)</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="3">TEMPERATURE</th>
                 <th>High</th>
-                <td>260K (-13°C)</td>
+                <td>181K (-92°C)</td>
                 <th colspan="2">Luminosity</th>
                 <th colspan="2"><strong>Notes:</strong></th>
             </tr>
             <tr>
                 <th>Mean</th>
-                <td>234K (-39°C)</td>
+                <td>152K (-121°C)</td>
                 <th colspan="2">Albedo</th>
-                <td colspan="2">0.00</td>
+                <td colspan="2">0.44</td>
             </tr>
             <tr>
                 <th>Low</th>
-                <td>197K (-76°C)</td>
+                <td>47K (-226°C)</td>
                 <th colspan="2">Greenhouse</th>
                 <td colspan="2">0.00</td>
             </tr>
@@ -205,11 +208,11 @@
                 <th>Major Tectonic Plates</th>
             </tr>
             <tr>
-                <td>44470.0</td>
                 <td>0.0</td>
-                <td>1982.0</td>
-                <td colspan="2">42488.0</td>
-                <td>6</td>
+                <td>0.0</td>
+                <td>0.0</td>
+                <td colspan="2">0.0</td>
+                <td>0</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -223,14 +226,14 @@
             </tr>
             <tr>
                 <th>Notes</th>
-                <td>3</td>
-                <td>7</td>
+                <td>0</td>
+                <td>0</td>
                 <td>No</td>
-                <td>6</td>
+                <td>0</td>
                 <td>0</td>
             </tr>
             <tr>
-                <td colspan="6">Socially advanced organisms</td>
+                <td colspan="6"></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -241,7 +244,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td>9</td>
+                <td>3</td>
                 <td colspan="4"></td>
             </tr>
         </table>
@@ -253,7 +256,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td>2</td>
+                <td>0</td>
                 <td colspan="4"></td>
             </tr>
         </table>

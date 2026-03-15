@@ -18,6 +18,9 @@
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .back-link { margin-bottom: 10px; }
         .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }
+        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }
+        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
@@ -36,7 +39,7 @@
             </tr>
             <tr>
                 <td>A IV a</td>
-                <td>210</td>
+                <td>100</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -59,7 +62,7 @@
             </tr>
             <tr>
                 <td colspan="2">A IV</td>
-                <td>6.20</td>
+                <td>5.20</td>
                 <td></td>
             </tr>
         </table>
@@ -73,10 +76,10 @@
             </tr>
             <tr>
                 <td><strong>Notes:</strong></td>
-                <td>2.17</td>
-                <td colspan="2">276077 km</td>
-                <td>0.150</td>
-                <td colspan="2">1d 23.9h</td>
+                <td>0.00</td>
+                <td colspan="2">0 km</td>
+                <td>0.000</td>
+                <td colspan="2">0.00h</td>
             </tr>
             <tr>
                 <td colspan="7"></td>
@@ -94,12 +97,12 @@
             </tr>
             <tr>
                 <td style="background-color: #d3d3d3; border-top: none;"></td>
-                <td>3,760</td>
-                <td>Rock and Metal</td>
-                <td>0.91</td>
-                <td>0.27</td>
-                <td>0.08</td>
-                <td>5.80</td>
+                <td>1,270</td>
+                <td>Mostly Rock</td>
+                <td>0.56</td>
+                <td>0.06</td>
+                <td>0.01</td>
+                <td>2.64</td>
             </tr>
             <tr>
                 <td colspan="7"><strong>Notes:</strong></td>
@@ -109,9 +112,9 @@
             <tr>
                 <th rowspan="2">ATMOSPHERE</th>
                 <th>Pressure (bar)</th>
-                <td>0.01</td>
+                <td></td>
                 <th>Composition</th>
-                <td colspan="2">Trace</td>
+                <td colspan="2">None</td>
                 <th>O<sub>2</sub> (bar)</th>
                 <td></td>
             </tr>
@@ -133,7 +136,7 @@
                 <th colspan="2">Distribution</th>
             </tr>
             <tr>
-                <td colspan="2">2.2%</td>
+                <td colspan="2"></td>
                 <td colspan="2"></td>
                 <td colspan="2"></td>
             </tr>
@@ -152,19 +155,19 @@
             <tr>
                 <th rowspan="2">ROTATION</th>
                 <th>Sidereal</th>
-                <td style="background-color: white;">41h 49m 59s (41.83)</td>
+                <td style="background-color: white;"></td>
                 <th>Solar</th>
-                <td style="background-color: white;">42h 9m 28s (42.16)</td>
+                <td style="background-color: white;"></td>
                 <th>Solar days/year</th>
-                <td style="background-color: white;">128.9163</td>
+                <td style="background-color: white;"></td>
                 <th>Axial Tilt</th>
-                <td style="background-color: white;">6° 0' (6.00°)</td>
+                <td style="background-color: white;">4° 0' (4.00°)</td>
             </tr>
             <tr>
                 <th>Tidal lock?</th>
-                <td style="background-color: white;">No</td>
+                <td style="background-color: white;">1:1</td>
                 <th>Tides</th>
-                <td colspan="5" style="background-color: white;">Total: 2589.8m; A: 0.2m; A IV: 2501.7m</td>
+                <td colspan="5" style="background-color: white;">Total: 1.6m; A: 1.6m</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -172,26 +175,26 @@
                 <th>Notes</th>
             </tr>
             <tr>
-                <td>Slowed (2x)</td>
+                <td>1:1 lock to world</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="3">TEMPERATURE</th>
                 <th>High</th>
-                <td>266K (-7°C)</td>
+                <td>377K (104°C)</td>
                 <th colspan="2">Luminosity</th>
                 <th colspan="2"><strong>Notes:</strong></th>
             </tr>
             <tr>
                 <th>Mean</th>
-                <td>224K (-49°C)</td>
+                <td>317K (44°C)</td>
                 <th colspan="2">Albedo</th>
                 <td colspan="2">0.00</td>
             </tr>
             <tr>
                 <th>Low</th>
-                <td>71K (-202°C)</td>
+                <td>100K (-173°C)</td>
                 <th colspan="2">Greenhouse</th>
                 <td colspan="2">0.00</td>
             </tr>
@@ -205,10 +208,10 @@
                 <th>Major Tectonic Plates</th>
             </tr>
             <tr>
-                <td>4891.6</td>
                 <td>0.0</td>
-                <td>258.0</td>
-                <td colspan="2">4633.6</td>
+                <td>0.0</td>
+                <td>0.0</td>
+                <td colspan="2">0.0</td>
                 <td>0</td>
             </tr>
         </table>
@@ -241,7 +244,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td>2</td>
+                <td>6</td>
                 <td colspan="4"></td>
             </tr>
         </table>
