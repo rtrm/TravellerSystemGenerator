@@ -133,7 +133,7 @@ namespace TravellerSystemGenerator
             PercentOfMajorCityPop = percent;
         }
 
-        private static string ToRoman(int number)
+        internal static string ToRoman(int number)
         {
             if (number < 1) return "";
             if (number >= 40) return "XL" + ToRoman(number - 40);
@@ -174,6 +174,15 @@ namespace TravellerSystemGenerator
         public int NumberOfMajorCities { get; set; } // Number of major cities
         public long MajorCityPopulation { get; set; } // Total population in major cities
         public List<MajorCity> MajorCities { get; set; } = new List<MajorCity>();
+
+        // Government Profile Details
+        public string CentralisationCode { get; set; } = "";  // C/F/U or "n/a"
+        public string CentralisationType { get; set; } = "";
+        public string AuthorityCode { get; set; } = "";       // L/E/J/B or "n/a"
+        public string AuthorityType { get; set; } = "";
+        public string StructureCode { get; set; } = "";       // D/M/R/S or "n/a"
+        public string StructureType { get; set; } = "";
+        public string GovernmentProfile { get; set; } = "";   // G-CAS
     }
 
     internal class AdditionalInhabitedWorld
@@ -183,6 +192,45 @@ namespace TravellerSystemGenerator
         public int PopulationCode { get; set; }  // ehex digit 1+ (never 0 after checks)
         public int PopulationP { get; set; }     // multiplier 0-9
         public long ActualPopulation { get; set; }
+    }
+
+    internal class GovernmentData
+    {
+        public int Code { get; set; }
+        public string Type { get; set; } = "";
+        public string CentralisationCode { get; set; } = "";  // C/F/U or "n/a"
+        public string CentralisationType { get; set; } = "";
+        public string AuthorityCode { get; set; } = "";       // L/E/J/B or "n/a"
+        public string AuthorityType { get; set; } = "";
+        public string StructureCode { get; set; } = "";       // D/M/R/S or "n/a"
+        public string StructureType { get; set; } = "";
+        public string Profile { get; set; } = "";             // G-CAS
+    }
+
+    internal class Nation
+    {
+        public int Number { get; set; }          // Sequential within parent faction (1, 2, 3...)
+        public GovernmentData Government { get; set; } = new();
+        public List<Faction> SubFactions { get; set; } = new();
+        public List<FactionRelationship> SubFactionRelationships { get; set; } = new();
+    }
+
+    internal class Faction
+    {
+        public int Number { get; set; }          // Sequential number (I, II, III...)
+        public string StrengthCode { get; set; } = "";   // O/F/M/N/S/P/G
+        public string StrengthType { get; set; } = "";
+        public GovernmentData Government { get; set; } = new();
+        public List<Nation> Nations { get; set; } = new();
+        public string Profile { get; set; } = "";        // I-G-S
+    }
+
+    internal class FactionRelationship
+    {
+        public int Faction1Number { get; set; }
+        public int Faction2Number { get; set; }
+        public string Code { get; set; } = "";   // 0-9
+        public string Type { get; set; } = "";
     }
 
     internal class StarSystem
@@ -195,6 +243,8 @@ namespace TravellerSystemGenerator
         private bool NoMainworld;
         private List<MainworldData> sophontWorlds = new List<MainworldData>(); // List of worlds/moons with native sophonts
         private List<AdditionalInhabitedWorld> additionalInhabitedWorlds = new List<AdditionalInhabitedWorld>();
+        private List<Faction> worldFactions = new List<Faction>();
+        private List<FactionRelationship> factionRelationships = new List<FactionRelationship>();
 
         internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false)
         {
@@ -7564,6 +7614,9 @@ namespace TravellerSystemGenerator
             DistributeMajorCityPopulations(dice);
 
             DebugLogger.Log($"Major Cities: {string.Join(", ", mainworld.MajorCities.Select(c => $"{c.Name}: {c.Population:N0}"))}");
+
+            // Determine Factions and Government Structure
+            DetermineFactions(dice);
         }
 
         private void DetermineAdditionalInhabitedWorlds(Random dice)
@@ -7784,6 +7837,427 @@ namespace TravellerSystemGenerator
             var aiw = additionalInhabitedWorlds.FirstOrDefault(w => w.World == world);
             return aiw != null ? IntToEhex(aiw.PopulationCode) : null;
         }
+
+        // ─── Faction & Government Profile Generation ──────────────────────────────
+
+        private void DetermineFactions(Random dice)
+        {
+            if (mainworld == null || mainworld.Population == 0) return;
+
+            worldFactions.Clear();
+            factionRelationships.Clear();
+
+            int govCode = mainworld.Government;
+            int pcr = mainworld.PCR;
+            int popCode = mainworld.Population;
+
+            // World government profile
+            if (govCode == 0)
+            {
+                mainworld.GovernmentProfile = "0";
+            }
+            else if (govCode == 7)
+            {
+                mainworld.CentralisationCode = "n/a";
+                mainworld.AuthorityCode = "n/a";
+                mainworld.StructureCode = "n/a";
+                mainworld.GovernmentProfile = "See factions";
+            }
+            else
+            {
+                var worldGovData = GenerateGovernmentDetails(govCode, pcr, 0, dice);
+                mainworld.CentralisationCode = worldGovData.CentralisationCode;
+                mainworld.CentralisationType = worldGovData.CentralisationType;
+                mainworld.AuthorityCode = worldGovData.AuthorityCode;
+                mainworld.AuthorityType = worldGovData.AuthorityType;
+                mainworld.StructureCode = worldGovData.StructureCode;
+                mainworld.StructureType = worldGovData.StructureType;
+                mainworld.GovernmentProfile = worldGovData.Profile;
+            }
+
+            // Generate factions
+            worldFactions = GenerateFactionList(popCode, govCode, pcr, 0, 0, dice);
+            factionRelationships = GenerateFactionRelationships(worldFactions, govCode, dice);
+
+            DebugLogger.Log($"Factions generated: {worldFactions.Count}");
+        }
+
+        private List<Faction> GenerateFactionList(int popCode, int parentGovCode, int pcr,
+            int cumulativeGovDM, int depth, Random dice)
+        {
+            // Step 1: Count
+            int numFactions = Starhelper.diceRoll(3, 1, dice);
+            if (parentGovCode == 0 || parentGovCode == 7) numFactions += 1;
+            if (parentGovCode >= 10) numFactions -= 1;
+            if (numFactions < 1) numFactions = 1;
+
+            var factions = new List<Faction>();
+            for (int i = 0; i < numFactions; i++)
+            {
+                factions.Add(new Faction { Number = i + 1 });
+            }
+
+            // Step 3: Faction strength
+            bool allG = (numFactions == 1 && parentGovCode != 0) || (parentGovCode == 7);
+            foreach (var f in factions)
+            {
+                if (allG)
+                {
+                    f.StrengthCode = "G";
+                    f.StrengthType = "Government";
+                }
+                else
+                {
+                    int roll = Starhelper.diceRoll(6, 2, dice);
+                    (f.StrengthCode, f.StrengthType) = roll switch
+                    {
+                        <= 3  => ("O", "Obscure Group"),
+                        <= 5  => ("F", "Fringe Group"),
+                        <= 7  => ("M", "Minor Group"),
+                        <= 9  => ("N", "Notable Group"),
+                        <= 11 => ("S", "Significant Group"),
+                        _     => ("P", "Overwhelming Popular Support")
+                    };
+                }
+            }
+
+            // Step 3: Faction government code and profile
+            int parentGovDM = GetGovCodeDM(parentGovCode);
+            foreach (var f in factions)
+            {
+                int popMod = f.StrengthCode == "O" ? -2 :
+                             (f.StrengthCode == "F" || f.StrengthCode == "M") ? -1 : 0;
+                int effectivePop = Math.Max(0, popCode + popMod);
+                int factionGovCode = Starhelper.diceRoll(6, 2, dice) - 7 + effectivePop;
+                factionGovCode = Math.Max(0, Math.Min(15, factionGovCode));
+
+                var govData = new GovernmentData
+                {
+                    Code = factionGovCode,
+                    Type = GetGovernmentType(factionGovCode)
+                };
+
+                if (factionGovCode == 0)
+                {
+                    govData.Profile = "0";
+                }
+                else if (factionGovCode == 7)
+                {
+                    govData.CentralisationCode = "n/a";
+                    govData.AuthorityCode = "n/a";
+                    govData.StructureCode = "n/a";
+                    govData.Profile = $"{IntToEhex(factionGovCode)}-n/a";
+                }
+                else
+                {
+                    var details = GenerateGovernmentDetails(factionGovCode, pcr,
+                        cumulativeGovDM + parentGovDM, dice);
+                    govData.CentralisationCode = details.CentralisationCode;
+                    govData.CentralisationType = details.CentralisationType;
+                    govData.AuthorityCode = details.AuthorityCode;
+                    govData.AuthorityType = details.AuthorityType;
+                    govData.StructureCode = details.StructureCode;
+                    govData.StructureType = details.StructureType;
+                    govData.Profile = details.Profile;
+                }
+
+                f.Government = govData;
+                f.Profile = $"{MajorCity.ToRoman(f.Number)}-{IntToEhex(factionGovCode)}-{f.StrengthCode}";
+
+                // Step 2: Nations (when parent world gov = 7)
+                if (parentGovCode == 7)
+                {
+                    GenerateNationsForFaction(f, popCode, pcr, parentGovCode, factionGovCode,
+                        cumulativeGovDM + parentGovDM, depth, dice);
+                }
+            }
+
+            return factions;
+        }
+
+        private void GenerateNationsForFaction(Faction faction, int popCode, int pcr,
+            int parentGovCode, int factionGovCode, int cumulativeGovDM, int depth, Random dice)
+        {
+            // Step 2: Nation count
+            int roll = Starhelper.diceRoll(6, 1, dice);
+            int nationCount;
+            bool applyVariance = false;
+
+            if (roll == 5)
+            {
+                nationCount = roll * (10 - pcr);
+                applyVariance = true;
+            }
+            else if (roll == 6)
+            {
+                int multiplier = Math.Max(2, popCode - Starhelper.diceRoll(3, 1, dice));
+                nationCount = roll * multiplier;
+                applyVariance = true;
+            }
+            else
+            {
+                nationCount = roll;
+            }
+
+            if (applyVariance)
+            {
+                int variancePercent = Starhelper.diceRoll(3, 1, dice) + 4; // 5-20%
+                int sign = dice.Next(2) == 0 ? 1 : -1;
+                nationCount = (int)Math.Round(nationCount * (1.0 + sign * variancePercent / 100.0));
+            }
+
+            nationCount = Math.Max(1, nationCount);
+
+            int factionGovDM = GetGovCodeDM(factionGovCode);
+
+            for (int i = 0; i < nationCount; i++)
+            {
+                var nation = new Nation { Number = i + 1 };
+
+                // Step 4: Nation government code (50% match faction, else roll)
+                int nationGovCode;
+                if (dice.Next(2) == 0)
+                {
+                    nationGovCode = factionGovCode;
+                }
+                else
+                {
+                    nationGovCode = Starhelper.diceRoll(6, 2, dice) - 7 + Math.Max(0, popCode - 1);
+                    nationGovCode = Math.Max(0, Math.Min(15, nationGovCode));
+                }
+
+                var nationGovData = new GovernmentData
+                {
+                    Code = nationGovCode,
+                    Type = GetGovernmentType(nationGovCode)
+                };
+
+                if (nationGovCode == 0)
+                {
+                    nationGovData.Profile = "0";
+                }
+                else if (nationGovCode == 7 && depth < 3)
+                {
+                    nationGovData.CentralisationCode = "n/a";
+                    nationGovData.AuthorityCode = "n/a";
+                    nationGovData.StructureCode = "n/a";
+                    nationGovData.Profile = $"{IntToEhex(nationGovCode)}-n/a";
+                    // Recursive sub-factions
+                    nation.SubFactions = GenerateFactionList(popCode - 1, nationGovCode, pcr,
+                        cumulativeGovDM + factionGovDM, depth + 1, dice);
+                    nation.SubFactionRelationships = GenerateFactionRelationships(
+                        nation.SubFactions, nationGovCode, dice);
+                }
+                else
+                {
+                    var details = GenerateGovernmentDetails(nationGovCode, pcr,
+                        cumulativeGovDM + factionGovDM, dice);
+                    nationGovData.CentralisationCode = details.CentralisationCode;
+                    nationGovData.CentralisationType = details.CentralisationType;
+                    nationGovData.AuthorityCode = details.AuthorityCode;
+                    nationGovData.AuthorityType = details.AuthorityType;
+                    nationGovData.StructureCode = details.StructureCode;
+                    nationGovData.StructureType = details.StructureType;
+                    nationGovData.Profile = details.Profile;
+                }
+
+                nation.Government = nationGovData;
+                faction.Nations.Add(nation);
+            }
+        }
+
+        private List<FactionRelationship> GenerateFactionRelationships(
+            List<Faction> factions, int parentGovCode, Random dice)
+        {
+            var relationships = new List<FactionRelationship>();
+            for (int i = 0; i < factions.Count; i++)
+            {
+                for (int j = i + 1; j < factions.Count; j++)
+                {
+                    var f1 = factions[i];
+                    var f2 = factions[j];
+                    int dm = 0;
+
+                    // Both Strength G: +1
+                    if (f1.StrengthCode == "G" && f2.StrengthCode == "G") dm += 1;
+
+                    // Non-Gov-7 world: one G vs one non-G: +1
+                    if (parentGovCode != 7 &&
+                        (f1.StrengthCode == "G") != (f2.StrengthCode == "G")) dm += 1;
+
+                    // Same faction government code: -1
+                    if (f1.Government.Code == f2.Government.Code) dm -= 1;
+
+                    int roll = Starhelper.diceRoll(6, 1, dice) + dm;
+                    roll = Math.Max(0, Math.Min(9, roll));
+
+                    string code = roll.ToString();
+                    string type = roll switch
+                    {
+                        0 => "Alliance",
+                        1 => "Cooperation",
+                        2 => "Truce",
+                        3 => "Competition",
+                        4 => "Resistance",
+                        5 => "Riots",
+                        6 => "Uprising",
+                        7 => "Insurgency",
+                        8 => "War",
+                        _ => "Total War"
+                    };
+
+                    relationships.Add(new FactionRelationship
+                    {
+                        Faction1Number = f1.Number,
+                        Faction2Number = f2.Number,
+                        Code = code,
+                        Type = type
+                    });
+                }
+            }
+            return relationships;
+        }
+
+        private GovernmentData GenerateGovernmentDetails(int govCode, int pcr,
+            int cumulativeDM, Random dice)
+        {
+            var data = new GovernmentData
+            {
+                Code = govCode,
+                Type = GetGovernmentType(govCode)
+            };
+
+            (data.CentralisationCode, data.CentralisationType) =
+                GenerateCentralisation(govCode, pcr, cumulativeDM, dice);
+            (data.AuthorityCode, data.AuthorityType) =
+                GenerateAuthority(govCode, data.CentralisationCode, dice);
+            (data.StructureCode, data.StructureType) =
+                GenerateStructure(govCode, data.AuthorityCode, dice);
+            data.Profile = $"{IntToEhex(govCode)}-{data.CentralisationCode}{data.AuthorityCode}{data.StructureCode}";
+            return data;
+        }
+
+        private (string code, string type) GenerateCentralisation(int govCode, int pcr,
+            int cumulativeDM, Random dice)
+        {
+            int dm = cumulativeDM + GetGovCodeDM(govCode);
+            if (pcr <= 3) dm -= 1;
+            else if (pcr >= 9) dm += 3;
+            else if (pcr >= 7) dm += 1;
+
+            int result = Starhelper.diceRoll(6, 2, dice) + dm;
+            if (result <= 5) return ("C", "Confederal");
+            if (result <= 8) return ("F", "Federal");
+            return ("U", "Unitary");
+        }
+
+        private (string code, string type) GenerateAuthority(int govCode,
+            string centralisationCode, Random dice)
+        {
+            int dm = govCode switch
+            {
+                1 or 6 or 10 or 13 or 14 => +6,
+                2 => -4,
+                3 or 5 or 12 => -2,
+                11 or 15 => +4,
+                _ => 0
+            };
+            if (centralisationCode == "C") dm -= 2;
+            if (centralisationCode == "U") dm += 2;
+
+            int result = Starhelper.diceRoll(6, 2, dice) + dm;
+            return result switch
+            {
+                <= 4  => ("L", "Legislative"),
+                5     => ("E", "Executive"),
+                6     => ("J", "Judicial"),
+                7     => ("B", "Balance"),
+                8     => ("L", "Legislative"),
+                9     => ("B", "Balance"),
+                10    => ("E", "Executive"),
+                11    => ("J", "Judicial"),
+                _     => ("E", "Executive")
+            };
+        }
+
+        private (string code, string type) GenerateStructure(int govCode,
+            string authorityCode, Random dice)
+        {
+            // Fixed mappings
+            if (govCode == 2) return ("D", "Demos");
+            if (govCode == 8 || govCode == 9) return ("M", "Multiple Councils");
+            if (govCode == 3 || govCode == 12 || govCode == 15)
+            {
+                int r = Starhelper.diceRoll(6, 1, dice);
+                return r <= 4 ? ("S", "Single Council") : ("M", "Multiple Councils");
+            }
+            if (govCode == 10 || govCode == 11 || govCode == 13 || govCode == 14)
+            {
+                int r = Starhelper.diceRoll(6, 1, dice);
+                return r <= 5 ? ("R", "Ruler") : ("S", "Single Council");
+            }
+
+            // Authority L special case
+            if (authorityCode == "L")
+            {
+                int r = Starhelper.diceRoll(6, 2, dice);
+                if (r <= 3) return ("D", "Demos");
+                if (r <= 8) return ("M", "Multiple Councils");
+                return ("S", "Single Council");
+            }
+
+            // Default table
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            return roll switch
+            {
+                <= 3  => ("D", "Demos"),
+                4     => ("S", "Single Council"),
+                5 or 6 => ("M", "Multiple Councils"),
+                7 or 8 => ("R", "Ruler"),
+                9     => ("M", "Multiple Councils"),
+                10    => ("S", "Single Council"),
+                11    => ("M", "Multiple Councils"),
+                _     => ("S", "Single Council")
+            };
+        }
+
+        private int GetGovCodeDM(int govCode)
+        {
+            return govCode switch
+            {
+                2 or 3 or 4 or 5 => -1,
+                6 or 7 or 8 or 9 or 10 or 11 => +1,
+                >= 12 => +2,
+                _ => 0
+            };
+        }
+
+        private string BuildGovernmentTooltip(int govCode, string govType,
+            string centralisationCode, string centralisationType,
+            string authorityCode, string authorityType,
+            string structureCode, string structureType)
+        {
+            return $"Gov: {IntToEhex(govCode)} {govType}&#10;Centralisation: {centralisationCode} {centralisationType}&#10;Authority: {authorityCode} {authorityType}&#10;Structure: {structureCode} {structureType}";
+        }
+
+        private string BuildFactionTooltip(Faction f)
+        {
+            string govLine = f.Government.Code == 0
+                ? $"Gov: 0 {f.Government.Type}"
+                : f.Government.Profile == $"{IntToEhex(f.Government.Code)}-n/a"
+                    ? $"Gov: {IntToEhex(f.Government.Code)} {f.Government.Type} (Balkanised)"
+                    : $"Gov: {IntToEhex(f.Government.Code)} {f.Government.Type}&#10;Centralisation: {f.Government.CentralisationCode} {f.Government.CentralisationType}&#10;Authority: {f.Government.AuthorityCode} {f.Government.AuthorityType}&#10;Structure: {f.Government.StructureCode} {f.Government.StructureType}";
+            return $"Faction {MajorCity.ToRoman(f.Number)}&#10;Strength: {f.StrengthCode} {f.StrengthType}&#10;{govLine}";
+        }
+
+        private string BuildRelationshipTooltip(FactionRelationship rel, List<Faction> factions)
+        {
+            string name1 = MajorCity.ToRoman(rel.Faction1Number);
+            string name2 = MajorCity.ToRoman(rel.Faction2Number);
+            return $"Faction {name1} vs Faction {name2}&#10;{rel.Type}";
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
 
         private void DetermineTradeCodes()
         {
@@ -11848,6 +12322,11 @@ namespace TravellerSystemGenerator
             html.AppendLine("        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }");
             html.AppendLine("        .grid-2col table { margin-bottom: 0; }");
             html.AppendLine("        .empty-field { background-color: #f9f9f9; }");
+            html.AppendLine("        .indent-1 { padding-left: 20px; }");
+            html.AppendLine("        .indent-2 { padding-left: 40px; }");
+            html.AppendLine("        .indent-3 { padding-left: 60px; }");
+            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; font-family: monospace; font-weight: bold; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; top: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-top: 5px; min-width: 260px; }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
             html.AppendLine("<body>");
@@ -11984,8 +12463,49 @@ namespace TravellerSystemGenerator
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
             html.AppendLine("                    <td class=\"label\">Type:</td>");
-            html.AppendLine($"                    <td>{mainworld.Government} - {mainworld.GovernmentType}</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Government)} - {mainworld.GovernmentType}</td>");
             html.AppendLine("                </tr>");
+            if (mainworld.Government > 0)
+            {
+                if (mainworld.Government == 7)
+                {
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Centralisation:</td>");
+                    html.AppendLine("                    <td>n/a</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Authority:</td>");
+                    html.AppendLine("                    <td>n/a</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Profile:</td>");
+                    html.AppendLine("                    <td>See factions</td>");
+                    html.AppendLine("                </tr>");
+                }
+                else
+                {
+                    string govTooltip = BuildGovernmentTooltip(mainworld.Government, mainworld.GovernmentType,
+                        mainworld.CentralisationCode, mainworld.CentralisationType,
+                        mainworld.AuthorityCode, mainworld.AuthorityType,
+                        mainworld.StructureCode, mainworld.StructureType);
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Centralisation:</td>");
+                    html.AppendLine($"                    <td>{mainworld.CentralisationCode} - {mainworld.CentralisationType}</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Authority:</td>");
+                    html.AppendLine($"                    <td>{mainworld.AuthorityCode} - {mainworld.AuthorityType}</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Structure:</td>");
+                    html.AppendLine($"                    <td>{mainworld.StructureCode} - {mainworld.StructureType}</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Profile:</td>");
+                    html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{mainworld.GovernmentProfile}</span></td>");
+                    html.AppendLine("                </tr>");
+                }
+            }
             html.AppendLine("                <tr>");
             html.AppendLine("                    <td class=\"label\">Contraband:</td>");
             html.AppendLine("                    <td class=\"empty-field\"></td>");
@@ -12057,9 +12577,73 @@ namespace TravellerSystemGenerator
             html.AppendLine("                <tr>");
             html.AppendLine("                    <th>FACTIONS</th>");
             html.AppendLine("                </tr>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"empty-field\" style=\"height: 60px;\"></td>");
-            html.AppendLine("                </tr>");
+            if (worldFactions.Count == 0)
+            {
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("                </tr>");
+            }
+            else if (mainworld.Government != 7)
+            {
+                // Non-balkanised: simple list of faction profiles
+                foreach (var f in worldFactions)
+                {
+                    string fTip = BuildFactionTooltip(f);
+                    html.AppendLine("                <tr>");
+                    html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></td>");
+                    html.AppendLine("                </tr>");
+                }
+            }
+            else
+            {
+                // Balkanised: nested faction → nations → sub-factions
+                foreach (var f in worldFactions)
+                {
+                    string fTip = BuildFactionTooltip(f);
+                    string govProfileStr = f.Government.Code == 0 ? "0" : f.Government.Profile;
+                    string govTip = f.Government.Code == 0 || f.Government.Profile.EndsWith("n/a") ? "" :
+                        BuildGovernmentTooltip(f.Government.Code, f.Government.Type,
+                            f.Government.CentralisationCode, f.Government.CentralisationType,
+                            f.Government.AuthorityCode, f.Government.AuthorityType,
+                            f.Government.StructureCode, f.Government.StructureType);
+                    string govProfileHtml = string.IsNullOrEmpty(govTip)
+                        ? govProfileStr
+                        : $"<span class=\"gov-tooltip\" data-tooltip=\"{govTip}\">{govProfileStr}</span>";
+
+                    html.AppendLine("                <tr>");
+                    html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span> ({govProfileHtml})</td>");
+                    html.AppendLine("                </tr>");
+
+                    string fRoman = MajorCity.ToRoman(f.Number);
+                    foreach (var n in f.Nations)
+                    {
+                        string nRoman = MajorCity.ToRoman(n.Number);
+                        string nKey = $"{fRoman}-{nRoman}";
+                        string nGovProfile = n.Government.Profile;
+                        string nTip = n.Government.Code == 0 || n.Government.Profile.EndsWith("n/a") ? "" :
+                            BuildGovernmentTooltip(n.Government.Code, n.Government.Type,
+                                n.Government.CentralisationCode, n.Government.CentralisationType,
+                                n.Government.AuthorityCode, n.Government.AuthorityType,
+                                n.Government.StructureCode, n.Government.StructureType);
+                        string nProfileHtml = string.IsNullOrEmpty(nTip)
+                            ? nGovProfile
+                            : $"<span class=\"gov-tooltip\" data-tooltip=\"{nTip}\">{nGovProfile}</span>";
+
+                        html.AppendLine("                <tr>");
+                        html.AppendLine($"                    <td class=\"indent-1\">{nKey} {nProfileHtml}</td>");
+                        html.AppendLine("                </tr>");
+
+                        // Sub-factions under this nation
+                        foreach (var sf in n.SubFactions)
+                        {
+                            string sfTip = BuildFactionTooltip(sf);
+                            html.AppendLine("                <tr>");
+                            html.AppendLine($"                    <td class=\"indent-2\">{nKey}-<span class=\"gov-tooltip\" data-tooltip=\"{sfTip}\">{sf.Profile}</span></td>");
+                            html.AppendLine("                </tr>");
+                        }
+                    }
+                }
+            }
             html.AppendLine("            </table>");
 
             // TRADE CODE section (right column)
@@ -12073,6 +12657,55 @@ namespace TravellerSystemGenerator
             html.AppendLine("            </table>");
 
             html.AppendLine("        </div>");
+
+            // RELATIONSHIPS section (full width)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>FACTION RELATIONSHIPS</th>");
+            html.AppendLine("            </tr>");
+            if (factionRelationships.Count == 0)
+            {
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"empty-field\">—</td>");
+                html.AppendLine("            </tr>");
+            }
+            else
+            {
+                foreach (var rel in factionRelationships)
+                {
+                    string r1 = MajorCity.ToRoman(rel.Faction1Number);
+                    string r2 = MajorCity.ToRoman(rel.Faction2Number);
+                    string relTip = BuildRelationshipTooltip(rel, worldFactions);
+                    string relProfile = $"{r1} + {r2} = {rel.Code}";
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{relTip}\">{relProfile}</span></td>");
+                    html.AppendLine("            </tr>");
+                }
+                // Sub-faction relationships (within nations of balkanised worlds)
+                if (mainworld.Government == 7)
+                {
+                    foreach (var f in worldFactions)
+                    {
+                        string fRoman = MajorCity.ToRoman(f.Number);
+                        foreach (var n in f.Nations.Where(n => n.SubFactionRelationships.Count > 0))
+                        {
+                            string nRoman = MajorCity.ToRoman(n.Number);
+                            string prefix = $"{fRoman}-{nRoman}";
+                            foreach (var rel in n.SubFactionRelationships)
+                            {
+                                string r1 = MajorCity.ToRoman(rel.Faction1Number);
+                                string r2 = MajorCity.ToRoman(rel.Faction2Number);
+                                string relTip = $"Sub-faction {prefix}-{r1} vs {prefix}-{r2}&#10;{rel.Type}";
+                                string relProfile = $"{prefix}-{r1} + {prefix}-{r2} = {rel.Code}";
+                                html.AppendLine("            <tr>");
+                                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{relTip}\">{relProfile}</span></td>");
+                                html.AppendLine("            </tr>");
+                            }
+                        }
+                    }
+                }
+            }
+            html.AppendLine("        </table>");
 
             // Two-column layout for Starport and Bases/Travel Zone
             html.AppendLine("        <div class=\"grid-2col\">");
