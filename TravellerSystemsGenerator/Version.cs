@@ -13,9 +13,9 @@ namespace TravellerSystemGenerator
         // Minor: Increment with each feature addition
         // Build: Increment with each build
 
-        public const int Major = 2;
-        public const int Minor = 19;
-        public const int Build = 1;
+        public const int Major = 3;
+        public const int Minor = 0;
+        public const int Build = 0;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -91,5 +91,6 @@ namespace TravellerSystemGenerator
         // 2.18.0 - Spaceports for non-mainworld worlds: roll class (H/G/F/Y), equivalent starport class, bases, capacity; AIW UWP uses spaceport class; system overview SAH prefix for uninhabited worlds
         // 2.19.0 - Military branches: Enforcement, Militia, Army, Wet Navy, Air Force, System Defence, Navy, Marine; common modifiers (Militancy/Faction Relationship); faction relationships generated for AIWs
         // 2.19.1 - Basic Military Budget: 2% × (1+EF/10) × (1+roll/10); DMs for gov/law/bases/militancy/branches; subordinate AIWs inherit mainworld DM (+6 for mil base or penal colony)
+        // 3.0.0  - Major release: spaceports, military branches, military budget
     }
 }

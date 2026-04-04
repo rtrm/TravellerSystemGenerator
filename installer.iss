@@ -1,8 +1,8 @@
-; Inno Setup Script for Traveller System Generator v2.0.0
+; Inno Setup Script for Traveller System Generator v3.0.0
 ; Requires Inno Setup 6.0 or later (download from https://jrsoftware.org/isinfo.php)
 
 #define MyAppName "Traveller System Generator"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "3.0.0"
 #define MyAppPublisher "Roy Martin"
 #define MyAppURL "https://github.com/rtrm/TravellerSystemGenerator"
 #define MyAppExeName "TravellerSystemsGenerator.exe"
