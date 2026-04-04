@@ -123,6 +123,18 @@ namespace TravellerSystemGenerator
         {
             int wholeOrbitNum = (int)Math.Truncate(orbit);
             float orbitFraction = orbit - (float)Math.Truncate(orbit);
+            int maxKey = Starhelper.orbitValues.Keys.Max();
+            if (wholeOrbitNum >= maxKey)
+            {
+                // Beyond table: extrapolate by doubling the last interval
+                float last = Starhelper.orbitValues[maxKey];
+                float prev = Starhelper.orbitValues[maxKey - 1];
+                float ratio = last / prev;
+                float au = last;
+                for (int i = maxKey; i < wholeOrbitNum; i++)
+                    au *= ratio;
+                return au;
+            }
             return Extrapolate(Starhelper.orbitValues[wholeOrbitNum], Starhelper.orbitValues[wholeOrbitNum + 1], orbitFraction);
         }
 

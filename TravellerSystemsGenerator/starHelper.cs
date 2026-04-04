@@ -61,6 +61,16 @@ namespace TravellerSystemGenerator
             orbitValues.Add(18, 19500);
             orbitValues.Add(19, 39500);
             orbitValues.Add(20, 78700);
+            orbitValues.Add(21, 157000);
+            orbitValues.Add(22, 314000);
+            orbitValues.Add(23, 628000);
+            orbitValues.Add(24, 1256000);
+            orbitValues.Add(25, 2500000);
+            orbitValues.Add(26, 5000000);
+            orbitValues.Add(27, 10000000);
+            orbitValues.Add(28, 20000000);
+            orbitValues.Add(29, 40000000);
+            orbitValues.Add(30, 80000000);
         }
         
 

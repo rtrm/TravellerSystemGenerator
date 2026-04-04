@@ -185,6 +185,30 @@ namespace TravellerSystemGenerator
         public string StructureCode { get; set; } = "";       // D/M/R/S or "n/a"
         public string StructureType { get; set; } = "";
         public string GovernmentProfile { get; set; } = "";   // G-CAS
+
+        // Judicial System
+        public JudicialData Judicial { get; set; } = new();
+        public LawLevelData LawLevels { get; set; } = new();
+        public TechLevelData TechLevels { get; set; } = new();
+        public CulturalData Culture { get; set; } = new();
+
+        // Bases, Waystation, and Starport details
+        public bool HasHighport         { get; set; }
+        public bool HasNavalBase        { get; set; }
+        public bool HasScoutBase        { get; set; }
+        public bool HasMilitaryBase     { get; set; }
+        public bool HasCorsairBase      { get; set; }
+        public bool HasXBoatWaystation  { get; set; }
+        public string BerthingFees      { get; set; } = "";
+
+        public int ExpectedWeeklyTraffic { get; set; }
+        public int HighportTotalDocking  { get; set; }  // tons
+        public int DownportTotalDocking  { get; set; }  // tons
+        public int StarportBuildCapacity { get; set; }  // tons (shown as Shipyard)
+        public int AnnualShipyardOutput  { get; set; }  // tons
+
+        public EconomicsData Economics  { get; set; } = new();
+        public MilitaryData Military    { get; set; } = new();
     }
 
     internal class AdditionalInhabitedWorld
@@ -221,6 +245,35 @@ namespace TravellerSystemGenerator
         public List<TradeCode> TradeCodes { get; set; } = new();
         public string SizeCode { get; set; } = "0";  // Size character from world object (e.g. "7", "S", "0")
         public string UWP { get; set; } = "";        // Full UWP: X{Size}{Atm}{Hyd}{Pop}{Gov}{Law}-{TL}
+
+        // Judicial System
+        public JudicialData Judicial { get; set; } = new();
+        public List<Faction> Factions { get; set; } = new();  // populated for Gov 7 secondary worlds
+        public LawLevelData LawLevels { get; set; } = new();
+        public TechLevelData TechLevels { get; set; } = new();
+        public int PCR { get; set; }  // Population Concentration Rating (for law level DMs)
+        public CulturalData Culture { get; set; } = new();
+
+        // Spaceport
+        public char SpaceportClass         { get; set; } = 'Y';  // H/G/F/Y
+        public char EquivalentStarportClass { get; set; } = 'X';  // X/E/D/C/B/A
+        public bool HasHighport            { get; set; }
+        public string BerthingFees         { get; set; } = "";
+        public int ExpectedWeeklyTraffic   { get; set; }
+        public int HighportTotalDocking    { get; set; }
+        public int DownportTotalDocking    { get; set; }
+        public int StarportBuildCapacity   { get; set; }
+        public int AnnualShipyardOutput    { get; set; }
+
+        // Bases
+        public bool HasNavalBase    { get; set; }
+        public bool HasScoutBase    { get; set; }
+        public bool HasMilitaryBase { get; set; }
+        public bool HasCorsairBase  { get; set; }
+
+        public EconomicsData Economics           { get; set; } = new();
+        public List<FactionRelationship> FactionRelationships { get; set; } = new();
+        public MilitaryData Military             { get; set; } = new();
     }
 
     internal class GovernmentData
@@ -242,6 +295,83 @@ namespace TravellerSystemGenerator
         public GovernmentData Government { get; set; } = new();
         public List<Faction> SubFactions { get; set; } = new();
         public List<FactionRelationship> SubFactionRelationships { get; set; } = new();
+        public int LawLevel { get; set; }
+        public JudicialData Judicial { get; set; } = new();
+        public LawLevelData LawLevels { get; set; } = new();
+        public TechLevelData TechLevels { get; set; } = new();
+        public CulturalData Culture { get; set; } = new();
+    }
+
+    internal class JudicialData
+    {
+        public string JudicialSystemCode { get; set; } = "";    // I/A/T/N
+        public string JudicialSystemType { get; set; } = "";
+        public string SecondarySystemCode { get; set; } = "";   // I/A/T/N (same as primary if no secondary)
+        public string SecondarySystemType { get; set; } = "";
+        public string UniformityCode { get; set; } = "";        // P/T/U
+        public string UniformityType { get; set; } = "";
+        public bool PresumptionOfInnocence { get; set; }
+        public bool DeathPenalty { get; set; }
+        public string Profile { get; set; } = "";               // PSU-I-D format
+    }
+
+    internal class LawLevelData
+    {
+        public int WeaponsLevel { get; set; }       // Weapons & Armour Law Level
+        public int EconomicLevel { get; set; }      // Economic Law Level
+        public int CriminalLevel { get; set; }      // Criminal Law Level
+        public int PrivateLevel { get; set; }       // Private Law Level
+        public int PersonalRightsLevel { get; set; } // Personal Rights Law Level
+        public string Profile { get; set; } = "";   // O-WECPR format
+    }
+
+    internal class TechLevelData
+    {
+        public int HighCommonTL { get; set; }
+        public int LowCommonTL { get; set; }
+        public int EnergyTL { get; set; }
+        public int ElectronicsTL { get; set; }
+        public int ManufacturingTL { get; set; }
+        public int MedicalTL { get; set; }
+        public int EnvironmentalTL { get; set; }
+        public int LandTransportTL { get; set; }
+        public int WaterTransportTL { get; set; }
+        public int AirTransportTL { get; set; }
+        public int SpaceTransportTL { get; set; }
+        public int PersonalMilitaryTL { get; set; }
+        public int HeavyMilitaryTL { get; set; }
+        public int NoveltyTL { get; set; } = -1;   // -1 = not yet defined; display as "X"
+        public string Profile { get; set; } = "";   // H-L-abcde-fghi-jk-l
+    }
+
+    internal class CulturalData
+    {
+        public int Diversity { get; set; }
+        public int Xenophilia { get; set; }
+        public int Uniqueness { get; set; }
+        public int Symbology { get; set; }
+        public int Cohesion { get; set; }
+        public int Progressiveness { get; set; }
+        public int Expansionism { get; set; }
+        public int Militancy { get; set; }
+        public string Profile { get; set; } = "";   // DXUS-CPEM
+    }
+
+    internal class EconomicsData
+    {
+        public int Importance            { get; set; }
+        public int ResourceFactor        { get; set; }
+        public int LabourFactor          { get; set; }
+        public int InfrastructureFactor  { get; set; }
+        public int EfficiencyFactor      { get; set; }
+        public int ResourceUnits         { get; set; }
+        public double GWPPerCapita       { get; set; }   // in Cr
+        public double TotalGWPMCr        { get; set; }   // in MCr
+        public int WorldTradeNumber      { get; set; }   // stored int, displayed in ehex
+        public int WTNStarportModifier   { get; set; }   // saved for tariff DM
+        public int InequalityRating      { get; set; }
+        public double DevelopmentScore   { get; set; }
+        public string Tariffs            { get; set; } = "";
     }
 
     internal class Faction
@@ -260,6 +390,20 @@ namespace TravellerSystemGenerator
         public int Faction2Number { get; set; }
         public string Code { get; set; } = "";   // 0-9
         public string Type { get; set; } = "";
+    }
+
+    internal class MilitaryData
+    {
+        public int    EnforcementBranch    { get; set; }
+        public int    MilitiaBranch        { get; set; }
+        public int    ArmyBranch           { get; set; }
+        public int    WetNavyBranch        { get; set; }
+        public int    AirForceBranch       { get; set; }
+        public int    SystemDefenceBranch  { get; set; }
+        public int    NavyBranch           { get; set; }
+        public int    MarineBranch         { get; set; }
+        public double BasicMilitaryBudget  { get; set; }   // percentage (e.g. 2.15 = 2.15%)
+        public int    BudgetDM             { get; set; }   // stored so subordinate AIWs can inherit it
     }
 
     internal class StarSystem
@@ -791,6 +935,15 @@ namespace TravellerSystemGenerator
             DetermineAdditionalInhabitedWorlds(dice);
             DetermineSecondaryWorldGovernments(dice);
             DetermineSecondaryWorldTradeCodes(dice);
+            DetermineSpaceports(dice);
+            DetermineJudicialSystems(dice);
+            DetermineLawLevelDetails(dice);
+            DetermineTechLevelDetails(dice);
+            DetermineCulturalAttributes(dice);
+            DetermineMainworldBases(dice);
+            DetermineEconomics(dice);
+            DetermineStarportCapacity(dice);
+            DetermineWorldMilitary(dice);
 
             // Collect data for table-based output
             List<StarDisplayData> starData = CollectAllStarData();
@@ -8006,6 +8159,19 @@ namespace TravellerSystemGenerator
                     aiw.StructureCode = "n/a";
                     aiw.StructureType = "";
                     aiw.GovernmentProfile = "7-n/a";
+
+                    // Generate factions and nation law levels for Gov 7 secondary worlds
+                    aiw.Factions = GenerateFactionList(aiw.PopulationCode, 7, 0, 0, 0, dice);
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            nation.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + nation.Government.Code;
+                            if (nation.LawLevel < 0) nation.LawLevel = 0;
+                        }
+                    // World LL = first nation's LL
+                    if (aiw.Factions.Count > 0 && aiw.Factions[0].Nations.Count > 0)
+                        aiw.LawLevel = aiw.Factions[0].Nations[0].LawLevel;
+                    aiw.FactionRelationships = GenerateFactionRelationships(aiw.Factions, 7, dice);
                 }
                 else
                 {
@@ -8017,6 +8183,9 @@ namespace TravellerSystemGenerator
                     aiw.StructureCode = govData.StructureCode;
                     aiw.StructureType = govData.StructureType;
                     aiw.GovernmentProfile = govData.Profile;
+                    // Non-gov-7 worlds still get factions (with a G-strength government faction)
+                    aiw.Factions = GenerateFactionList(aiw.PopulationCode, govCode, 0, 0, 0, dice);
+                    aiw.FactionRelationships = GenerateFactionRelationships(aiw.Factions, govCode, dice);
                 }
 
                 DebugLogger.Log($"  {aiw.WorldDesignation}: {(isIndependent ? "Independent" : $"Under authority of {mainworldDesig}")}, Gov={IntToEhex(govCode)}, LL={IntToEhex(aiw.LawLevel)}, Profile={aiw.GovernmentProfile}");
@@ -8088,7 +8257,10 @@ namespace TravellerSystemGenerator
                 {
                     int mbDM = mainworld.Government == 6 ? 2 : 0;
                     if (Starhelper.diceRoll(6, 2, dice) + mbDM >= 12)
+                    {
                         aiw.TradeCodes.Add(new TradeCode("Military Base", "Mb"));
+                        aiw.HasMilitaryBase = true;
+                    }
                 }
 
                 // Mining Facility (Mi): Mainworld has In AND Pop >= 2
@@ -8115,7 +8287,118 @@ namespace TravellerSystemGenerator
                         aiw.TradeCodes.Add(new TradeCode("Research Base", "Rb"));
                 }
 
-                DebugLogger.Log($"  {aiw.WorldDesignation}: TL={IntToEhex(aiw.TechLevel)}, LL={IntToEhex(aiw.LawLevel)}, TradeCodes={string.Join(" ", aiw.TradeCodes.Select(tc => tc.Code))}");
+                // ── Tech Level Authority Adjustment ────────────────────────────────
+                // If the mainworld has authority, the secondary world's TL is adjusted
+                // based on its trade codes. Multiple codes: calculate all, take highest.
+                if (!aiw.IsIndependent)
+                {
+                    int mstl = GetMinimumTechLevel(aiw.Atmosphere, aiw.HabitabilityRating);
+                    int mainTL = mainworld.TechLevel;
+                    bool hasCy = aiw.TradeCodes.Any(tc => tc.Code == "Cy");
+                    bool hasFa = aiw.TradeCodes.Any(tc => tc.Code == "Fa");
+                    bool hasFp = aiw.TradeCodes.Any(tc => tc.Code == "Fp");
+                    bool hasMb = aiw.TradeCodes.Any(tc => tc.Code == "Mb");
+                    bool hasMi = aiw.TradeCodes.Any(tc => tc.Code == "Mi");
+                    bool hasPe = aiw.TradeCodes.Any(tc => tc.Code == "Pe");
+                    bool hasRb = aiw.TradeCodes.Any(tc => tc.Code == "Rb");
+                    bool hasSpecific = hasCy || hasFa || hasFp || hasMb || hasMi || hasPe || hasRb;
+
+                    int adjustedTL = hasSpecific ? 0 : Math.Max(mainTL - 1, mstl); // All Others fallback
+                    if (hasCy) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL - 1, mstl));
+                    if (hasFa) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL - 1, mstl));
+                    if (hasFp) adjustedTL = Math.Max(adjustedTL, Math.Max(aiw.TechLevel, mstl)); // determine normally
+                    if (hasMb) adjustedTL = Math.Max(adjustedTL, mainTL);
+                    if (hasMi) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL, mstl));
+                    if (hasPe) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL - 1, mstl));
+                    if (hasRb) adjustedTL = Math.Max(adjustedTL, mainTL);
+
+                    aiw.TechLevel = adjustedTL;
+                    aiw.UWP = $"X{aiw.SizeCode}{IntToEhex(aiw.Atmosphere)}{IntToEhex(aiw.Hydrographics)}{IntToEhex(aiw.PopulationCode)}{IntToEhex(aiw.GovernmentCode)}{IntToEhex(aiw.LawLevel)}-{IntToEhex(aiw.TechLevel)}";
+                }
+
+                // ── Law Level Adjustments ──────────────────────────────────────────
+                bool llAdjusted = false;
+
+                if (!aiw.IsIndependent && aiw.GovernmentCode == 6)
+                {
+                    // Gov 6 (Captive Government): 1d6, +1 DM if Mb or Pe present
+                    bool hasMbOrPe = aiw.TradeCodes.Any(tc => tc.Code == "Mb" || tc.Code == "Pe");
+                    int gov6Roll = Starhelper.diceRoll(6, 1, dice) + (hasMbOrPe ? 1 : 0);
+                    int mainLL = mainworld.LawLevel;
+                    aiw.LawLevel = gov6Roll switch
+                    {
+                        <= 2 => Math.Clamp(Starhelper.diceRoll(6, 2, dice) - 7 + 6, 0, 15),
+                        3 or 4 => mainLL,
+                        5 => Math.Clamp(mainLL + 1, 0, 15),
+                        _ => Math.Clamp(mainLL + Starhelper.diceRoll(6, 1, dice), 0, 15)
+                    };
+                    llAdjusted = true;
+                }
+                else if (!aiw.IsIndependent && aiw.GovernmentCode >= 1 && aiw.GovernmentCode <= 3)
+                {
+                    // Gov 1-3 under mainworld authority: roll 2d6 - mainworld govCode
+                    int depResult = Starhelper.diceRoll(6, 2, dice) - mainworld.Government;
+                    if (depResult <= 0)
+                    {
+                        aiw.LawLevel = mainworld.LawLevel;
+                    }
+                    else
+                    {
+                        int subRoll = Starhelper.diceRoll(6, 1, dice);
+                        aiw.LawLevel = subRoll <= 3
+                            ? subRoll
+                            : Math.Clamp(Starhelper.diceRoll(6, 1, dice) + aiw.GovernmentCode, 0, 15);
+                    }
+                    llAdjusted = true;
+                }
+
+                // Freeport: -1 DM to law level
+                if (aiw.TradeCodes.Any(tc => tc.Code == "Fp"))
+                {
+                    aiw.LawLevel = Math.Max(0, aiw.LawLevel - 1);
+                    llAdjusted = true;
+                }
+
+                if (llAdjusted)
+                {
+                    // Rebuild UWP with updated law level
+                    aiw.UWP = $"X{aiw.SizeCode}{IntToEhex(aiw.Atmosphere)}{IntToEhex(aiw.Hydrographics)}{IntToEhex(aiw.PopulationCode)}{IntToEhex(aiw.GovernmentCode)}{IntToEhex(aiw.LawLevel)}-{IntToEhex(aiw.TechLevel)}";
+
+                    // Recompute Penal Colony — its DM depends on aiw.LawLevel >= 8
+                    if (aiw.GovernmentCode == 6)
+                    {
+                        aiw.TradeCodes.RemoveAll(tc => tc.Code == "Pe");
+                        if (mainworld.TechLevel >= 9 && mainworld.LawLevel >= 8)
+                        {
+                            int peDM = aiw.LawLevel >= 8 ? 2 : 0;
+                            if (Starhelper.diceRoll(6, 2, dice) + peDM >= 10)
+                                aiw.TradeCodes.Add(new TradeCode("Penal Colony", "Pe"));
+                        }
+                    }
+                }
+
+                // PCR (simplified, for law level DM use): 1d6 > pop → 9, else 1d6 + DMs clamped 0-9
+                int pcrRoll = Starhelper.diceRoll(6, 1, dice);
+                if (pcrRoll > aiw.PopulationCode)
+                {
+                    aiw.PCR = 9;
+                }
+                else
+                {
+                    int pcrDM = 0;
+                    if (size == 0 || size == 1) pcrDM += 2;
+                    else if (size == 2 || size == 3) pcrDM += 1;
+                    if (aiw.TechLevel <= 1) pcrDM -= 2;
+                    else if (aiw.TechLevel >= 2 && aiw.TechLevel <= 3) pcrDM -= 1;
+                    else if (aiw.TechLevel >= 4 && aiw.TechLevel <= 9) pcrDM += 1;
+                    if (aiw.PopulationCode == 8) pcrDM -= 1;
+                    else if (aiw.PopulationCode >= 9) pcrDM -= 2;
+                    if (aiw.GovernmentCode == 7) pcrDM -= 2;
+                    if (aiw.TradeCodes.Any(tc => tc.Code == "Fa")) pcrDM -= 2;
+                    aiw.PCR = Math.Clamp(Starhelper.diceRoll(6, 1, dice) + pcrDM, 0, 9);
+                }
+
+                DebugLogger.Log($"  {aiw.WorldDesignation}: TL={IntToEhex(aiw.TechLevel)}, LL={IntToEhex(aiw.LawLevel)}, PCR={aiw.PCR}, TradeCodes={string.Join(" ", aiw.TradeCodes.Select(tc => tc.Code))}");
             }
         }
 
@@ -8160,7 +8443,997 @@ namespace TravellerSystemGenerator
             worldFactions = GenerateFactionList(popCode, govCode, pcr, 0, 0, dice);
             factionRelationships = GenerateFactionRelationships(worldFactions, govCode, dice);
 
+            // Generate nation law levels for all nations on Gov 7 mainworld
+            foreach (var faction in worldFactions)
+                foreach (var nation in faction.Nations)
+                {
+                    nation.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + nation.Government.Code;
+                    if (nation.LawLevel < 0) nation.LawLevel = 0;
+                }
+
+            // For Gov 7 worlds, world LawLevel = first nation's LawLevel; rebuild UWP
+            if (govCode == 7 && worldFactions.Count > 0 && worldFactions[0].Nations.Count > 0)
+            {
+                mainworld.LawLevel = worldFactions[0].Nations[0].LawLevel;
+                mainworld.UWP = $"{mainworld.Starport}{IntToEhex(mainworld.Size)}{IntToEhex(mainworld.Atmosphere)}{IntToEhex(mainworld.Hydrographics)}{IntToEhex(mainworld.Population)}{IntToEhex(mainworld.Government)}{IntToEhex(mainworld.LawLevel)}-{IntToEhex(mainworld.TechLevel)}";
+                DebugLogger.Log($"  Gov 7 world LawLevel updated from first nation: {IntToEhex(mainworld.LawLevel)}");
+            }
+
             DebugLogger.Log($"Factions generated: {worldFactions.Count}");
+        }
+
+        // ─── Judicial System Generation ───────────────────────────────────────────
+
+        private void DetermineJudicialSystems(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                mainworld.Judicial = GenerateJudicialData(
+                    mainworld.Government, mainworld.LawLevel, mainworld.TechLevel,
+                    mainworld.AuthorityCode, mainworld.CentralisationCode, dice);
+                DebugLogger.Log($"  Mainworld judicial: Gov={mainworld.Government}, LL={mainworld.LawLevel}, JS={mainworld.Judicial.JudicialSystemCode}, Profile={mainworld.Judicial.Profile}");
+
+                // Nations on Gov 7 mainworld
+                if (mainworld.Government == 7)
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                            nation.Judicial = GenerateJudicialData(
+                                nation.Government.Code, nation.LawLevel, mainworld.TechLevel,
+                                nation.Government.AuthorityCode, nation.Government.CentralisationCode, dice);
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.Judicial = GenerateJudicialData(
+                    aiw.GovernmentCode, aiw.LawLevel, aiw.TechLevel,
+                    aiw.AuthorityCode, aiw.CentralisationCode, dice);
+
+                // Nations on Gov 7 secondary worlds
+                if (aiw.GovernmentCode == 7)
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                            nation.Judicial = GenerateJudicialData(
+                                nation.Government.Code, nation.LawLevel, aiw.TechLevel,
+                                nation.Government.AuthorityCode, nation.Government.CentralisationCode, dice);
+            }
+        }
+
+        private void DetermineLawLevelDetails(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                mainworld.LawLevels = GenerateLawLevelData(
+                    mainworld.Government, mainworld.LawLevel, mainworld.PCR,
+                    mainworld.Judicial.JudicialSystemCode, dice);
+
+                // Nations on Gov 7 mainworld
+                if (mainworld.Government == 7)
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                            nation.LawLevels = GenerateLawLevelData(
+                                nation.Government.Code, nation.LawLevel, mainworld.PCR,
+                                nation.Judicial.JudicialSystemCode, dice);
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.LawLevels = GenerateLawLevelData(
+                    aiw.GovernmentCode, aiw.LawLevel, aiw.PCR,
+                    aiw.Judicial.JudicialSystemCode, dice);
+
+                // Nations on Gov 7 secondary worlds
+                if (aiw.GovernmentCode == 7)
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                            nation.LawLevels = GenerateLawLevelData(
+                                nation.Government.Code, nation.LawLevel, aiw.PCR,
+                                nation.Judicial.JudicialSystemCode, dice);
+            }
+        }
+
+        private JudicialData GenerateJudicialData(int govCode, int lawLevel, int techLevel,
+            string authorityCode, string centralisationCode, Random dice)
+        {
+            var jd = new JudicialData();
+
+            // 1. Judicial System
+            if (govCode == 0)
+            {
+                jd.JudicialSystemCode = "N"; jd.JudicialSystemType = "None";
+                jd.SecondarySystemCode = "N"; jd.SecondarySystemType = "None";
+            }
+            else
+            {
+                int dm = 0;
+                // Gov 1, 8-C (10-12), F (15): -2
+                if (govCode == 1 || (govCode >= 8 && govCode <= 12) || govCode == 15) dm -= 2;
+                // Gov D (13) or E (14): +4
+                if (govCode == 13 || govCode == 14) dm += 4;
+                // Law Level >= A (10): -4, unless Gov D or E
+                if (lawLevel >= 10 && govCode != 13 && govCode != 14) dm -= 4;
+                if (techLevel == 0) dm += 4;
+                else if (techLevel == 1 || techLevel == 2) dm += 2;
+                if (authorityCode == "J") dm -= 2;
+
+                int result = Starhelper.diceRoll(6, 2, dice) + dm;
+                if (result <= 5)      { jd.JudicialSystemCode = "I"; jd.JudicialSystemType = "Inquisitorial"; }
+                else if (result <= 8) { jd.JudicialSystemCode = "A"; jd.JudicialSystemType = "Adversarial"; }
+                else                  { jd.JudicialSystemCode = "T"; jd.JudicialSystemType = "Traditional"; }
+
+                // Secondary system: roll 2d6 + LawLevel if primary is A or T
+                if (jd.JudicialSystemCode == "A" || jd.JudicialSystemCode == "T")
+                {
+                    if (Starhelper.diceRoll(6, 2, dice) + lawLevel >= 12)
+                    { jd.SecondarySystemCode = "I"; jd.SecondarySystemType = "Inquisitorial"; }
+                    else
+                    { jd.SecondarySystemCode = jd.JudicialSystemCode; jd.SecondarySystemType = jd.JudicialSystemType; }
+                }
+                else  // Primary is I — no secondary
+                { jd.SecondarySystemCode = "I"; jd.SecondarySystemType = "Inquisitorial"; }
+            }
+
+            // 2. Law Uniformity
+            if (centralisationCode == "C")
+            {
+                jd.UniformityCode = "T"; jd.UniformityType = "Territorial";
+            }
+            else if (centralisationCode == "F")
+            {
+                if (Starhelper.diceRoll(6, 1, dice) <= 5) { jd.UniformityCode = "T"; jd.UniformityType = "Territorial"; }
+                else { jd.UniformityCode = "P"; jd.UniformityType = "Personal"; }
+            }
+            else
+            {
+                int dm = 0;
+                if (govCode == 3 || govCode == 5 || govCode >= 10) dm -= 1;
+                if (govCode == 2) dm += 1;
+                int result = Starhelper.diceRoll(6, 1, dice) + dm;
+                if (result <= 2)      { jd.UniformityCode = "P"; jd.UniformityType = "Personal"; }
+                else if (result == 3) { jd.UniformityCode = "T"; jd.UniformityType = "Territorial"; }
+                else                  { jd.UniformityCode = "U"; jd.UniformityType = "Universal"; }
+            }
+
+            // 3. Presumption of Innocence: 2d6 + DM >= 0
+            int poiDM = -lawLevel + (jd.JudicialSystemCode == "A" ? 2 : 0);
+            jd.PresumptionOfInnocence = (Starhelper.diceRoll(6, 2, dice) + poiDM >= 0);
+
+            // 4. Death Penalty: 2d6 + DM >= 8
+            int dpDM = (govCode == 0 ? -4 : 0) + (lawLevel >= 9 ? 4 : 0);
+            jd.DeathPenalty = (Starhelper.diceRoll(6, 2, dice) + dpDM >= 8);
+
+            // 5. Profile: PSU-I-D
+            jd.Profile = $"{jd.JudicialSystemCode}{jd.SecondarySystemCode}{jd.UniformityCode}" +
+                         $"-{(jd.PresumptionOfInnocence ? "Y" : "N")}" +
+                         $"-{(jd.DeathPenalty ? "Y" : "N")}";
+
+            return jd;
+        }
+
+        private LawLevelData GenerateLawLevelData(int govCode, int lawLevel, int pcr,
+            string judicialSystemCode, Random dice)
+        {
+            var lld = new LawLevelData();
+
+            // 1. Weapons & Armour: LL + 2d3 - 4 + DM, clamped 0-12
+            int wDM = (pcr <= 3 ? -1 : 0) + (pcr >= 8 ? 1 : 0);
+            lld.WeaponsLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + wDM, 0, 12);
+
+            // 2. Economic: LL + 2d3 - 4 + DM, clamped 0-12
+            int eDM = 0;
+            if (govCode == 0) eDM -= 2;
+            if (govCode == 1) eDM += 2;
+            if (govCode == 2) eDM -= 1;
+            if (govCode == 9) eDM += 1;
+            lld.EconomicLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + eDM, 0, 12);
+
+            // 3. Criminal: LL + 2d3 - 4 + DM, clamped 0-18
+            int cDM = (judicialSystemCode == "I" ? 1 : 0);
+            lld.CriminalLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + cDM, 0, 18);
+
+            // 4. Private: LL + 2d3 - 4 + DM, clamped 0-12
+            int pDM = (govCode == 3 || govCode == 5 || govCode == 12 ? -1 : 0);
+            lld.PrivateLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + pDM, 0, 12);
+
+            // 5. Personal Rights: LL + 2d3 - 4 + DM, clamped 0-12
+            int prDM = (govCode == 0 || govCode == 2 ? -1 : 0) + (govCode == 1 ? 2 : 0);
+            lld.PersonalRightsLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + prDM, 0, 12);
+
+            // 6. Profile: O-WECPR
+            lld.Profile = $"{IntToEhex(lawLevel)}-" +
+                          $"{IntToEhex(lld.WeaponsLevel)}{IntToEhex(lld.EconomicLevel)}" +
+                          $"{IntToEhexFull(lld.CriminalLevel)}{IntToEhex(lld.PrivateLevel)}{IntToEhex(lld.PersonalRightsLevel)}";
+
+            return lld;
+        }
+
+        // ─── Tech Level Subcategory Generation ────────────────────────────────────
+
+        private int RollTLM(Random dice) => Starhelper.diceRoll(6, 2, dice) switch
+        {
+            2  => -3,
+            3  => -2,
+            4  => -1,
+            10 => 1,
+            11 => 2,
+            12 => 3,
+            _  => 0
+        };
+
+        private int CalculateLowCommonTL(int highTL, int govCode, int popCode, int pcr, Random dice)
+        {
+            int dm = 0;
+            if (popCode >= 1 && popCode <= 5) dm += 1;
+            if (popCode >= 9)                 dm -= 1;
+            if (govCode == 0)                 dm -= 1;
+            if (govCode == 6)                 dm -= 1;
+            if (govCode == 13)                dm -= 1;   // D
+            if (govCode == 14)                dm -= 1;   // E
+            if (govCode == 5)                 dm += 1;
+            if (govCode == 7)                 dm -= 2;
+            if (pcr <= 2)                     dm -= 1;
+            if (pcr >= 7)                     dm += 1;
+            int lower = (int)(highTL / 2.0);
+            return Math.Clamp(highTL + RollTLM(dice) + dm, lower, highTL);
+        }
+
+        private int CalculateNationHighTL(int worldHighTL, int nationGovCode, Random dice)
+        {
+            int dm = 0;
+            if (nationGovCode == 5)                                                          dm += 2;
+            if (nationGovCode == 0 || nationGovCode == 6 || nationGovCode == 13 || nationGovCode == 14) dm -= 2;
+            return Math.Max(0, worldHighTL - 2 - RollTLM(dice) + dm);
+        }
+
+        private int CalculateNationLowTL(int worldLowTL, int nationGovCode, int pcr, int nationHighTL)
+        {
+            int dm = 0;
+            if (nationGovCode == 5)                                                          dm += 2;
+            if (nationGovCode == 0 || nationGovCode == 6 || nationGovCode == 13 || nationGovCode == 14) dm -= 2;
+            if (pcr >= 7) dm += 1;
+            // If nationHighTL < worldLowTL (very low-tech nation), cap both bounds at nationHighTL
+            int lowerBound = Math.Min(worldLowTL, nationHighTL);
+            return Math.Clamp(worldLowTL + dm, lowerBound, nationHighTL);
+        }
+
+        private TechLevelData GenerateTechLevelData(
+            int highCommonTL, int lowCommonTL, int govCode, int popCode,
+            int atmosphere, int hydrographics, int pcr, int habitabilityRating,
+            char starport, int lawLevel, int weaponsLawLevel, int worldSize,
+            bool hasIn, bool hasRi, bool hasPo, bool isOnBalkanisedWorld, Random dice)
+        {
+            var d = new TechLevelData { HighCommonTL = highCommonTL, LowCommonTL = lowCommonTL };
+
+            // a) Energy TL
+            int eDM = (popCode >= 9 ? 1 : 0) + (hasIn ? 1 : 0);
+            d.EnergyTL = Math.Clamp(highCommonTL + RollTLM(dice) + eDM,
+                (int)(highCommonTL / 2.0), (int)(highCommonTL * 1.2));
+
+            // b) Electronics TL
+            int elDM = (popCode >= 1 && popCode <= 5 ? 1 : 0) + (popCode >= 9 ? -1 : 0) + (hasIn ? 1 : 0);
+            d.ElectronicsTL = Math.Clamp(highCommonTL + RollTLM(dice) + elDM,
+                d.EnergyTL - 3, d.EnergyTL + 1);
+
+            // c) Manufacturing TL
+            int mDM = (popCode >= 1 && popCode <= 6 ? -1 : 0) + (popCode >= 8 ? 1 : 0) + (hasIn ? 1 : 0);
+            d.ManufacturingTL = Math.Clamp(highCommonTL + RollTLM(dice) + mDM,
+                d.ElectronicsTL - 2, Math.Max(d.EnergyTL, d.ElectronicsTL));
+
+            // d) Medical TL
+            int mdDM = (hasRi ? 1 : 0) + (hasPo ? -1 : 0);
+            int medLower = starport == 'A' ? 6 : starport == 'B' ? 4 : starport == 'C' ? 2 : 0;
+            d.MedicalTL = Math.Clamp(d.ElectronicsTL + RollTLM(dice) + mdDM,
+                Math.Min(medLower, d.ElectronicsTL), d.ElectronicsTL);
+
+            // e) Environmental TL
+            int envDM = habitabilityRating < 8 ? 8 - habitabilityRating : 0;
+            d.EnvironmentalTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + envDM,
+                d.EnergyTL - 5, d.EnergyTL);
+
+            // f) Land Transport TL
+            int ltDM = (hydrographics == 10 ? -1 : 0) + (pcr <= 2 ? 1 : 0);
+            d.LandTransportTL = Math.Clamp(d.EnergyTL + RollTLM(dice) + ltDM,
+                d.ElectronicsTL - 5, d.EnergyTL);
+
+            // g) Water Transport TL
+            int wtDM = (hydrographics == 0 ? -2 : 0)
+                     + (hydrographics == 8 ? 1 : 0)
+                     + (hydrographics >= 9 ? 2 : 0)
+                     + (pcr <= 2 ? 1 : 0);
+            int wtLower = hydrographics == 0 ? 0 : d.ElectronicsTL - 5;
+            d.WaterTransportTL = Math.Clamp(d.EnergyTL + RollTLM(dice) + wtDM,
+                wtLower, d.EnergyTL);
+
+            // h) Air Transport TL
+            if (atmosphere == 0 && highCommonTL <= 5)
+            {
+                d.AirTransportTL = 0;
+            }
+            else
+            {
+                int atDM = 0;
+                if ((atmosphere <= 3 || atmosphere == 14) && highCommonTL <= 7) atDM -= 2;
+                else if ((atmosphere == 4 || atmosphere == 5) && highCommonTL <= 7) atDM += 1;
+                d.AirTransportTL = Math.Max(0, d.EnergyTL + RollTLM(dice) + atDM);
+            }
+
+            // i) Space Transport TL
+            int stDM = (worldSize == 0 || worldSize == 1 ? 2 : 0)
+                     + (popCode >= 1 && popCode <= 5 ? -1 : 0)
+                     + (popCode >= 9 ? 1 : 0)
+                     + (starport == 'A' ? 2 : starport == 'B' ? 1 : 0);
+            int stBound = Math.Min(d.EnergyTL, d.ManufacturingTL);
+            d.SpaceTransportTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + stDM,
+                stBound - 3, stBound);
+
+            // j) Personal Military TL
+            // Gov 0 or world is balkanised: +2; law level 0 or >=D: +2; LL 1-4 or 9-C: +1
+            int pmGovDM = (govCode == 0 || isOnBalkanisedWorld ? 2 : 0);
+            int pmLawDM = (lawLevel == 0 || lawLevel >= 13 ? 2 : 0)
+                        + (((lawLevel >= 1 && lawLevel <= 4) || (lawLevel >= 9 && lawLevel <= 12)) ? 1 : 0);
+            int pmLower = weaponsLawLevel == 0 ? d.ManufacturingTL : 0;
+            d.PersonalMilitaryTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + pmGovDM + pmLawDM,
+                Math.Min(pmLower, d.ElectronicsTL), d.ElectronicsTL);
+
+            // k) Heavy Military TL
+            // Gov 7/A/B/F: +2 — also applies to all nations on a Gov 7 world
+            int hmGovDM = (isOnBalkanisedWorld || govCode == 7 || govCode == 10 || govCode == 11 || govCode == 15 ? 2 : 0);
+            int hmLawDM = lawLevel >= 13 ? 2 : 0;
+            int hmDM = (popCode >= 1 && popCode <= 6 ? -1 : 0)
+                     + (popCode >= 8 ? 1 : 0)
+                     + hmGovDM + hmLawDM
+                     + (hasIn ? 1 : 0);
+            d.HeavyMilitaryTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + hmDM,
+                0, Math.Max(0, d.ManufacturingTL));
+
+            // l) Novelty TL — not yet defined
+            d.NoveltyTL = -1;
+
+            // Profile: H-L-abcde-fghi-jk-l
+            d.Profile = $"{IntToEhex(highCommonTL)}-{IntToEhex(lowCommonTL)}-" +
+                        $"{IntToEhex(d.EnergyTL)}{IntToEhex(d.ElectronicsTL)}{IntToEhex(d.ManufacturingTL)}{IntToEhex(d.MedicalTL)}{IntToEhex(d.EnvironmentalTL)}-" +
+                        $"{IntToEhex(d.LandTransportTL)}{IntToEhex(d.WaterTransportTL)}{IntToEhex(d.AirTransportTL)}{IntToEhex(d.SpaceTransportTL)}-" +
+                        $"{IntToEhex(d.PersonalMilitaryTL)}{IntToEhex(d.HeavyMilitaryTL)}-X";
+
+            return d;
+        }
+
+        private void DetermineTechLevelDetails(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                bool hasIn = mainworld.TradeCodes.Any(tc => tc.Code == "In");
+                bool hasRi = mainworld.TradeCodes.Any(tc => tc.Code == "Ri");
+                bool hasPo = mainworld.TradeCodes.Any(tc => tc.Code == "Po");
+
+                int worldHighTL = mainworld.TechLevel;
+                int worldLowTL  = CalculateLowCommonTL(worldHighTL, mainworld.Government, mainworld.Population, mainworld.PCR, dice);
+
+                int mwHabRating = 0;
+                if (mainworld.PlacedWorld is TerrestrialPlanet mwTp) mwHabRating = mwTp.HabitabilityRating;
+                else if (mainworld.PlacedWorld is Moon mwM) mwHabRating = mwM.HabitabilityRating;
+
+                mainworld.TechLevels = GenerateTechLevelData(
+                    worldHighTL, worldLowTL, mainworld.Government, mainworld.Population,
+                    mainworld.Atmosphere, mainworld.Hydrographics, mainworld.PCR,
+                    mwHabRating, mainworld.Starport,
+                    mainworld.LawLevel, mainworld.LawLevels.WeaponsLevel,
+                    mainworld.Size, hasIn, hasRi, hasPo, isOnBalkanisedWorld: false, dice);
+
+                if (mainworld.Government == 7)
+                {
+                    bool firstNation = true;
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            int nHigh = firstNation ? worldHighTL : CalculateNationHighTL(worldHighTL, nation.Government.Code, dice);
+                            int nLow  = firstNation ? worldLowTL  : CalculateNationLowTL(worldLowTL, nation.Government.Code, mainworld.PCR, nHigh);
+                            firstNation = false;
+                            nation.TechLevels = GenerateTechLevelData(
+                                nHigh, nLow, nation.Government.Code, mainworld.Population,
+                                mainworld.Atmosphere, mainworld.Hydrographics, mainworld.PCR,
+                                mwHabRating, mainworld.Starport,
+                                nation.LawLevel, nation.LawLevels.WeaponsLevel,
+                                mainworld.Size, hasIn, hasRi, hasPo, isOnBalkanisedWorld: true, dice);
+                        }
+                }
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                bool hasIn = aiw.TradeCodes.Any(tc => tc.Code == "In");
+                bool hasRi = aiw.TradeCodes.Any(tc => tc.Code == "Ri");
+                bool hasPo = aiw.TradeCodes.Any(tc => tc.Code == "Po");
+
+                int worldHighTL = aiw.TechLevel;
+                int worldLowTL  = CalculateLowCommonTL(worldHighTL, aiw.GovernmentCode, aiw.PopulationCode, aiw.PCR, dice);
+
+                int aiwSize = 0;
+                if (aiw.World is TerrestrialPlanet tp) aiwSize = (tp.Size == "S" || tp.Size == "R") ? 0 : FromEhex(tp.Size);
+                else if (aiw.World is Moon m)          aiwSize = (m.Size == "S" || m.Size == "R") ? 0 : FromEhex(m.Size);
+
+                aiw.TechLevels = GenerateTechLevelData(
+                    worldHighTL, worldLowTL, aiw.GovernmentCode, aiw.PopulationCode,
+                    aiw.Atmosphere, aiw.Hydrographics, aiw.PCR,
+                    aiw.HabitabilityRating, 'X',
+                    aiw.LawLevel, aiw.LawLevels.WeaponsLevel,
+                    aiwSize, hasIn, hasRi, hasPo, isOnBalkanisedWorld: false, dice);
+
+                if (aiw.GovernmentCode == 7)
+                {
+                    bool firstNation = true;
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            int nHigh = firstNation ? worldHighTL : CalculateNationHighTL(worldHighTL, nation.Government.Code, dice);
+                            int nLow  = firstNation ? worldLowTL  : CalculateNationLowTL(worldLowTL, nation.Government.Code, aiw.PCR, nHigh);
+                            firstNation = false;
+                            nation.TechLevels = GenerateTechLevelData(
+                                nHigh, nLow, nation.Government.Code, aiw.PopulationCode,
+                                aiw.Atmosphere, aiw.Hydrographics, aiw.PCR,
+                                aiw.HabitabilityRating, 'X',
+                                nation.LawLevel, nation.LawLevels.WeaponsLevel,
+                                aiwSize, hasIn, hasRi, hasPo, isOnBalkanisedWorld: true, dice);
+                        }
+                }
+            }
+        }
+
+        private CulturalData GenerateCulturalData(
+            int popCode, int govCode, int lawLevel, int pcr,
+            char starport, int techLevel, Random dice)
+        {
+            var c = new CulturalData();
+
+            // 1. Diversity
+            int divDM = 0;
+            if (popCode >= 1 && popCode <= 5) divDM -= 2;
+            if (popCode >= 9) divDM += 2;
+            if (govCode >= 0 && govCode <= 2) divDM += 1;
+            if (govCode == 7) divDM += 4;
+            if (govCode >= 13 && govCode <= 15) divDM -= 4;
+            if (lawLevel >= 0 && lawLevel <= 4) divDM += 1;
+            if (lawLevel >= 10) divDM -= 1;
+            if (pcr >= 0 && pcr <= 3) divDM += 1;
+            if (pcr >= 7) divDM -= 2;
+            c.Diversity = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + divDM);
+
+            // 2. Xenophilia
+            int xenoDM = 0;
+            if (popCode >= 1 && popCode <= 5) xenoDM -= 1;
+            if (popCode >= 9) xenoDM += 2;
+            if (govCode == 13 || govCode == 14) xenoDM -= 2;
+            if (lawLevel >= 10) xenoDM -= 2;
+            xenoDM += starport switch { 'A' => 2, 'B' => 1, 'D' => -1, 'E' => -2, 'X' => -4, _ => 0 };
+            if (c.Diversity >= 1 && c.Diversity <= 3) xenoDM -= 2;
+            if (c.Diversity >= 12) xenoDM += 1;
+            c.Xenophilia = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + xenoDM);
+
+            // 3. Uniqueness
+            int uniqDM = 0;
+            uniqDM += starport switch { 'A' => -2, 'B' => -1, 'D' => 1, 'E' => 2, 'X' => 4, _ => 0 };
+            if (c.Diversity >= 1 && c.Diversity <= 3) uniqDM += 2;
+            if (c.Xenophilia >= 9 && c.Xenophilia <= 11) uniqDM -= 1;
+            if (c.Xenophilia >= 12) uniqDM -= 2;
+            c.Uniqueness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + uniqDM);
+
+            // 4. Symbology
+            int symDM = 0;
+            if (govCode == 13 || govCode == 14) symDM += 2;
+            if (techLevel <= 1) symDM -= 3;
+            else if (techLevel <= 3) symDM -= 1;
+            if (techLevel >= 9 && techLevel <= 11) symDM += 2;
+            if (techLevel >= 12) symDM += 4;
+            if (c.Uniqueness >= 9 && c.Uniqueness <= 11) symDM += 1;
+            if (c.Uniqueness >= 12) symDM += 3;
+            c.Symbology = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + symDM);
+
+            // 5. Cohesion
+            int cohDM = 0;
+            if (govCode == 3 || govCode == 12) cohDM += 2;
+            if (govCode == 5 || govCode == 6 || govCode == 9) cohDM += 1;
+            if (lawLevel >= 0 && lawLevel <= 2) cohDM -= 2;
+            if (lawLevel >= 10) cohDM += 2;
+            if (pcr >= 0 && pcr <= 3) cohDM -= 2;
+            if (pcr >= 7) cohDM += 2;
+            if (c.Diversity >= 1 && c.Diversity <= 2) cohDM += 4;
+            else if (c.Diversity >= 3 && c.Diversity <= 5) cohDM += 2;
+            if (c.Diversity >= 9 && c.Diversity <= 11) cohDM -= 2;
+            if (c.Diversity >= 12) cohDM -= 4;
+            c.Cohesion = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + cohDM);
+
+            // 6. Progressiveness
+            int progDM = 0;
+            if (popCode >= 6 && popCode <= 8) progDM -= 1;
+            if (popCode >= 9) progDM -= 2;
+            if (govCode == 5) progDM += 1;
+            if (govCode == 11) progDM -= 2;
+            if (govCode == 13 || govCode == 14) progDM -= 6;
+            if (lawLevel >= 9 && lawLevel <= 11) progDM -= 1;
+            if (lawLevel >= 12) progDM -= 4;
+            if (c.Diversity >= 1 && c.Diversity <= 3) progDM -= 2;
+            if (c.Diversity >= 12) progDM += 1;
+            if (c.Xenophilia >= 1 && c.Xenophilia <= 5) progDM -= 1;
+            if (c.Xenophilia >= 9) progDM += 2;
+            if (c.Cohesion >= 1 && c.Cohesion <= 5) progDM += 2;
+            if (c.Cohesion >= 9) progDM -= 2;
+            c.Progressiveness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + progDM);
+
+            // 7. Expansionism
+            int expDM = 0;
+            if (govCode == 10 || govCode >= 12) expDM += 2;   // A or >= C
+            if (c.Diversity >= 1 && c.Diversity <= 3) expDM += 3;
+            if (c.Diversity >= 12) expDM -= 3;
+            if (c.Xenophilia >= 1 && c.Xenophilia <= 5) expDM += 1;
+            if (c.Xenophilia >= 9) expDM -= 2;
+            c.Expansionism = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + expDM);
+
+            // 8. Militancy
+            int milDM = 0;
+            if (govCode >= 10) milDM += 3;
+            if (lawLevel >= 9 && lawLevel <= 11) milDM += 1;
+            if (lawLevel >= 12) milDM += 2;
+            if (c.Xenophilia >= 1 && c.Xenophilia <= 5) milDM += 1;
+            if (c.Xenophilia >= 9) milDM -= 2;
+            if (c.Expansionism >= 1 && c.Expansionism <= 5) milDM -= 1;
+            if (c.Expansionism >= 9 && c.Expansionism <= 11) milDM += 1;
+            if (c.Expansionism >= 12) milDM += 2;
+            c.Militancy = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + milDM);
+
+            // Profile: DXUS-CPEM
+            c.Profile = $"{IntToEhex(c.Diversity)}{IntToEhex(c.Xenophilia)}{IntToEhex(c.Uniqueness)}{IntToEhex(c.Symbology)}-{IntToEhex(c.Cohesion)}{IntToEhex(c.Progressiveness)}{IntToEhex(c.Expansionism)}{IntToEhex(c.Militancy)}";
+
+            return c;
+        }
+
+        private void DetermineCulturalAttributes(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                mainworld.Culture = GenerateCulturalData(
+                    mainworld.Population, mainworld.Government, mainworld.LawLevel,
+                    mainworld.PCR, mainworld.Starport, mainworld.TechLevel, dice);
+
+                // For Gov 7 worlds with Diversity >= C (12): generate per-nation cultural data
+                if (mainworld.Government == 7 && mainworld.Culture.Diversity >= 12)
+                {
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            nation.Culture = GenerateCulturalData(
+                                mainworld.Population, nation.Government.Code, nation.LawLevel,
+                                mainworld.PCR, mainworld.Starport, nation.TechLevels.HighCommonTL, dice);
+                        }
+                }
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.Culture = GenerateCulturalData(
+                    aiw.PopulationCode, aiw.GovernmentCode, aiw.LawLevel,
+                    aiw.PCR, 'X', aiw.TechLevel, dice);
+
+                if (!aiw.IsIndependent)
+                    AdjustCulturalAttributesForAuthority(aiw.Culture,
+                        aiw.PopulationCode, aiw.GovernmentCode, aiw.LawLevel,
+                        aiw.PCR, 'X', aiw.TechLevel, dice);
+
+                if (aiw.GovernmentCode == 7 && aiw.Culture.Diversity >= 12)
+                {
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            nation.Culture = GenerateCulturalData(
+                                aiw.PopulationCode, nation.Government.Code, nation.LawLevel,
+                                aiw.PCR, 'X', nation.TechLevels.HighCommonTL, dice);
+                        }
+                }
+            }
+        }
+
+        private void AdjustCulturalAttributesForAuthority(
+            CulturalData c, int popCode, int govCode, int lawLevel, int pcr,
+            char starport, int techLevel, Random dice)
+        {
+            // Select up to 2 attributes for rerolling — each has a 1/3 chance
+            // 0=Diversity 1=Xenophilia 2=Uniqueness 3=Symbology
+            // 4=Cohesion  5=Progressiveness 6=Expansionism 7=Militancy
+            var toReroll = new HashSet<int>();
+            for (int i = 0; i <= 7 && toReroll.Count < 2; i++)
+            {
+                if (Starhelper.diceRoll(3, 1, dice) == 1)
+                    toReroll.Add(i);
+            }
+            if (toReroll.Count == 0) return;
+
+            // Save original values for delta computation
+            int oldDiv  = c.Diversity;
+            int oldXeno = c.Xenophilia;
+            int oldUniq = c.Uniqueness;
+            int oldSym  = c.Symbology;
+            int oldCoh  = c.Cohesion;
+            int oldProg = c.Progressiveness;
+            int oldExp  = c.Expansionism;
+            int oldMil  = c.Militancy;
+
+            // Reroll selected attributes in order (earlier rerolls feed later DMs)
+            if (toReroll.Contains(0)) // Diversity
+            {
+                int dm = 0;
+                if (popCode >= 1 && popCode <= 5) dm -= 2;
+                if (popCode >= 9) dm += 2;
+                if (govCode >= 0 && govCode <= 2) dm += 1;
+                if (govCode == 7) dm += 4;
+                if (govCode >= 13 && govCode <= 15) dm -= 4;
+                if (lawLevel >= 0 && lawLevel <= 4) dm += 1;
+                if (lawLevel >= 10) dm -= 1;
+                if (pcr >= 0 && pcr <= 3) dm += 1;
+                if (pcr >= 7) dm -= 2;
+                c.Diversity = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(1)) // Xenophilia
+            {
+                int dm = 0;
+                if (popCode >= 1 && popCode <= 5) dm -= 1;
+                if (popCode >= 9) dm += 2;
+                if (govCode == 13 || govCode == 14) dm -= 2;
+                if (lawLevel >= 10) dm -= 2;
+                dm += starport switch { 'A' => 2, 'B' => 1, 'D' => -1, 'E' => -2, 'X' => -4, _ => 0 };
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm -= 2;
+                if (c.Diversity >= 12) dm += 1;
+                c.Xenophilia = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(2)) // Uniqueness
+            {
+                int dm = 0;
+                dm += starport switch { 'A' => -2, 'B' => -1, 'D' => 1, 'E' => 2, 'X' => 4, _ => 0 };
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm += 2;
+                if (c.Xenophilia >= 9 && c.Xenophilia <= 11) dm -= 1;
+                if (c.Xenophilia >= 12) dm -= 2;
+                c.Uniqueness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(3)) // Symbology
+            {
+                int dm = 0;
+                if (govCode == 13 || govCode == 14) dm += 2;
+                if (techLevel <= 1) dm -= 3;
+                else if (techLevel <= 3) dm -= 1;
+                if (techLevel >= 9 && techLevel <= 11) dm += 2;
+                if (techLevel >= 12) dm += 4;
+                if (c.Uniqueness >= 9 && c.Uniqueness <= 11) dm += 1;
+                if (c.Uniqueness >= 12) dm += 3;
+                c.Symbology = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(4)) // Cohesion
+            {
+                int dm = 0;
+                if (govCode == 3 || govCode == 12) dm += 2;
+                if (govCode == 5 || govCode == 6 || govCode == 9) dm += 1;
+                if (lawLevel >= 0 && lawLevel <= 2) dm -= 2;
+                if (lawLevel >= 10) dm += 2;
+                if (pcr >= 0 && pcr <= 3) dm -= 2;
+                if (pcr >= 7) dm += 2;
+                if (c.Diversity >= 1 && c.Diversity <= 2) dm += 4;
+                else if (c.Diversity >= 3 && c.Diversity <= 5) dm += 2;
+                if (c.Diversity >= 9 && c.Diversity <= 11) dm -= 2;
+                if (c.Diversity >= 12) dm -= 4;
+                c.Cohesion = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(5)) // Progressiveness
+            {
+                int dm = 0;
+                if (popCode >= 1 && popCode <= 5) dm += 2;
+                if (popCode >= 6 && popCode <= 8) dm -= 1;
+                if (popCode >= 9) dm -= 2;
+                if (govCode == 5) dm += 1;
+                if (govCode == 11) dm -= 2;
+                if (govCode == 13 || govCode == 14) dm -= 6;
+                if (lawLevel >= 9 && lawLevel <= 11) dm -= 1;
+                if (lawLevel >= 12) dm -= 4;
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm -= 2;
+                if (c.Diversity >= 12) dm += 1;
+                if (c.Xenophilia >= 1 && c.Xenophilia <= 5) dm -= 1;
+                if (c.Xenophilia >= 9) dm += 2;
+                if (c.Cohesion >= 1 && c.Cohesion <= 5) dm += 2;
+                if (c.Cohesion >= 9) dm -= 2;
+                c.Progressiveness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(6)) // Expansionism
+            {
+                int dm = 0;
+                if (govCode == 10 || govCode >= 12) dm += 2;
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm += 3;
+                if (c.Diversity >= 12) dm -= 3;
+                if (c.Xenophilia >= 1 && c.Xenophilia <= 5) dm += 1;
+                if (c.Xenophilia >= 9) dm -= 2;
+                c.Expansionism = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(7)) // Militancy
+            {
+                int dm = 0;
+                if (govCode >= 10) dm += 3;
+                if (lawLevel >= 9 && lawLevel <= 11) dm += 1;
+                if (lawLevel >= 12) dm += 2;
+                if (c.Xenophilia >= 1 && c.Xenophilia <= 5) dm += 1;
+                if (c.Xenophilia >= 9) dm -= 2;
+                if (c.Expansionism >= 1 && c.Expansionism <= 5) dm -= 1;
+                if (c.Expansionism >= 9 && c.Expansionism <= 11) dm += 1;
+                if (c.Expansionism >= 12) dm += 2;
+                c.Militancy = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            // Capture post-reroll values for delta computation (before any propagation adjustments)
+            int newDiv  = c.Diversity;
+            int newXeno = c.Xenophilia;
+            int newUniq = c.Uniqueness;
+            int newCoh  = c.Cohesion;
+            int newExp  = c.Expansionism;
+
+            // DM contribution helpers (dependency contributions only)
+            static int DivToXenoDM(int d)  => d >= 1 && d <= 3 ? -2 : d >= 12 ? 1 : 0;
+            static int DivToUniqDM(int d)  => d >= 1 && d <= 3 ? 2 : 0;
+            static int XenoToUniqDM(int x) => x >= 9 && x <= 11 ? -1 : x >= 12 ? -2 : 0;
+            static int UniqToSymDM(int u)  => u >= 9 && u <= 11 ? 1 : u >= 12 ? 3 : 0;
+            static int DivToCohDM(int d)   => d >= 1 && d <= 2 ? 4 : d >= 3 && d <= 5 ? 2 : d >= 9 && d <= 11 ? -2 : d >= 12 ? -4 : 0;
+            static int DivToProgDM(int d)  => d >= 1 && d <= 3 ? -2 : d >= 12 ? 1 : 0;
+            static int XenoToProgDM(int x) => x >= 1 && x <= 5 ? -1 : x >= 9 ? 2 : 0;
+            static int CohToProgDM(int k)  => k >= 1 && k <= 5 ? 2 : k >= 9 ? -2 : 0;
+            static int DivToExpDM(int d)   => d >= 1 && d <= 3 ? 3 : d >= 12 ? -3 : 0;
+            static int XenoToExpDM(int x)  => x >= 1 && x <= 5 ? 1 : x >= 9 ? -2 : 0;
+            static int XenoToMilDM(int x)  => x >= 1 && x <= 5 ? 1 : x >= 9 ? -2 : 0;
+            static int ExpToMilDM(int e)   => e >= 1 && e <= 5 ? -1 : e >= 9 && e <= 11 ? 1 : e >= 12 ? 2 : 0;
+
+            // Propagate DM deltas from rerolled attrs to non-rerolled dependents (no cascading)
+            if (!toReroll.Contains(1))
+            {
+                int delta = toReroll.Contains(0) ? DivToXenoDM(newDiv) - DivToXenoDM(oldDiv) : 0;
+                if (delta != 0) c.Xenophilia = Math.Max(0, c.Xenophilia + delta);
+            }
+
+            if (!toReroll.Contains(2))
+            {
+                int delta = 0;
+                if (toReroll.Contains(0)) delta += DivToUniqDM(newDiv)  - DivToUniqDM(oldDiv);
+                if (toReroll.Contains(1)) delta += XenoToUniqDM(newXeno) - XenoToUniqDM(oldXeno);
+                if (delta != 0) c.Uniqueness = Math.Max(0, c.Uniqueness + delta);
+            }
+
+            if (!toReroll.Contains(3))
+            {
+                int delta = toReroll.Contains(2) ? UniqToSymDM(newUniq) - UniqToSymDM(oldUniq) : 0;
+                if (delta != 0) c.Symbology = Math.Max(0, c.Symbology + delta);
+            }
+
+            if (!toReroll.Contains(4))
+            {
+                int delta = toReroll.Contains(0) ? DivToCohDM(newDiv) - DivToCohDM(oldDiv) : 0;
+                if (delta != 0) c.Cohesion = Math.Max(0, c.Cohesion + delta);
+            }
+
+            if (!toReroll.Contains(5))
+            {
+                int delta = 0;
+                if (toReroll.Contains(0)) delta += DivToProgDM(newDiv)  - DivToProgDM(oldDiv);
+                if (toReroll.Contains(1)) delta += XenoToProgDM(newXeno) - XenoToProgDM(oldXeno);
+                if (toReroll.Contains(4)) delta += CohToProgDM(newCoh)   - CohToProgDM(oldCoh);
+                if (delta != 0) c.Progressiveness = Math.Max(0, c.Progressiveness + delta);
+            }
+
+            if (!toReroll.Contains(6))
+            {
+                int delta = 0;
+                if (toReroll.Contains(0)) delta += DivToExpDM(newDiv)  - DivToExpDM(oldDiv);
+                if (toReroll.Contains(1)) delta += XenoToExpDM(newXeno) - XenoToExpDM(oldXeno);
+                if (delta != 0) c.Expansionism = Math.Max(0, c.Expansionism + delta);
+            }
+
+            if (!toReroll.Contains(7))
+            {
+                int delta = 0;
+                if (toReroll.Contains(1)) delta += XenoToMilDM(newXeno) - XenoToMilDM(oldXeno);
+                if (toReroll.Contains(6)) delta += ExpToMilDM(newExp)    - ExpToMilDM(oldExp);
+                if (delta != 0) c.Militancy = Math.Max(0, c.Militancy + delta);
+            }
+
+            // Rebuild profile
+            c.Profile = $"{IntToEhex(c.Diversity)}{IntToEhex(c.Xenophilia)}{IntToEhex(c.Uniqueness)}{IntToEhex(c.Symbology)}-{IntToEhex(c.Cohesion)}{IntToEhex(c.Progressiveness)}{IntToEhex(c.Expansionism)}{IntToEhex(c.Militancy)}";
+        }
+
+        private void DetermineEconomics(Random dice)
+        {
+            int gg = this.GasGiantCount;
+            int pb = this.PlanetoidBeltCount;
+
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                int imp = CalculateImportance(mainworld.Starport, mainworld.Population,
+                    mainworld.TechLevel, mainworld.TradeCodes,
+                    mainworld.HasNavalBase, mainworld.HasScoutBase,
+                    mainworld.HasMilitaryBase, mainworld.HasXBoatWaystation);
+                mainworld.Economics = CalculateWorldEconomics(
+                    mainworld.Population, mainworld.ActualPopulation,
+                    mainworld.Government, mainworld.LawLevel, mainworld.TechLevel,
+                    mainworld.PCR, mainworld.Starport, GetMainworldResourceRating(),
+                    imp, gg, pb, mainworld.TradeCodes, mainworld.Culture,
+                    isMainworld: true, mainworld.HasMilitaryBase,
+                    mainworld.HasNavalBase, mainworld.HasScoutBase,
+                    mainworld.HasXBoatWaystation, dice);
+                mainworld.Economics.Importance = imp;
+            }
+
+            int mainImp = mainworld?.Economics.Importance ?? 0;
+
+            // Secondary worlds (importance capped at mainworld importance)
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                char aiwSp = aiw.EquivalentStarportClass;
+                int imp = CalculateImportance(aiwSp, aiw.PopulationCode, aiw.TechLevel,
+                    aiw.TradeCodes, aiw.HasNavalBase, aiw.HasScoutBase, aiw.HasMilitaryBase, false);
+                imp = Math.Min(imp, mainImp);
+                aiw.Economics = CalculateWorldEconomics(
+                    aiw.PopulationCode, aiw.ActualPopulation,
+                    aiw.GovernmentCode, aiw.LawLevel, aiw.TechLevel,
+                    aiw.PCR, aiwSp, aiw.ResourceRating, imp,
+                    0, 0, aiw.TradeCodes, aiw.Culture,
+                    isMainworld: false, aiw.HasMilitaryBase,
+                    aiw.HasNavalBase, aiw.HasScoutBase, false, dice);
+                aiw.Economics.Importance = imp;
+            }
+        }
+
+        private EconomicsData CalculateWorldEconomics(
+            int popCode, long actualPopulation, int govCode, int lawLevel, int tl,
+            int pcr, char starport, int resourceRating, int importance,
+            int gasGiants, int planetoidBelts, List<TradeCode> tradeCodes,
+            CulturalData culture, bool isMainworld,
+            bool hasMilitary, bool hasNaval, bool hasScout, bool hasXBoat, Random dice)
+        {
+            var d = new EconomicsData { Importance = importance };
+            bool hasAg = tradeCodes.Any(tc => tc.Code == "Ag");
+            bool hasIn = tradeCodes.Any(tc => tc.Code == "In");
+            bool hasAs = tradeCodes.Any(tc => tc.Code == "As");
+            bool hasGa = tradeCodes.Any(tc => tc.Code == "Ga");
+            bool hasNi = tradeCodes.Any(tc => tc.Code == "Ni");
+            bool hasPo = tradeCodes.Any(tc => tc.Code == "Po");
+            bool hasRi = tradeCodes.Any(tc => tc.Code == "Ri");
+            bool hasFp = tradeCodes.Any(tc => tc.Code == "Fp");
+
+            // a) Resource Factor
+            d.ResourceFactor = resourceRating;
+            if (tl >= 8 && isMainworld)
+                d.ResourceFactor += gasGiants + planetoidBelts;
+            if (hasAg || hasIn)
+            {
+                d.ResourceFactor += 1 - Starhelper.diceRoll(6, 2, dice);   // always <= -1
+                if (d.ResourceFactor < 2)
+                    d.ResourceFactor = isMainworld ? 2 + gasGiants + planetoidBelts : 2;
+            }
+
+            // b) Labour Factor
+            d.LabourFactor = popCode - 1;
+
+            // c) Infrastructure Factor
+            d.InfrastructureFactor = importance;
+            if (popCode >= 4 && popCode <= 6) d.InfrastructureFactor += Starhelper.diceRoll(6, 1, dice);
+            if (popCode >= 7)                 d.InfrastructureFactor += Starhelper.diceRoll(6, 2, dice);
+            if (popCode == 0 || importance < 0) d.InfrastructureFactor = 0;
+
+            // d) Efficiency Factor
+            int efDM = 0;
+            if (govCode == 0 || govCode == 3 || govCode == 6 || govCode == 9 ||
+                govCode == 11 || govCode == 12 || govCode == 15) efDM -= 1;
+            if (govCode == 1 || govCode == 2 || govCode == 4 || govCode == 5 || govCode == 8) efDM += 1;
+            if (lawLevel >= 0 && lawLevel <= 4) efDM += 1;
+            if (lawLevel >= 10) efDM -= 1;
+            if (pcr >= 0 && pcr <= 3) efDM -= 1;
+            if (pcr >= 8) efDM += 1;
+            if (culture.Progressiveness >= 1 && culture.Progressiveness <= 3) efDM -= 1;
+            if (culture.Progressiveness >= 9) efDM += 1;
+            if (culture.Expansionism >= 1 && culture.Expansionism <= 3) efDM -= 1;
+            if (culture.Expansionism >= 9) efDM += 1;
+
+            int ef;
+            if (popCode == 0)
+                ef = -5;
+            else if (popCode <= 6)
+                ef = Starhelper.diceRoll(6, 2, dice) - 7 + efDM;
+            else
+                ef = Starhelper.diceRoll(3, 2, dice) - 4 + efDM;
+            ef = Math.Clamp(ef, -5, 5);
+            if (ef == 0) ef = 1;
+            d.EfficiencyFactor = ef;
+
+            // e) Resource Units (0 treated as 1 for calculation)
+            int rfRU  = d.ResourceFactor       == 0 ? 1 : d.ResourceFactor;
+            int lfRU  = d.LabourFactor         == 0 ? 1 : d.LabourFactor;
+            int infRU = d.InfrastructureFactor == 0 ? 1 : d.InfrastructureFactor;
+            d.ResourceUnits = rfRU * lfRU * infRU * ef;
+
+            // f) GWP
+            int baseValue = d.InfrastructureFactor + d.ResourceFactor;
+            double techMod = tl / 10.0;
+            double portMod = starport switch
+            {
+                'A' => 1.5, 'B' => 1.2, 'C' => 1.0, 'D' => 0.8, 'E' => 0.5,
+                'F' => 0.9, 'G' => 0.7, 'H' => 0.4, 'Y' => 0.2, _ => 0.2
+            };
+            double govMod = govCode switch
+            {
+                0  => 1.0, 1  => 1.5, 2  => 1.2, 3  => 0.8, 4  => 1.2,
+                5  => 1.3, 6  => 0.6, 7  => 1.0, 8  => 0.9, 9  => 0.8,
+                10 => 1.0, 11 => 0.7, 12 => 1.0, 13 => 0.6, 14 => 0.5,
+                15 => 0.8, _ => 1.0
+            };
+            double tradeMod = 1.0;
+            if (hasAg) tradeMod *= 0.9;
+            if (hasAs) tradeMod *= 1.2;
+            if (hasGa) tradeMod *= 1.2;
+            if (hasIn) tradeMod *= 1.1;
+            if (hasNi) tradeMod *= 0.9;
+            if (hasPo) tradeMod *= 0.8;
+            if (hasRi) tradeMod *= 1.2;
+            double totalMod = techMod * portMod * govMod * tradeMod;
+            double gwpPC;
+            if (ef > 0)
+                gwpPC = 1000.0 * baseValue * totalMod * ef;
+            else
+                gwpPC = 1000.0 * (baseValue * totalMod) / -(ef - 1);
+            gwpPC = Math.Max(0.05, gwpPC);
+            d.GWPPerCapita = gwpPC;
+            d.TotalGWPMCr  = gwpPC * actualPopulation / 1_000_000.0;
+
+            // g) World Trade Number
+            int wtnDM = 0;
+            if (tl <= 1) wtnDM -= 1;
+            if (tl >= 5 && tl <= 8)  wtnDM += 1;
+            if (tl >= 9 && tl <= 13) wtnDM += 2;
+            if (tl >= 15) wtnDM += 3;
+            int baseWTN = popCode + wtnDM;
+            d.WTNStarportModifier = isMainworld ? GetWTNStarportModifier(baseWTN, starport) : 0;
+            d.WorldTradeNumber = Math.Max(0, baseWTN + d.WTNStarportModifier);
+
+            // h) Inequality Rating
+            int iqDM = 0;
+            if (govCode == 6 || govCode == 11 || govCode == 15) iqDM += 10;
+            if (govCode == 0 || govCode == 1 || govCode == 3 || govCode == 9 || govCode == 12) iqDM += 5;
+            if (govCode == 4 || govCode == 8) iqDM -= 5;
+            if (govCode == 2) iqDM -= 10;
+            if (lawLevel >= 9) iqDM += (lawLevel - 8);
+            iqDM += pcr;
+            iqDM -= d.InfrastructureFactor;
+            d.InequalityRating = 50 - ef * 5 + (Starhelper.diceRoll(6, 2, dice) - 7) * 2 + iqDM;
+
+            // i) Development Score
+            d.DevelopmentScore = (d.GWPPerCapita / 1000.0) * (1.0 - d.InequalityRating / 100.0);
+
+            // j) Tariffs
+            int tariffDM = 0;
+            if (govCode == 0) tariffDM -= 7;
+            if (govCode == 2 || govCode == 4) tariffDM -= 4;
+            if (govCode == 9) tariffDM += 2;
+            if (lawLevel >= 9) tariffDM += 2;
+            if (hasFp) tariffDM -= 7;
+            if (culture.Xenophilia >= 1 && culture.Xenophilia <= 3) tariffDM += 2;
+            if (culture.Xenophilia >= 9) tariffDM -= 2;
+            tariffDM -= d.WTNStarportModifier;
+            d.Tariffs = RollTariffString(Starhelper.diceRoll(6, 2, dice) + tariffDM, dice);
+
+            return d;
         }
 
         private List<Faction> GenerateFactionList(int popCode, int parentGovCode, int pcr,
@@ -8537,6 +9810,175 @@ namespace TravellerSystemGenerator
             string name2 = MajorCity.ToRoman(rel.Faction2Number);
             return $"Faction {name1} vs Faction {name2}&#10;{rel.Type}";
         }
+
+        private static string GetJudicialSystemTooltip(string code) => code switch
+        {
+            "I" => "Inquisitorial&#10;Also called civil law or an administrative legal system. Statutes and procedures take precedent. A judge or group of officials investigate and determine if a crime has occurred. The proceedings are based on evidence collected and the decisions of guilt are determined by the court officers.",
+            "A" => "Adversarial&#10;Also called common law. Precedents and interpretations of the law are paramount. The judicial court acts as a referee for a prosecutor and defendant who present evidence to determine guilt. Final determination may be by judicial court officials, a jury or some other method.",
+            "T" => "Traditional&#10;Often religious or tribal law but potentially any other cultural practices or idiosyncrasies of a dictator's whims. Guilt is determined by an expert in the tradition or a local official. Guilt is determined on interpretations of texts, local customs or potential other practices including divination, trial by ordeal or even trial by combat.",
+            "N" => "None&#10;No formal judicial system.",
+            _   => ""
+        };
+
+        private static string GetUniformityTooltip(string code) => code switch
+        {
+            "P" => "Personal&#10;Laws vary based on a person's status. This may refer to social status, profession, caste, religion, race or another factor. In such systems, distinct Law Levels may apply to different parts of society, some laws may not apply at all to some people, others only to certain groups. Some groups may receive a DM to determination of guilt and/or sentencing.",
+            "T" => "Territorial&#10;Within the world or nation's government, subdivisions or local governments are able to set specific laws that may not apply to the government as a whole. Often, such differing restrictions apply to only one or two subcategories of Law Level or may result in complications such as non-transferable contracts, licenses or permits.",
+            "U" => "Universal&#10;The same laws apply equally to all.",
+            _   => ""
+        };
+
+        private const string JudicialProfileTooltip =
+            "PSU-I-D format&#10;" +
+            "P: Primary Judicial System (I=Inquisitorial, A=Adversarial, T=Traditional, N=None)&#10;" +
+            "S: Secondary System (same as primary if none)&#10;" +
+            "U: Law Uniformity (P=Personal, T=Territorial, U=Universal)&#10;" +
+            "I: Presumption of Innocence (Y=Yes, N=No)&#10;" +
+            "D: Death Penalty (Y=Yes, N=No)";
+
+        // Ehex with full range (skips I to avoid confusion with 1): A-H=10-17, J=18
+        private static string IntToEhexFull(int value)
+        {
+            if (value < 10) return value.ToString();
+            const string ehex = "ABCDEFGHJ";  // index 0='A'=10 … index 8='J'=18
+            int idx = value - 10;
+            return (idx >= 0 && idx < ehex.Length) ? ehex[idx].ToString() : value.ToString();
+        }
+
+        private static string GetWeaponsTooltip(int wwll)
+        {
+            string[] table = {
+                "0: No restrictions",
+                "1: Poison gas, explosives, undetectable weapons, WMDs & battle dress",
+                "2: Portable energy and laser weapons, combat armour",
+                "3: Military weapons (portable heavy weapons), flak jackets & obvious armour",
+                "4: Light assault weapons & SMGs (all fully automatic weapons), cloth armour",
+                "5: Personal concealable ranged weapons (auto pistols/revolvers), mesh armour",
+                "6: All firearms except shotguns & stunners; carrying weapons discouraged",
+                "7: Shotguns and all other ranged firearms",
+                "8: All bladed weapons, stunners, all visible armour",
+                "9: All weapons, including knives >10cm, all armour",
+                "A(10): All weapons, violations treated as serious crimes",
+                "B(11): Random sweeps for weapons violations",
+                "C(12): Active monitoring for ownership violations"
+            };
+            if (wwll == 0) return table[0];
+            var sb = new System.Text.StringBuilder();
+            for (int i = 1; i <= Math.Min(wwll, 12); i++)
+            {
+                if (sb.Length > 0) sb.Append("&#10;");
+                sb.Append(table[i]);
+            }
+            return sb.ToString();
+        }
+
+        private static string GetEconomicTooltip(int ell) => Math.Clamp(ell, 0, 12) switch
+        {
+            0  => "No contract law or licenses required",
+            1  => "Optional registration of private agreements, claim registration",
+            2  => "Registration of corporations, enforcement of claims",
+            3  => "Basic permitting and zoning laws, required licensing of corporations and tax reporting, bankruptcy law",
+            4  => "Registration of professional licenses",
+            5  => "Required professional licenses for most skilled professions",
+            6  => "Moderate permitting and zoning laws, registration fees required for professional licenses",
+            7  => "Professional licenses required for all skilled labour, periodic auditing of major financial transactions",
+            8  => "Restrictive zoning and permitting laws",
+            9  => "Active auditing of all financial transactions",
+            10 => "Arduous permitting and zoning laws",
+            11 => "Continuous auditing of all financial transactions",
+            _  => "All economic regulation enforcement transferred to criminal justice system"
+        };
+
+        private static string GetCriminalTooltip(int cll) => Math.Clamp(cll, 0, 18) switch
+        {
+            0  => "No formal legal system",
+            1  => "Grave and serious crimes prosecuted",
+            2  => "Moderate crimes prosecuted",
+            3  => "Minor crimes prosecuted",
+            4  => "Petty crimes prosecuted",
+            5  => "Trivial crimes prosecuted",
+            6  => "Public surveillance",
+            7  => "Insignificant crimes prosecuted",
+            8  => "Indefinite detention allowed",
+            9  => "No effective right to counsel",
+            10 => "Pre-emptive detention allowed",
+            11 => "Arbitrary indefinite detention allowed",
+            12 => "Arbitrary verdicts without defendant participation",
+            13 => "Paramilitary law enforcement, thought crimes prosecuted",
+            14 => "Fully-fledged police state, arbitrary executions or 'disappearances'",
+            15 => "Rigid control of daily life, gulag state",
+            16 => "Thoughts controlled, disproportionate punishments",
+            17 => "Legalised oppression",
+            _  => "Routine oppression"
+        };
+
+        private static string GetPrivateTooltip(int pll) => Math.Clamp(pll, 0, 12) switch
+        {
+            0  => "No formal legal system",
+            1  => "Duelling restricted, contract law enforcement",
+            2  => "Duelling prohibited",
+            3  => "Private settlement of all crimes prohibited",
+            4  => "Private settlement of moderate crimes prohibited",
+            5  => "Public filings of all disputes and settlements",
+            6  => "Government venue required for all settlements",
+            7  => "Limits on all tort settlements",
+            8  => "Government review of all settlements",
+            9  => "Government approval of all settlements",
+            10 => "Government adjudicated arbitration required",
+            11 => "Arbitrary government adjudication, government approval of all contracts",
+            _  => "All civil proceedings transferred to criminal justice system"
+        };
+
+        private static string GetPersonalRightsTooltip(int prll) => Math.Clamp(prll, 0, 12) switch
+        {
+            0  => "No restrictions",
+            1  => "Speech risking physical harm (e.g. yelling fire in a crowded theatre) prohibited",
+            2  => "Registration of identity, libel prohibited",
+            3  => "Group-related regulations (e.g. drinking age)",
+            4  => "Hate speech prohibited",
+            5  => "Mandatory identification papers",
+            6  => "Public Surveillance",
+            7  => "'Offensive' speech prohibited",
+            8  => "No right to protect personal data",
+            9  => "'Subversive' speech prohibited",
+            10 => "Restrictions on movement and residency",
+            11 => "Warrantless searches, government control of all information, routine surveillance of private activities",
+            _  => "Unrestricted surveillance of private activities, group punishments"
+        };
+
+        private const string LawLevelProfileTooltip =
+            "O-WECPR format&#10;" +
+            "O: Overall Law Level&#10;" +
+            "W: Weapons & Armour Law Level&#10;" +
+            "E: Economic Law Level&#10;" +
+            "C: Criminal Law Level&#10;" +
+            "P: Private Law Level&#10;" +
+            "R: Personal Rights Law Level";
+
+        private const string TechLevelProfileTooltip =
+            "H-L-abcde-fghi-jk-l format&#10;" +
+            "H: High Common TL  L: Low Common TL&#10;" +
+            "a: Energy  b: Electronics  c: Manufacturing  d: Medical  e: Environmental&#10;" +
+            "f: Land Transport  g: Water Transport  h: Air Transport  i: Space Transport&#10;" +
+            "j: Personal Military  k: Heavy Military  l: Novelty";
+
+        private const string CulturalSectionTooltip =
+            "Cultural Trait Summary&#10;" +
+            "&#10;" +
+            "Trait            Code  Low Value        High Value&#10;" +
+            "Diversity        D     Monolithic       Multicultural&#10;" +
+            "Xenophilia       X     Xenophobic       Xenophilic&#10;" +
+            "Uniqueness       U     Normal           Obscure&#10;" +
+            "Symbology        S     Concrete         Abstract&#10;" +
+            "Cohesion         C     Individualistic  Collective&#10;" +
+            "Progressiveness  P     Reactionary      Radical&#10;" +
+            "Expansionism     E     Passive          Expansionistic&#10;" +
+            "Militancy        M     Peaceful         Militant";
+
+        private const string CulturalProfileTooltip =
+            "DXUS-CPEM format&#10;" +
+            "D: Diversity  X: Xenophilia  U: Uniqueness  S: Symbology&#10;" +
+            "C: Cohesion  P: Progressiveness  E: Expansionism  M: Militancy";
 
         // ─────────────────────────────────────────────────────────────────────────
 
@@ -9147,6 +10589,788 @@ namespace TravellerSystemGenerator
             };
         }
 
+        private string RollBerthingFees(char starport, Random dice)
+        {
+            return starport switch
+            {
+                'A' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 1000:N0}",
+                'B' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 500:N0}",
+                'C' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 100:N0}",
+                'D' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 10:N0}",
+                _ => "None"
+            };
+        }
+
+        private string GetTotalDockingSpace(char starport)
+        {
+            return starport switch
+            {
+                'A' => "100,000 tons",
+                'B' => "50,000 tons",
+                'C' => "20,000 tons",
+                'D' => "400 tons",
+                _ => "-"
+            };
+        }
+
+        private string GetShipyardCapacity(char starport)
+        {
+            return starport switch
+            {
+                'A' => "25,000 tons",
+                'B' => "10,000 tons",
+                'C' => "200 tons",
+                _ => "-"
+            };
+        }
+
+        private int GetExpectedWeeklyTraffic(int imp) => imp switch
+        {
+            >= 6 => 2000,
+               5 => 1000,
+               4 => 150,
+               3 => 30,
+               2 => 20,
+               1 => 10,
+               0 => 5,
+              -1 => 5,
+              -2 => 2,
+               _  => 1
+        };
+
+        private int RoundToNearest100(double value) =>
+            (int)(Math.Round(value / 100.0) * 100);
+
+        private void DetermineMainworldBases(Random dice)
+        {
+            if (mainworld == null) return;
+            char sp  = mainworld.Starport;
+            int pop  = mainworld.Population;
+            int tl   = mainworld.TechLevel;
+            int ll   = mainworld.LawLevel;
+
+            // Highport
+            int highportDM = 0;
+            if (pop >= 9) highportDM += 1;
+            if (tl >= 9 && tl <= 11) highportDM += 1;
+            if (tl >= 12) highportDM += 2;
+            int highportRoll = Starhelper.diceRoll(6, 2, dice) + highportDM;
+            mainworld.HasHighport = sp switch
+            {
+                'A' => highportRoll >= 6,
+                'B' => highportRoll >= 8,
+                'C' => highportRoll >= 10,
+                'D' => highportRoll >= 12,
+                _   => false
+            };
+
+            // Naval Base
+            int navalRoll = Starhelper.diceRoll(6, 2, dice);
+            mainworld.HasNavalBase = (sp == 'A' || sp == 'B') && navalRoll >= 8;
+
+            // Scout Base
+            int scoutRoll = Starhelper.diceRoll(6, 2, dice);
+            mainworld.HasScoutBase = sp switch
+            {
+                'A' => scoutRoll >= 10,
+                'B' => scoutRoll >= 9,
+                'C' => scoutRoll >= 9,
+                'D' => scoutRoll >= 8,
+                _   => false
+            };
+
+            // Military Base
+            int milRoll = Starhelper.diceRoll(6, 2, dice);
+            mainworld.HasMilitaryBase = sp switch
+            {
+                'A' => milRoll >= 8,
+                'B' => milRoll >= 8,
+                'C' => milRoll >= 10,
+                _   => false
+            };
+
+            // Corsair Base
+            int corsairDM = 0;
+            if (ll == 0) corsairDM += 2;
+            else if (ll >= 2) corsairDM -= 2;
+            int corsairRoll = Starhelper.diceRoll(6, 2, dice) + corsairDM;
+            mainworld.HasCorsairBase = sp switch
+            {
+                'D' => corsairRoll >= 12,
+                'E' => corsairRoll >= 10,
+                'X' => corsairRoll >= 10,
+                _   => false
+            };
+
+            // Berthing Fees (rolled once, stored)
+            mainworld.BerthingFees = RollBerthingFees(sp, dice);
+        }
+
+        private void DetermineStarportCapacity(Random dice)
+        {
+            if (mainworld == null) return;
+
+            char   sp    = mainworld.Starport;
+            int    pop   = mainworld.Population;
+            int    imp   = mainworld.Economics.Importance;
+            int    wtn   = mainworld.Economics.WorldTradeNumber;
+            int    ef    = mainworld.Economics.EfficiencyFactor;
+            int    inf   = mainworld.Economics.InfrastructureFactor;
+            double gwp   = mainworld.Economics.TotalGWPMCr;
+            int    tl    = mainworld.TechLevel;
+            bool   hasHP = mainworld.HasHighport;
+
+            // ── Traffic ──────────────────────────────────────────────────────
+            int impTraffic = imp;
+            if (wtn >= 10) impTraffic++;
+            if (wtn <= 4)  impTraffic--;
+            impTraffic = Math.Clamp(impTraffic, -3, 6);
+            mainworld.ExpectedWeeklyTraffic = GetExpectedWeeklyTraffic(impTraffic);
+
+            // ── Docking capacity ─────────────────────────────────────────────
+            int    impCap = Math.Max(1, imp);
+            int    weekly = mainworld.ExpectedWeeklyTraffic;
+
+            double AdditiveCapacity(int multiplier)
+            {
+                double factor = (1.0 + Starhelper.diceRoll(6, 1, dice) + ef) / 5.0;
+                return Math.Max(0.0, impCap * weekly * multiplier * pop * factor);
+            }
+
+            if (hasHP)
+            {
+                double hpBase = sp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, _ => 0 };
+                int    hpMult = sp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, _ => 0 };
+                mainworld.HighportTotalDocking = RoundToNearest100(hpBase + AdditiveCapacity(hpMult));
+
+                mainworld.DownportTotalDocking = RoundToNearest100(
+                    mainworld.HighportTotalDocking * 0.10 * Starhelper.diceRoll(6, 1, dice));
+            }
+            else
+            {
+                double dpBase = sp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, 'E' => 400, _ => 0 };
+                int    dpMult = sp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, 'E' => 100, _ => 0 };
+                mainworld.DownportTotalDocking = RoundToNearest100(dpBase + AdditiveCapacity(dpMult));
+            }
+
+            // Enforce minimum total capacity
+            int minCap = sp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 400, _ => 0 };
+            int total  = mainworld.HighportTotalDocking + mainworld.DownportTotalDocking;
+            if (total < minCap)
+                mainworld.DownportTotalDocking += minCap - total;
+
+            // ── Starport Build Capacity ──────────────────────────────────────
+            if (sp is not ('A' or 'B' or 'C'))
+            {
+                mainworld.StarportBuildCapacity = 0;
+            }
+            else
+            {
+                int buildDM = 0;
+                if (tl <= 8)              buildDM -= 4;
+                if (tl >= 12 && tl <= 14) buildDM += 2;
+                if (tl >= 15)             buildDM += 4;
+                if (mainworld.TradeCodes.Any(tc => tc.Code == "Ni")) buildDM -= 2;
+                if (mainworld.TradeCodes.Any(tc => tc.Code == "In")) buildDM += 2;
+
+                int    roll     = Starhelper.diceRoll(6, 1, dice);
+                double buildCap;
+
+                if (sp == 'A')
+                {
+                    buildCap = Math.Max(0, (ef + inf + roll + buildDM) * (gwp / 20_000.0));
+                    buildCap = RoundToNearest100(buildCap);
+                    if (buildCap < 9_000)
+                        buildCap = 9_000 + Starhelper.diceRoll(6, 1, dice) * 500;
+                }
+                else if (sp == 'B')
+                {
+                    buildCap = Math.Max(0, (ef + inf + roll + buildDM) * (gwp / 100_000.0));
+                    buildCap = RoundToNearest100(buildCap);
+                    if (buildCap < 5_000)
+                        buildCap = 4_000 + Starhelper.diceRoll(6, 2, dice) * 100;
+                }
+                else  // 'C'
+                {
+                    buildCap = Math.Max(0, (ef + inf + roll - 3 + buildDM) * (gwp / 15_000.0));
+                    buildCap = RoundToNearest100(buildCap);
+                }
+                mainworld.StarportBuildCapacity = (int)buildCap;
+            }
+
+            // ── Annual Shipyard Output ───────────────────────────────────────
+            if (mainworld.StarportBuildCapacity > 0)
+            {
+                double annual;
+                if (sp is 'A' or 'B')
+                    annual = imp >= 1
+                        ? mainworld.StarportBuildCapacity / (double)imp
+                        : mainworld.StarportBuildCapacity * (1.0 - imp);
+                else
+                    annual = 10.0 * mainworld.StarportBuildCapacity;
+
+                mainworld.AnnualShipyardOutput = RoundToNearest100(annual);
+            }
+
+            // ── AIW spaceport capacity ────────────────────────────────────────
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                char   aSp    = aiw.EquivalentStarportClass;
+                int    aPop   = aiw.PopulationCode;
+                int    aImp   = aiw.Economics.Importance;
+                int    aWtn   = aiw.Economics.WorldTradeNumber;
+                int    aEf    = aiw.Economics.EfficiencyFactor;
+                int    aInf   = aiw.Economics.InfrastructureFactor;
+                double aGwp   = aiw.Economics.TotalGWPMCr;
+                int    aTl    = aiw.TechLevel;
+                bool   aHasHP = aiw.HasHighport;
+
+                int aImpTraffic = aImp;
+                if (aWtn >= 10) aImpTraffic++;
+                if (aWtn <= 4)  aImpTraffic--;
+                aImpTraffic = Math.Clamp(aImpTraffic, -3, 6);
+                aiw.ExpectedWeeklyTraffic = GetExpectedWeeklyTraffic(aImpTraffic);
+
+                int    aImpCap = Math.Max(1, aImp);
+                int    aWeekly = aiw.ExpectedWeeklyTraffic;
+
+                double AdditiveAiw(int multiplier)
+                {
+                    double factor = (1.0 + Starhelper.diceRoll(6, 1, dice) + aEf) / 5.0;
+                    return Math.Max(0.0, aImpCap * aWeekly * multiplier * aPop * factor);
+                }
+
+                if (aHasHP)
+                {
+                    double hpBase = aSp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, _ => 0 };
+                    int    hpMult = aSp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, _ => 0 };
+                    aiw.HighportTotalDocking = RoundToNearest100(hpBase + AdditiveAiw(hpMult));
+                    aiw.DownportTotalDocking = RoundToNearest100(
+                        aiw.HighportTotalDocking * 0.10 * Starhelper.diceRoll(6, 1, dice));
+                }
+                else
+                {
+                    double dpBase = aSp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, 'E' => 400, _ => 0 };
+                    int    dpMult = aSp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, 'E' => 100, _ => 0 };
+                    aiw.DownportTotalDocking = RoundToNearest100(dpBase + AdditiveAiw(dpMult));
+                }
+
+                int aMinCap = aSp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 400, _ => 0 };
+                if (aiw.HighportTotalDocking + aiw.DownportTotalDocking < aMinCap)
+                    aiw.DownportTotalDocking += aMinCap - (aiw.HighportTotalDocking + aiw.DownportTotalDocking);
+
+                if (aSp is 'A' or 'B' or 'C')
+                {
+                    int buildDM = 0;
+                    if (aTl <= 8)              buildDM -= 4;
+                    if (aTl >= 12 && aTl <= 14) buildDM += 2;
+                    if (aTl >= 15)             buildDM += 4;
+                    if (aiw.TradeCodes.Any(tc => tc.Code == "Ni")) buildDM -= 2;
+                    if (aiw.TradeCodes.Any(tc => tc.Code == "In")) buildDM += 2;
+
+                    int    aRoll    = Starhelper.diceRoll(6, 1, dice);
+                    double aBuildCap;
+                    if (aSp == 'A')
+                    {
+                        aBuildCap = Math.Max(0, (aEf + aInf + aRoll + buildDM) * (aGwp / 20_000.0));
+                        aBuildCap = RoundToNearest100(aBuildCap);
+                        if (aBuildCap < 9_000) aBuildCap = 9_000 + Starhelper.diceRoll(6, 1, dice) * 500;
+                    }
+                    else if (aSp == 'B')
+                    {
+                        aBuildCap = Math.Max(0, (aEf + aInf + aRoll + buildDM) * (aGwp / 100_000.0));
+                        aBuildCap = RoundToNearest100(aBuildCap);
+                        if (aBuildCap < 5_000) aBuildCap = 4_000 + Starhelper.diceRoll(6, 2, dice) * 100;
+                    }
+                    else
+                    {
+                        aBuildCap = Math.Max(0, (aEf + aInf + aRoll - 3 + buildDM) * (aGwp / 15_000.0));
+                        aBuildCap = RoundToNearest100(aBuildCap);
+                    }
+                    aiw.StarportBuildCapacity = (int)aBuildCap;
+
+                    if (aiw.StarportBuildCapacity > 0)
+                    {
+                        double aAnnual = (aSp is 'A' or 'B')
+                            ? (aImp >= 1 ? aiw.StarportBuildCapacity / (double)aImp : aiw.StarportBuildCapacity * (1.0 - aImp))
+                            : 10.0 * aiw.StarportBuildCapacity;
+                        aiw.AnnualShipyardOutput = RoundToNearest100(aAnnual);
+                    }
+                }
+            }
+        }
+
+        // ─── Military ────────────────────────────────────────────────────────────
+
+        private static int MilitancyDM(int m) => m switch
+        {
+            <= 0   =>  0,
+            1 or 2 => -4,
+            3 or 4 => -1,
+            5      =>  0,
+            6 or 7 or 8 => +1,
+            9 or 10 or 11 => +2,   // 9, A, B
+            _      => +4           // >= C (12+)
+        };
+
+        private static int FactionRelDM(string code) => code switch
+        {
+            "5" => +1,
+            "6" => +1,
+            "7" => +2,
+            "8" => +3,
+            "9" => +4,
+            _   =>  0
+        };
+
+        private static int WorstFactionRelDM(List<FactionRelationship> rels)
+        {
+            int best = 0;
+            foreach (var r in rels)
+            {
+                int dm = FactionRelDM(r.Code);
+                if (dm > best) best = dm;
+            }
+            return best;
+        }
+
+        private static bool HasFactionalUprisings(List<Faction> factions, List<FactionRelationship> rels)
+        {
+            foreach (var rel in rels)
+            {
+                if (!int.TryParse(rel.Code, out int code) || code < 6) continue;
+                var f1 = factions.FirstOrDefault(f => f.Number == rel.Faction1Number);
+                var f2 = factions.FirstOrDefault(f => f.Number == rel.Faction2Number);
+                if (f1 == null || f2 == null) continue;
+                bool oneGov = (f1.StrengthCode == "G") != (f2.StrengthCode == "G");
+                if (oneGov) return true;
+            }
+            return false;
+        }
+
+        private static int StarportDM_SysDefNav(char starport) => starport switch
+        {
+            'A' => +4,
+            'B' => +2,
+            'C' => +1,
+            'E' => -2,
+            'X' => -8,
+            _   =>  0
+        };
+
+        private MilitaryData CalculateWorldMilitary(
+            int    popCode,
+            int    govCode,
+            int    lawLevel,
+            int    hydro,
+            int    atmosphere,
+            int    techLevel,
+            int    pcr,
+            char   starport,
+            bool   hasHighport,
+            bool   hasNavalBase,
+            bool   hasMilitaryBase,
+            bool   hasMilitaryBaseOnSubordinate,   // mainworld: any AIW under authority has mil base
+            int    militancy,
+            int    expansionism,
+            List<Faction> factions,
+            List<FactionRelationship> relationships,
+            bool   isUnderMainworldAuthority,
+            Random dice)
+        {
+            var mil = new MilitaryData();
+
+            int commonDM = MilitancyDM(militancy) + WorstFactionRelDM(relationships);
+            bool uprisings = HasFactionalUprisings(factions, relationships);
+
+            // ── Enforcement Branch ────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (govCode == 0)  dm -= 5;
+                if (govCode == 11) dm += 2;   // Gov B
+                if (lawLevel == 0) dm -= 4;
+                else if (lawLevel == 1) dm -= 2;
+                else if (lawLevel == 2) dm -= 1;
+                if (lawLevel >= 9 && lawLevel <= 11) dm += 2;
+                if (lawLevel >= 12) dm += 4;
+                if (pcr >= 0 && pcr <= 4) dm += 2;
+                if (uprisings) dm += 2;
+                mil.EnforcementBranch = 3 + dm;
+            }
+
+            // ── Militia Branch ────────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (govCode == 1) dm += 4;
+                if (govCode == 2) dm += 2;
+                if (govCode == 6) dm -= 6;
+                dm -= lawLevel;
+                if (pcr >= 0 && pcr <= 2) dm += 2;
+                else if (pcr >= 3 && pcr <= 4) dm += 1;
+                else if (pcr >= 6) dm -= 1;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.MilitiaBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Army Branch ───────────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (mil.MilitiaBranch > 0) dm -= 2;
+                if (govCode == 0) dm -= 6;
+                if (govCode == 7) dm += 4;
+                if (govCode >= 10) dm += 4;
+                if (techLevel >= 0 && techLevel <= 7) dm += 4;
+                else if (techLevel >= 8) dm -= 2;
+                if (hasMilitaryBase || hasMilitaryBaseOnSubordinate) dm += 6;
+                if (uprisings) dm += 2;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.ArmyBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Wet Navy Branch ───────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (hydro == 0) dm -= 20;
+                else if (hydro >= 1 && hydro <= 3) dm -= 5;
+                else if (hydro == 8) dm += 2;
+                else if (hydro == 9) dm += 4;
+                else if (hydro >= 10) dm += 8;
+                if (govCode == 7) dm += 4;
+                if (techLevel == 0) dm -= 8;
+                else if (techLevel >= 8 && techLevel <= 9) dm -= 2;
+                else if (techLevel >= 10) dm -= techLevel;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.WetNavyBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Air Force Branch ──────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (techLevel <= 8)
+                {
+                    if (atmosphere == 0 || atmosphere == 1) dm -= 20;
+                    else if (atmosphere == 2 || atmosphere == 3 || atmosphere == 14) dm -= 8;
+                    else if (atmosphere == 4 || atmosphere == 5) dm -= 2;
+                }
+                if (govCode == 7) dm += 4;
+                if (techLevel <= 2) dm -= 20;
+                else if (techLevel == 3) dm -= 10;
+                else if (techLevel >= 10 && techLevel <= 12) dm -= 4;
+                else if (techLevel >= 13) dm -= 6;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.AirForceBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── System Defence Branch ─────────────────────────────────────────────
+            if (isUnderMainworldAuthority)
+            {
+                mil.SystemDefenceBranch = 0;
+            }
+            else
+            {
+                int dm = commonDM;
+                if (popCode <= 3) dm -= 6;
+                else if (popCode <= 5) dm -= 2;
+                if (techLevel <= 5) dm -= 20;
+                else if (techLevel == 6) dm -= 8;
+                else if (techLevel == 7) dm -= 6;
+                else if (techLevel == 8) dm -= 2;
+                dm += StarportDM_SysDefNav(starport);
+                if (hasHighport) dm += 2;
+                if (hasNavalBase) dm += 4;
+                if (hasMilitaryBase) dm += 2;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.SystemDefenceBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Navy Branch ───────────────────────────────────────────────────────
+            if (isUnderMainworldAuthority)
+            {
+                mil.NavyBranch = 0;
+            }
+            else
+            {
+                int dm = commonDM;
+                if (popCode <= 3) dm -= 6;
+                else if (popCode <= 6) dm -= 3;
+                if (techLevel <= 5) dm -= 20;
+                else if (techLevel == 6) dm -= 12;
+                else if (techLevel == 7) dm -= 8;
+                else if (techLevel == 8) dm -= 6;
+                if (starport == 'A') dm += 4;
+                else if (starport == 'B') dm += 1;
+                else if (starport == 'E') dm -= 2;
+                else if (starport == 'X') dm -= 8;
+                if (hasHighport) dm += 2;
+                if (hasNavalBase) dm += 4;
+                if (hasMilitaryBase) dm += 2;
+                if (expansionism >= 1 && expansionism <= 5) dm -= 2;
+                else if (expansionism >= 9 && expansionism <= 11) dm += 2;
+                else if (expansionism >= 12) dm += 4;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.NavyBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Marine Branch ─────────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (popCode <= 5) dm -= 4;
+                if (techLevel <= 8) dm -= 6;
+                if (hasNavalBase) dm += 2;
+                if (hasMilitaryBase) dm += 2;
+                if (mil.NavyBranch == 0) dm -= 6;
+                if (mil.SystemDefenceBranch == 0) dm -= 6;
+                if (expansionism >= 1 && expansionism <= 5) dm -= 4;
+                else if (expansionism >= 9 && expansionism <= 11) dm += 1;
+                else if (expansionism >= 12) dm += 2;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.MarineBranch = raw < 4 ? 0 : raw;
+            }
+
+            return mil;
+        }
+
+        private static int CalcBudgetDM(int govCode, int lawLevel,
+            bool hasNavalBase, bool hasMilitaryBase, int militancy, MilitaryData mil)
+        {
+            int dm = 0;
+            if (govCode == 0 || govCode == 2 || govCode == 4) dm -= 2;
+            else if (govCode == 5)  dm += 1;
+            else if (govCode == 9)  dm -= 1;
+            else if (govCode == 10 || govCode == 15) dm += 3;          // A or F
+            else if (govCode == 11 || govCode == 12 || govCode == 14) dm += 2; // B, C, or E
+            if (lawLevel >= 12) dm += 2;                                // >= C
+            if (hasNavalBase)   dm += 4;
+            if (hasMilitaryBase) dm += 2;
+            dm += militancy - 5;
+            int totalBranches = mil.EnforcementBranch + mil.MilitiaBranch + mil.ArmyBranch
+                              + mil.WetNavyBranch   + mil.AirForceBranch + mil.SystemDefenceBranch
+                              + mil.NavyBranch      + mil.MarineBranch;
+            dm += -4 + (totalBranches / 10);
+            return dm;
+        }
+
+        private static double CalcBasicMilitaryBudget(int efficiencyFactor, int budgetDM, Random dice)
+        {
+            int roll = Math.Max(-9, Starhelper.diceRoll(6, 2, dice) - 7 + budgetDM);
+            return 2.0 * (1.0 + efficiencyFactor / 10.0) * (1.0 + roll / 10.0);
+        }
+
+        private void DetermineWorldMilitary(Random dice)
+        {
+            // ── Mainworld ─────────────────────────────────────────────────────────
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                // Army Branch: military base on any subordinate AIW also grants +6
+                bool subMilBase = additionalInhabitedWorlds.Any(a => !a.IsIndependent && a.HasMilitaryBase);
+
+                mainworld.Military = CalculateWorldMilitary(
+                    popCode:                       mainworld.Population,
+                    govCode:                       mainworld.Government,
+                    lawLevel:                      mainworld.LawLevel,
+                    hydro:                         mainworld.Hydrographics,
+                    atmosphere:                    mainworld.Atmosphere,
+                    techLevel:                     mainworld.TechLevel,
+                    pcr:                           mainworld.PCR,
+                    starport:                      mainworld.Starport,
+                    hasHighport:                   mainworld.HasHighport,
+                    hasNavalBase:                  mainworld.HasNavalBase,
+                    hasMilitaryBase:               mainworld.HasMilitaryBase,
+                    hasMilitaryBaseOnSubordinate:  subMilBase,
+                    militancy:                     mainworld.Culture.Militancy,
+                    expansionism:                  mainworld.Culture.Expansionism,
+                    factions:                      worldFactions,
+                    relationships:                 factionRelationships,
+                    isUnderMainworldAuthority:     false,
+                    dice:                          dice);
+
+                // Basic Military Budget for mainworld
+                mainworld.Military.BudgetDM = CalcBudgetDM(
+                    mainworld.Government, mainworld.LawLevel,
+                    mainworld.HasNavalBase, mainworld.HasMilitaryBase,
+                    mainworld.Culture.Militancy, mainworld.Military);
+                mainworld.Military.BasicMilitaryBudget = CalcBasicMilitaryBudget(
+                    mainworld.Economics.EfficiencyFactor, mainworld.Military.BudgetDM, dice);
+            }
+
+            // ── Additional Inhabited Worlds ───────────────────────────────────────
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                // Independent AIWs use their own equivalent starport class
+                char sp = aiw.IsIndependent ? aiw.EquivalentStarportClass : mainworld!.Starport;
+
+                aiw.Military = CalculateWorldMilitary(
+                    popCode:                       aiw.PopulationCode,
+                    govCode:                       aiw.GovernmentCode,
+                    lawLevel:                      aiw.LawLevel,
+                    hydro:                         aiw.Hydrographics,
+                    atmosphere:                    aiw.Atmosphere,
+                    techLevel:                     aiw.TechLevel,
+                    pcr:                           aiw.PCR,
+                    starport:                      sp,
+                    hasHighport:                   aiw.HasHighport,
+                    hasNavalBase:                  aiw.HasNavalBase,
+                    hasMilitaryBase:               aiw.HasMilitaryBase,
+                    hasMilitaryBaseOnSubordinate:  false,
+                    militancy:                     aiw.Culture.Militancy,
+                    expansionism:                  aiw.Culture.Expansionism,
+                    factions:                      aiw.Factions,
+                    relationships:                 aiw.FactionRelationships,
+                    isUnderMainworldAuthority:     !aiw.IsIndependent,
+                    dice:                          dice);
+
+                // Basic Military Budget for AIW
+                int aiwBudgetDM;
+                if (!aiw.IsIndependent && mainworld != null)
+                {
+                    // Subordinate: inherit mainworld DM, +6 if military base or penal colony
+                    bool hasPenalColony = aiw.TradeCodes.Any(tc => tc.Code == "Pe");
+                    aiwBudgetDM = mainworld.Military.BudgetDM
+                                + ((aiw.HasMilitaryBase || hasPenalColony) ? 6 : 0);
+                }
+                else
+                {
+                    aiwBudgetDM = CalcBudgetDM(
+                        aiw.GovernmentCode, aiw.LawLevel,
+                        aiw.HasNavalBase, aiw.HasMilitaryBase,
+                        aiw.Culture.Militancy, aiw.Military);
+                }
+                aiw.Military.BudgetDM = aiwBudgetDM;
+                aiw.Military.BasicMilitaryBudget = CalcBasicMilitaryBudget(
+                    aiw.Economics.EfficiencyFactor, aiwBudgetDM, dice);
+            }
+        }
+
+        private (char spaceportClass, char equivalentClass) RollSpaceportClass(int popCode, Random dice)
+        {
+            int dm = 0;
+            if (popCode >= 6) dm += 2;
+            if (popCode == 1) dm -= 1;
+            if (popCode == 0) dm -= 3;
+            int result = Starhelper.diceRoll(6, 1, dice) + dm;
+            return result switch
+            {
+                <= 2   => ('Y', 'X'),
+                   3   => ('H', 'E'),
+                4 or 5 => ('G', 'D'),
+                   6   => ('F', 'C'),
+                   7   => ('F', 'B'),
+                   _   => ('F', 'A')  // 8+
+            };
+        }
+
+        private void DetermineSpaceports(Random dice)
+        {
+            bool mainworldHasHighport = mainworld?.HasHighport ?? false;
+
+            // ── AIW spaceports ────────────────────────────────────────────────
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                (aiw.SpaceportClass, aiw.EquivalentStarportClass) = RollSpaceportClass(aiw.PopulationCode, dice);
+
+                // Highport: non-independent worlds blocked unless mainworld also has one
+                if (!aiw.IsIndependent && !mainworldHasHighport)
+                {
+                    aiw.HasHighport = false;
+                }
+                else
+                {
+                    int hpDM = 0;
+                    if (aiw.PopulationCode >= 9) hpDM += 1;
+                    if (aiw.TechLevel >= 9 && aiw.TechLevel <= 11) hpDM += 1;
+                    if (aiw.TechLevel >= 12) hpDM += 2;
+                    int hpRoll = Starhelper.diceRoll(6, 2, dice) + hpDM;
+                    aiw.HasHighport = aiw.EquivalentStarportClass switch
+                    {
+                        'A' => hpRoll >= 6,
+                        'B' => hpRoll >= 8,
+                        'C' => hpRoll >= 10,
+                        'D' => hpRoll >= 12,
+                        _   => false
+                    };
+                }
+
+                char eq = aiw.EquivalentStarportClass;
+
+                // Naval Base
+                int navalRoll = Starhelper.diceRoll(6, 2, dice);
+                aiw.HasNavalBase = (eq == 'A' || eq == 'B') && navalRoll >= 8;
+
+                // Scout Base
+                int scoutRoll = Starhelper.diceRoll(6, 2, dice);
+                aiw.HasScoutBase = eq switch
+                {
+                    'A' => scoutRoll >= 10,
+                    'B' => scoutRoll >= 9,
+                    'C' => scoutRoll >= 9,
+                    'D' => scoutRoll >= 8,
+                    _   => false
+                };
+
+                // Military Base (preserve Mb trade-code flag if already set)
+                if (!aiw.HasMilitaryBase)
+                {
+                    int milRoll = Starhelper.diceRoll(6, 2, dice);
+                    aiw.HasMilitaryBase = eq switch
+                    {
+                        'A' => milRoll >= 8,
+                        'B' => milRoll >= 8,
+                        'C' => milRoll >= 10,
+                        _   => false
+                    };
+                }
+
+                // Corsair Base
+                int corsairDM = 0;
+                if (aiw.LawLevel == 0) corsairDM += 2;
+                else if (aiw.LawLevel >= 2) corsairDM -= 2;
+                int corsairRoll = Starhelper.diceRoll(6, 2, dice) + corsairDM;
+                aiw.HasCorsairBase = eq switch
+                {
+                    'D' => corsairRoll >= 12,
+                    'E' => corsairRoll >= 10,
+                    'X' => corsairRoll >= 10,
+                    _   => false
+                };
+
+                // Berthing Fees
+                aiw.BerthingFees = RollBerthingFees(eq, dice);
+
+                // Update UWP first character from 'X' to actual spaceport class
+                if (aiw.UWP.Length > 0)
+                    aiw.UWP = $"{aiw.SpaceportClass}{aiw.UWP[1..]}";
+            }
+
+            // ── Non-mainworld, non-AIW TerrestrialPlanets and their moons ────
+            foreach (var (cobj, _) in GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet))
+            {
+                if (cobj.celestrialObject is not TerrestrialPlanet tp) continue;
+                if (mainworld?.PlacedWorld == tp) continue;
+                if (additionalInhabitedWorlds.Any(a => a.World == tp)) continue;
+
+                (tp.SpaceportClass, _) = RollSpaceportClass(0, dice);
+
+                foreach (var moon in tp.Moons)
+                {
+                    if (mainworld?.PlacedWorld == moon) continue;
+                    if (additionalInhabitedWorlds.Any(a => a.World == moon)) continue;
+                    (moon.SpaceportClass, _) = RollSpaceportClass(0, dice);
+                }
+            }
+
+            // ── Non-mainworld, non-AIW Moons of GasGiants ────────────────────
+            foreach (var (cobj, _) in GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant))
+            {
+                if (cobj.celestrialObject is not GasGiant gg) continue;
+                foreach (var moon in gg.Moons)
+                {
+                    if (mainworld?.PlacedWorld == moon) continue;
+                    if (additionalInhabitedWorlds.Any(a => a.World == moon)) continue;
+                    (moon.SpaceportClass, _) = RollSpaceportClass(0, dice);
+                }
+            }
+        }
+
         private char GetStarportClass(int result)
         {
             if (result <= 2) return 'X';
@@ -9228,6 +11452,71 @@ namespace TravellerSystemGenerator
                 return value.ToString();
             else
                 return ((char)('A' + value - 10)).ToString();
+        }
+
+        private int GetWTNStarportModifier(int baseWTN, char starport)
+        {
+            int row = baseWTN switch { <= 1 => 0, <= 3 => 1, <= 5 => 2, <= 7 => 3, <= 9 => 4, <= 11 => 5, <= 13 => 6, _ => 7 };
+            int col = starport switch { 'A' => 0, 'B' => 1, 'C' => 2, 'D' => 3, 'E' => 4, _ => 5 };
+            int[,] t =
+            {
+                {  3,  2,  2,  1,  1,  0 },
+                {  2,  2,  1,  1,  0,  0 },
+                {  2,  1,  1,  0,  0, -5 },
+                {  1,  1,  0,  0, -1, -6 },
+                {  1,  0,  0, -1, -2, -7 },
+                {  0,  0, -1, -2, -3, -8 },
+                {  0, -1, -2, -3, -4, -9 },
+                {  0, -2, -3, -4, -5,-10 },
+            };
+            return t[row, col];
+        }
+
+        private string RollTariffString(int tariffResult, Random dice)
+        {
+            if (tariffResult <= 3) return "Free Trade Zone, no tariffs";
+            if (tariffResult == 4)
+            {
+                int r = Starhelper.diceRoll(6, 1, dice);
+                if (r == 1) return $"{Starhelper.diceRoll(6, 1, dice)}% on all foreign polity goods";
+                if (r == 2) return $"{Starhelper.diceRoll(6, 2, dice)}% on all foreign polity goods";
+                if (r <= 4)  return "Varying tariffs, 1D6 x 1D6% for each trade goods type on all foreign polity goods";
+                return $"{Starhelper.diceRoll(6, 2, dice) * 5}% on all foreign polity goods";
+            }
+            if (tariffResult == 5)  return "Tariffs only apply on a class of goods on 8+ on 2D6";
+            if (tariffResult == 6)  return $"{Starhelper.diceRoll(6, 1, dice)}% on all inbound goods";
+            if (tariffResult == 7)  return $"{Starhelper.diceRoll(6, 2, dice)}% on all inbound goods";
+            if (tariffResult <= 9)  return "Varying tariffs, 1D6 x 1D6% for each trade goods type on all inbound goods";
+            if (tariffResult <= 11) return $"{Starhelper.diceRoll(6, 2, dice) * 5}% on all inbound goods";
+            if (tariffResult <= 13) return $"{Starhelper.diceRoll(6, 2, dice) * 10}% on all inbound goods";
+            return $"{Starhelper.diceRoll(6, 2, dice) * 20}% on all inbound goods";
+        }
+
+        private int GetMainworldResourceRating()
+        {
+            if (mainworld?.PlacedWorld is TerrestrialPlanet tp) return tp.ResourceRating;
+            if (mainworld?.PlacedWorld is Moon m)              return m.ResourceRating;
+            return 0;
+        }
+
+        private int CalculateImportance(char starport, int popCode, int tl,
+            List<TradeCode> codes, bool naval, bool scout, bool military, bool xboat)
+        {
+            int imp = 0;
+            if (starport == 'A' || starport == 'B') imp += 1;
+            if (starport == 'D' || starport == 'E' || starport == 'X') imp -= 1;
+            if (popCode <= 6) imp -= 1;
+            if (popCode >= 9) imp += 1;
+            if (tl <= 8) imp -= 1;
+            if (tl >= 10 && tl <= 15) imp += 1;   // A-F
+            if (tl >= 16) imp += 2;               // G+
+            if (codes.Any(tc => tc.Code == "Ag")) imp += 1;
+            if (codes.Any(tc => tc.Code == "In")) imp += 1;
+            if (codes.Any(tc => tc.Code == "Ri")) imp += 1;
+            int milBases = (naval ? 1 : 0) + (scout ? 1 : 0) + (military ? 1 : 0);
+            if (milBases >= 2) imp += 1;
+            if (xboat) imp += 1;
+            return imp;
         }
 
         private string DetermineTerrestrialSize(Random dice)
@@ -11317,6 +13606,8 @@ namespace TravellerSystemGenerator
                                             var moonAiw = GetAdditionalInhabitedWorld(moon);
                                             if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP))
                                                 moonInfo.Add(moonAiw.UWP);
+                                            else if (moon.SpaceportClass != 'Y')
+                                                moonInfo.Add($"{moon.SpaceportClass}{moon.Size}");
                                             else
                                                 moonInfo.Add(moon.Size);
                                         }
@@ -11364,6 +13655,8 @@ namespace TravellerSystemGenerator
                             var aiwBody = GetAdditionalInhabitedWorld(body);
                             if (aiwBody != null && !string.IsNullOrEmpty(aiwBody.UWP))
                                 size = aiwBody.UWP;
+                            else if (body is TerrestrialPlanet tpBody && tpBody.SpaceportClass != 'Y')
+                                size = $"{tpBody.SpaceportClass}{size}";
                         }
 
                         // Check if this body is the mainworld and add * marker
@@ -11808,7 +14101,7 @@ namespace TravellerSystemGenerator
                 {
                     // Use the actual moon's designation from the moon list
                     Moon moon = nonRMoons[moonIndex];
-                    string moonFilename = $"{parentWorldDesignation.Replace(" ", "_")}_{moon.Designation}";
+                    string moonFilename = $"{parentWorldDesignation.Replace(" ", "_").Replace("*", "")}_{moon.Designation}";
                     string linkedPart = $"<a href=\"surveys/{moonFilename}.html\">{part}</a>";
                     processedParts.Add(linkedPart);
                     moonIndex++;
@@ -11888,19 +14181,29 @@ namespace TravellerSystemGenerator
             html.AppendLine("            background-color: #f5f5f5;");
             html.AppendLine("        }");
             html.AppendLine("        .container {");
-            html.AppendLine("            max-width: 1400px;");
+            html.AppendLine("            max-width: 1800px;");
+            html.AppendLine("            width: 95%;");
             html.AppendLine("            margin: 0 auto;");
             html.AppendLine("            background-color: white;");
             html.AppendLine("            padding: 20px;");
             html.AppendLine("            border: 1px solid #ccc;");
             html.AppendLine("        }");
+            html.AppendLine("        .table-scroll {");
+            html.AppendLine("            overflow-x: auto;");
+            html.AppendLine("        }");
+            html.AppendLine("        @media (max-width: 768px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            table { font-size: 10px; }");
+            html.AppendLine("            th, td { padding: 3px; }");
+            html.AppendLine("        }");
             html.AppendLine("        h1 {");
             html.AppendLine("            text-align: center;");
-            html.AppendLine("            font-size: 18px;");
+            html.AppendLine("            font-size: 28px;");
             html.AppendLine("            margin-bottom: 20px;");
             html.AppendLine("        }");
             html.AppendLine("        h2 {");
-            html.AppendLine("            font-size: 14px;");
+            html.AppendLine("            font-size: 21px;");
             html.AppendLine("            font-weight: bold;");
             html.AppendLine("            margin-top: 20px;");
             html.AppendLine("            margin-bottom: 10px;");
@@ -11909,7 +14212,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            width: 100%;");
             html.AppendLine("            border-collapse: collapse;");
             html.AppendLine("            margin-bottom: 20px;");
-            html.AppendLine("            font-size: 12px;");
+            html.AppendLine("            font-size: 18px;");
             html.AppendLine("        }");
             html.AppendLine("        th, td {");
             html.AppendLine("            border: 1px solid #000;");
@@ -11934,7 +14237,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("        }");
             html.AppendLine("        .notes, .comments {");
             html.AppendLine("            margin-top: 10px;");
-            html.AppendLine("            font-size: 12px;");
+            html.AppendLine("            font-size: 18px;");
             html.AppendLine("        }");
             html.AppendLine("        .italic {");
             html.AppendLine("            font-style: italic;");
@@ -11955,7 +14258,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("            padding: 10px 15px;");
             html.AppendLine("            border-radius: 4px;");
             html.AppendLine("            white-space: pre-line;");
-            html.AppendLine("            font-size: 14px;");
+            html.AppendLine("            font-size: 16px;");
             html.AppendLine("            box-shadow: 0 2px 8px rgba(0,0,0,0.3);");
             html.AppendLine("            margin-bottom: 5px;");
             html.AppendLine("            min-width: 300px;");
@@ -12120,7 +14423,7 @@ namespace TravellerSystemGenerator
                             sizeCell = $"<a href=\"surveys/PopulatedWorldDetails.html\">{world.Size}</a>";
                         }
                         // Add link to inhabited world form for secondary worlds (UWP starts with X = secondary world starport)
-                        else if (world.Size.StartsWith("X") && world.Size.Contains("-") && world.Sub != "?")
+                        else if (world.Size.Length >= 9 && world.Size[7] == '-' && world.Sub != "?")
                         {
                             string surveyFilename = world.Object.Replace(" ", "_").Replace("*", "");
                             sizeCell = $"<a href=\"surveys/{surveyFilename}_inhabited.html\">{world.Size}</a>";
@@ -12165,8 +14468,8 @@ namespace TravellerSystemGenerator
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
             html.AppendLine($"    <title>IISS Class IV Survey - {data.WorldName}</title>");
             html.AppendLine("    <style>");
-            html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
-            html.AppendLine("        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
             html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; }");
             html.AppendLine("        .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }");
             html.AppendLine("        .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }");
@@ -12176,10 +14479,15 @@ namespace TravellerSystemGenerator
             html.AppendLine("        .field-label { font-weight: bold; width: 150px; }");
             html.AppendLine("        .field-value { }");
             html.AppendLine("        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }");
+            html.AppendLine("        @media (max-width: 900px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            .two-column { grid-template-columns: 1fr; }");
+            html.AppendLine("        }");
             html.AppendLine("        .back-link { margin-bottom: 10px; }");
             html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
             html.AppendLine("        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }");
-            html.AppendLine("        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }");
+            html.AppendLine("        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 1em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }");
             html.AppendLine("        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
@@ -12661,17 +14969,28 @@ namespace TravellerSystemGenerator
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
             html.AppendLine($"    <title>Inhabited World - {designation}</title>");
             html.AppendLine("    <style>");
-            html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
-            html.AppendLine("        .container { max-width: 1100px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
             html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }");
             html.AppendLine("        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }");
             html.AppendLine("        th, td { border: 1px solid #000; padding: 6px; }");
             html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }");
             html.AppendLine("        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }");
+            html.AppendLine("        @media (max-width: 900px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            .label { width: 120px; }");
+            html.AppendLine("        }");
             html.AppendLine("        .back-link { margin-bottom: 10px; }");
             html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
-            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; font-family: monospace; font-weight: bold; }");
-            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("        .header-tooltip { position: relative; }");
+            html.AppendLine("        .header-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre; font-family: monospace; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 300px; }");
+            html.AppendLine("        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }");
+            html.AppendLine("        .grid-2col table { margin-bottom: 0; }");
+            html.AppendLine("        .empty-field { background-color: #f9f9f9; }");
+            html.AppendLine("        @media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr; } }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
             html.AppendLine("<body>");
@@ -12750,25 +15069,353 @@ namespace TravellerSystemGenerator
                 html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{aiw.GovernmentProfile}</span></td>");
                 html.AppendLine("            </tr>");
             }
+            html.AppendLine("        </table>");
+
+            // Tech Level
+            html.AppendLine("        <table>");
             html.AppendLine("            <tr>");
-            html.AppendLine("                <td class=\"label\">Tech Level:</td>");
+            html.AppendLine("                <th colspan=\"2\">TECH LEVEL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Tech Level (UWP):</td>");
             html.AppendLine($"                <td>{IntToEhex(aiw.TechLevel)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">High Common TL:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.TechLevels.HighCommonTL)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Low Common TL:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.TechLevels.LowCommonTL)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Tech Level Profile:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{TechLevelProfileTooltip}\">{aiw.TechLevels.Profile}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Energy:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Power generation, storage and distribution technology\">{IntToEhex(aiw.TechLevels.EnergyTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Electronics:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Computing, communications and sensor technology\">{IntToEhex(aiw.TechLevels.ElectronicsTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Manufacturing:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Industrial production and materials technology\">{IntToEhex(aiw.TechLevels.ManufacturingTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Medical:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Healthcare, biology and pharmaceutical technology\">{IntToEhex(aiw.TechLevels.MedicalTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Environmental:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Life support, terraforming and habitat technology\">{IntToEhex(aiw.TechLevels.EnvironmentalTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Land Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Ground vehicle and surface transport technology\">{IntToEhex(aiw.TechLevels.LandTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Water Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Naval and aquatic transport technology\">{IntToEhex(aiw.TechLevels.WaterTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Air Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Aviation and atmospheric flight technology\">{IntToEhex(aiw.TechLevels.AirTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Space Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Spacecraft, drives and orbital technology\">{IntToEhex(aiw.TechLevels.SpaceTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Personal Military:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Personal weapons, armour and individual combat technology\">{IntToEhex(aiw.TechLevels.PersonalMilitaryTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Heavy Military:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Military vehicles, warships and heavy weapons technology\">{IntToEhex(aiw.TechLevels.HeavyMilitaryTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Novelty:</td>");
+            html.AppendLine("                <td><span class=\"gov-tooltip\" data-tooltip=\"Experimental and cutting-edge technology (not yet defined)\">X</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Law Level
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">LAW LEVEL</th>");
             html.AppendLine("            </tr>");
             html.AppendLine("            <tr>");
             html.AppendLine("                <td class=\"label\">Law Level:</td>");
             html.AppendLine($"                <td>{IntToEhex(aiw.LawLevel)}</td>");
             html.AppendLine("            </tr>");
+
+            // Judicial system fields
+            if (!string.IsNullOrEmpty(aiw.Judicial.JudicialSystemCode))
+            {
+                bool hasSecondary = aiw.Judicial.SecondarySystemCode != aiw.Judicial.JudicialSystemCode;
+                string jsPrimHtml = $"<span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(aiw.Judicial.JudicialSystemCode)}\">{aiw.Judicial.JudicialSystemCode} - {aiw.Judicial.JudicialSystemType}</span>";
+                string jsDisplay = hasSecondary
+                    ? jsPrimHtml + $" / <span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(aiw.Judicial.SecondarySystemCode)}\">{aiw.Judicial.SecondarySystemCode} - {aiw.Judicial.SecondarySystemType}</span>"
+                    : jsPrimHtml;
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Judicial System:</td>");
+                html.AppendLine($"                <td>{jsDisplay}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Law Uniformity:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetUniformityTooltip(aiw.Judicial.UniformityCode)}\">{aiw.Judicial.UniformityCode} - {aiw.Judicial.UniformityType}</span></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Presumption of Innocence:</td>");
+                html.AppendLine($"                <td>{(aiw.Judicial.PresumptionOfInnocence ? "Yes" : "No")}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Death Penalty:</td>");
+                html.AppendLine($"                <td>{(aiw.Judicial.DeathPenalty ? "Yes" : "No")}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Judicial Profile:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{JudicialProfileTooltip}\">{aiw.Judicial.Profile}</span></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Law Level Profile:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{LawLevelProfileTooltip}\">{aiw.LawLevels.Profile}</span></td>");
+                html.AppendLine("            </tr>");
+            }
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Weapons:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetWeaponsTooltip(aiw.LawLevels.WeaponsLevel)}\">{IntToEhex(aiw.LawLevels.WeaponsLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Economics:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetEconomicTooltip(aiw.LawLevels.EconomicLevel)}\">{IntToEhex(aiw.LawLevels.EconomicLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Criminal:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetCriminalTooltip(aiw.LawLevels.CriminalLevel)}\">{IntToEhexFull(aiw.LawLevels.CriminalLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Private:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPrivateTooltip(aiw.LawLevels.PrivateLevel)}\">{IntToEhex(aiw.LawLevels.PrivateLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Personal Rights:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPersonalRightsTooltip(aiw.LawLevels.PersonalRightsLevel)}\">{IntToEhex(aiw.LawLevels.PersonalRightsLevel)}</span></td>");
+            html.AppendLine("            </tr>");
             html.AppendLine("        </table>");
 
-            // Trade Codes
-            if (aiw.TradeCodes.Count > 0)
+            // Cultural Attributes
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th colspan=\"2\" class=\"header-tooltip\" data-tooltip=\"{CulturalSectionTooltip}\">CULTURAL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Diversity:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Diversity)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Xenophilia:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Xenophilia)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Uniqueness:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Uniqueness)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Symbology:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Symbology)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Cohesion:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Cohesion)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Progressiveness:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Progressiveness)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Expansionism:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Expansionism)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Militancy:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Militancy)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Cultural Profile:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{aiw.Culture.Profile}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Nations (Gov 7 only) — consolidated section showing all profiles per nation
+            if (aiw.GovernmentCode == 7 && aiw.Factions.Count > 0)
             {
                 html.AppendLine("        <table>");
                 html.AppendLine("            <tr>");
-                html.AppendLine("                <th>TRADE CODE(S)</th>");
+                html.AppendLine("                <th>NATIONS</th>");
+                html.AppendLine("            </tr>");
+                foreach (var f in aiw.Factions)
+                {
+                    string fTip = BuildFactionTooltip(f);
+                    string fGovProfileStr = f.Government.Code == 0 ? "0" : f.Government.Profile;
+                    string fGovTip = f.Government.Code == 0 || f.Government.Profile.EndsWith("n/a") ? "" :
+                        BuildGovernmentTooltip(f.Government.Code, f.Government.Type,
+                            f.Government.CentralisationCode, f.Government.CentralisationType,
+                            f.Government.AuthorityCode, f.Government.AuthorityType,
+                            f.Government.StructureCode, f.Government.StructureType);
+                    string fGovHtml = string.IsNullOrEmpty(fGovTip)
+                        ? fGovProfileStr
+                        : $"<span class=\"gov-tooltip\" data-tooltip=\"{fGovTip}\">{fGovProfileStr}</span>";
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><b><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></b> ({fGovHtml})</td>");
+                    html.AppendLine("            </tr>");
+                    string fRoman = MajorCity.ToRoman(f.Number);
+                    foreach (var n in f.Nations)
+                    {
+                        string nRoman = MajorCity.ToRoman(n.Number);
+                        string nKey = $"{fRoman}.{nRoman}";
+                        string nGovProfileStr = n.Government.Code == 0 ? "0" : n.Government.Profile;
+                        string nGovTip = n.Government.Code == 0
+                            ? $"Gov: 0 - {n.Government.Type}"
+                            : (n.Government.Profile.EndsWith("n/a") ? "" :
+                                BuildGovernmentTooltip(n.Government.Code, n.Government.Type,
+                                    n.Government.CentralisationCode, n.Government.CentralisationType,
+                                    n.Government.AuthorityCode, n.Government.AuthorityType,
+                                    n.Government.StructureCode, n.Government.StructureType));
+                        string nGovHtml = string.IsNullOrEmpty(nGovTip)
+                            ? nGovProfileStr
+                            : $"<span class=\"gov-tooltip\" data-tooltip=\"{nGovTip}\">{nGovProfileStr}</span>";
+                        string jTip = $"{nKey} Judicial System&#10;Primary: {n.Judicial.JudicialSystemType}&#10;Secondary: {n.Judicial.SecondarySystemType}&#10;Uniformity: {n.Judicial.UniformityType}&#10;Presumption of Innocence: {(n.Judicial.PresumptionOfInnocence ? "Yes" : "No")}&#10;Death Penalty: {(n.Judicial.DeathPenalty ? "Yes" : "No")}";
+                        string llTip = $"{nKey} Law Level {IntToEhex(n.LawLevel)}&#10;Weapons: {IntToEhex(n.LawLevels.WeaponsLevel)}&#10;Economic: {IntToEhex(n.LawLevels.EconomicLevel)}&#10;Criminal: {IntToEhexFull(n.LawLevels.CriminalLevel)}&#10;Private: {IntToEhex(n.LawLevels.PrivateLevel)}&#10;Personal Rights: {IntToEhex(n.LawLevels.PersonalRightsLevel)}";
+                        string tlTip = $"{nKey} Tech Levels&#10;High: {IntToEhex(n.TechLevels.HighCommonTL)}  Low: {IntToEhex(n.TechLevels.LowCommonTL)}&#10;Energy: {IntToEhex(n.TechLevels.EnergyTL)}  Electronics: {IntToEhex(n.TechLevels.ElectronicsTL)}  Manufacturing: {IntToEhex(n.TechLevels.ManufacturingTL)}&#10;Medical: {IntToEhex(n.TechLevels.MedicalTL)}  Environmental: {IntToEhex(n.TechLevels.EnvironmentalTL)}&#10;Land: {IntToEhex(n.TechLevels.LandTransportTL)}  Water: {IntToEhex(n.TechLevels.WaterTransportTL)}  Air: {IntToEhex(n.TechLevels.AirTransportTL)}  Space: {IntToEhex(n.TechLevels.SpaceTransportTL)}&#10;Personal Military: {IntToEhex(n.TechLevels.PersonalMilitaryTL)}  Heavy Military: {IntToEhex(n.TechLevels.HeavyMilitaryTL)}";
+                        string culturalHtml = (aiw.Culture.Diversity >= 12 && !string.IsNullOrEmpty(n.Culture.Profile))
+                            ? $"; Cultural: <span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{n.Culture.Profile}</span>"
+                            : "";
+                        html.AppendLine("            <tr>");
+                        html.AppendLine($"                <td style=\"padding-left: 30px;\"><b>{nKey}</b> {nGovHtml}; Judicial: <span class=\"gov-tooltip\" data-tooltip=\"{jTip}\">{n.Judicial.Profile}</span>; Law Level: <span class=\"gov-tooltip\" data-tooltip=\"{llTip}\">{n.LawLevels.Profile}</span>; Tech Levels: <span class=\"gov-tooltip\" data-tooltip=\"{tlTip}\">{n.TechLevels.Profile}</span>{culturalHtml}</td>");
+                        html.AppendLine("            </tr>");
+                    }
+                }
+                html.AppendLine("        </table>");
+            }
+
+            // ECONOMICS section (includes Trade Codes)
+            {
+                string tcCell = aiw.TradeCodes.Count > 0
+                    ? FormatTradeCodesWithTooltips(aiw.TradeCodes) : "None";
+                string impStr = aiw.Economics.Importance >= 0
+                    ? $"+{aiw.Economics.Importance}" : $"{aiw.Economics.Importance}";
+                string efStr = aiw.Economics.EfficiencyFactor > 0
+                    ? $"+{aiw.Economics.EfficiencyFactor}" : $"{aiw.Economics.EfficiencyFactor}";
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr><th colspan=\"2\">ECONOMICS</th></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Trade Code(s):</td><td>{tcCell}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Importance:</td><td>{impStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Resources:</td><td>{aiw.Economics.ResourceFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Labour:</td><td>{aiw.Economics.LabourFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Infrastructure:</td><td>{aiw.Economics.InfrastructureFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Efficiency:</td><td>{efStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">RU:</td><td>{aiw.Economics.ResourceUnits}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP per capita:</td><td>Cr {aiw.Economics.GWPPerCapita:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">WTN:</td><td>{IntToEhex(aiw.Economics.WorldTradeNumber)}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Inequality Rating:</td><td>{aiw.Economics.InequalityRating}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Development Score:</td><td>{aiw.Economics.DevelopmentScore:F2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP (MCr):</td><td>MCr {aiw.Economics.TotalGWPMCr:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Tariffs:</td><td>{aiw.Economics.Tariffs}</td></tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // STARPORT/BASES section
+            {
+                string highportStr = aiw.HasHighport ? "Yes" : "No";
+                string navyStr     = aiw.HasNavalBase    ? "Yes" : "No";
+                string scoutStr    = aiw.HasScoutBase   ? "Yes" : "No";
+                string milStr      = aiw.HasMilitaryBase ? "Yes" : "No";
+                string otherStr    = aiw.HasCorsairBase  ? "Corsair Base" : "No";
+                string trafficStr  = aiw.ExpectedWeeklyTraffic > 0
+                    ? aiw.ExpectedWeeklyTraffic.ToString("N0") : "-";
+                string capacityStr;
+                if (aiw.HasHighport)
+                    capacityStr = $"Highport: {aiw.HighportTotalDocking:N0} tons<br/>Downport: {aiw.DownportTotalDocking:N0} tons";
+                else if (aiw.DownportTotalDocking > 0)
+                    capacityStr = $"{aiw.DownportTotalDocking:N0} tons";
+                else
+                    capacityStr = "-";
+                string shipyardStr = aiw.StarportBuildCapacity > 0
+                    ? $"{aiw.StarportBuildCapacity:N0} tons" : "-";
+                string annualStr   = aiw.AnnualShipyardOutput > 0
+                    ? $"{aiw.AnnualShipyardOutput:N0} tons" : "-";
+                string berthingStr = string.IsNullOrEmpty(aiw.BerthingFees) ? "-" : aiw.BerthingFees;
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">SPACEPORT</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Class:</td>");
+                html.AppendLine($"                <td>{aiw.SpaceportClass}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Highport?</td>");
+                html.AppendLine($"                <td>{highportStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Expected Weekly Traffic:</td>");
+                html.AppendLine($"                <td>{trafficStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Berthing Fees:</td>");
+                html.AppendLine($"                <td>{berthingStr}</td>");
                 html.AppendLine("            </tr>");
                 html.AppendLine("            <tr>");
-                html.AppendLine($"                <td>{FormatTradeCodesWithTooltips(aiw.TradeCodes)}</td>");
+                html.AppendLine("                <td class=\"label\">Capacity:</td>");
+                html.AppendLine($"                <td colspan=\"3\">{capacityStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Shipyard:</td>");
+                html.AppendLine($"                <td>{shipyardStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Annual Output:</td>");
+                html.AppendLine($"                <td colspan=\"2\">{annualStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Bases:</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{navyStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Scout:</td>");
+                html.AppendLine($"                <td>{scoutStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Military:</td>");
+                html.AppendLine($"                <td>{milStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Other:</td>");
+                html.AppendLine($"                <td>{otherStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Notes:</td>");
+                html.AppendLine("                <td colspan=\"8\" class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // MILITARY section
+            {
+                var m = aiw.Military;
+                string MilVal(int v) => v == 0 ? "-" : IntToEhex(v);
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">MILITARY</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Effective Budget %:</td>");
+                html.AppendLine($"                <td colspan=\"7\">{m.BasicMilitaryBudget:F2}%</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Enforcement:</td>");
+                html.AppendLine($"                <td>{MilVal(m.EnforcementBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Militia:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MilitiaBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Army:</td>");
+                html.AppendLine($"                <td>{MilVal(m.ArmyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Wet Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.WetNavyBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Air Force:</td>");
+                html.AppendLine($"                <td>{MilVal(m.AirForceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">System Defence:</td>");
+                html.AppendLine($"                <td>{MilVal(m.SystemDefenceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.NavyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Marine:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MarineBranch)}</td>");
                 html.AppendLine("            </tr>");
                 html.AppendLine("        </table>");
             }
@@ -12815,13 +15462,19 @@ namespace TravellerSystemGenerator
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
             html.AppendLine($"    <title>Inhabited World - {systemName ?? "Mainworld"}</title>");
             html.AppendLine("    <style>");
-            html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
-            html.AppendLine("        .container { max-width: 1100px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
             html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }");
             html.AppendLine("        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }");
             html.AppendLine("        th, td { border: 1px solid #000; padding: 6px; }");
             html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }");
             html.AppendLine("        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }");
+            html.AppendLine("        @media (max-width: 900px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            .label { width: 120px; }");
+            html.AppendLine("            .grid-2col { grid-template-columns: 1fr; }");
+            html.AppendLine("        }");
             html.AppendLine("        .back-link { margin-bottom: 10px; }");
             html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
             html.AppendLine("        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }");
@@ -12830,8 +15483,10 @@ namespace TravellerSystemGenerator
             html.AppendLine("        .indent-1 { padding-left: 20px; }");
             html.AppendLine("        .indent-2 { padding-left: 40px; }");
             html.AppendLine("        .indent-3 { padding-left: 60px; }");
-            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; font-family: monospace; font-weight: bold; }");
-            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("        .header-tooltip { position: relative; }");
+            html.AppendLine("        .header-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre; font-family: monospace; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 300px; }");
             html.AppendLine("    </style>");
             html.AppendLine("</head>");
             html.AppendLine("<body>");
@@ -12949,7 +15604,43 @@ namespace TravellerSystemGenerator
             // CULTURE section (left column)
             html.AppendLine("            <table>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <th colspan=\"2\">CULTURE</th>");
+            html.AppendLine($"                    <th colspan=\"2\" class=\"header-tooltip\" data-tooltip=\"{CulturalSectionTooltip}\">CULTURE</th>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Diversity:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Diversity)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Xenophilia:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Xenophilia)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Uniqueness:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Uniqueness)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Symbology:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Symbology)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Cohesion:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Cohesion)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Progressiveness:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Progressiveness)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Expansionism:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Expansionism)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Militancy:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Militancy)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Cultural Profile:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{mainworld.Culture.Profile}</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
             html.AppendLine("                    <td class=\"label\">Language(s):</td>");
@@ -13031,29 +15722,60 @@ namespace TravellerSystemGenerator
             html.AppendLine("                    <td class=\"label\">Code:</td>");
             html.AppendLine($"                    <td>{mainworld.LawLevel}</td>");
             html.AppendLine("                </tr>");
+
+            // Judicial system fields
+            if (!string.IsNullOrEmpty(mainworld.Judicial.JudicialSystemCode))
+            {
+                bool hasSecondary = mainworld.Judicial.SecondarySystemCode != mainworld.Judicial.JudicialSystemCode;
+                string jsPrimHtml = $"<span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(mainworld.Judicial.JudicialSystemCode)}\">{mainworld.Judicial.JudicialSystemCode} - {mainworld.Judicial.JudicialSystemType}</span>";
+                string jsDisplay = hasSecondary
+                    ? jsPrimHtml + $" / <span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(mainworld.Judicial.SecondarySystemCode)}\">{mainworld.Judicial.SecondarySystemCode} - {mainworld.Judicial.SecondarySystemType}</span>"
+                    : jsPrimHtml;
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Judicial System:</td>");
+                html.AppendLine($"                    <td>{jsDisplay}</td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Law Uniformity:</td>");
+                html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetUniformityTooltip(mainworld.Judicial.UniformityCode)}\">{mainworld.Judicial.UniformityCode} - {mainworld.Judicial.UniformityType}</span></td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Presumption of Innocence:</td>");
+                html.AppendLine($"                    <td>{(mainworld.Judicial.PresumptionOfInnocence ? "Yes" : "No")}</td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Death Penalty:</td>");
+                html.AppendLine($"                    <td>{(mainworld.Judicial.DeathPenalty ? "Yes" : "No")}</td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Judicial Profile:</td>");
+                html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{JudicialProfileTooltip}\">{mainworld.Judicial.Profile}</span></td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Law Level Profile:</td>");
+                html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{LawLevelProfileTooltip}\">{mainworld.LawLevels.Profile}</span></td>");
+                html.AppendLine("                </tr>");
+
+            }
             html.AppendLine("                <tr>");
             html.AppendLine("                    <td class=\"label\">Weapons:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetWeaponsTooltip(mainworld.LawLevels.WeaponsLevel)}\">{IntToEhex(mainworld.LawLevels.WeaponsLevel)}</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Drugs:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                    <td class=\"label\">Economics:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetEconomicTooltip(mainworld.LawLevels.EconomicLevel)}\">{IntToEhex(mainworld.LawLevels.EconomicLevel)}</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Information:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                    <td class=\"label\">Criminal:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetCriminalTooltip(mainworld.LawLevels.CriminalLevel)}\">{IntToEhexFull(mainworld.LawLevels.CriminalLevel)}</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Technology:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                    <td class=\"label\">Private:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPrivateTooltip(mainworld.LawLevels.PrivateLevel)}\">{IntToEhex(mainworld.LawLevels.PrivateLevel)}</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Travellers:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Psionics:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                    <td class=\"label\">Personal Rights:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPersonalRightsTooltip(mainworld.LawLevels.PersonalRightsLevel)}\">{IntToEhex(mainworld.LawLevels.PersonalRightsLevel)}</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("            </table>");
 
@@ -13063,30 +15785,83 @@ namespace TravellerSystemGenerator
             html.AppendLine("                    <th colspan=\"2\">TECH LEVEL</th>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Code:</td>");
-            html.AppendLine($"                    <td>{mainworld.TechLevel}</td>");
+            html.AppendLine("                    <td class=\"label\">Tech Level (UWP):</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.TechLevel)}</td>");
             html.AppendLine("                </tr>");
             html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Common Tech:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                    <td class=\"label\">High Common TL:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.TechLevels.HighCommonTL)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Low Common TL:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.TechLevels.LowCommonTL)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Tech Level Profile:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{TechLevelProfileTooltip}\">{mainworld.TechLevels.Profile}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Energy:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Power generation, storage and distribution technology\">{IntToEhex(mainworld.TechLevels.EnergyTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Electronics:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Computing, communications and sensor technology\">{IntToEhex(mainworld.TechLevels.ElectronicsTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Manufacturing:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Industrial production and materials technology\">{IntToEhex(mainworld.TechLevels.ManufacturingTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Medical:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Healthcare, biology and pharmaceutical technology\">{IntToEhex(mainworld.TechLevels.MedicalTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Environmental:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Life support, terraforming and habitat technology\">{IntToEhex(mainworld.TechLevels.EnvironmentalTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Land Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Ground vehicle and surface transport technology\">{IntToEhex(mainworld.TechLevels.LandTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Water Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Naval and aquatic transport technology\">{IntToEhex(mainworld.TechLevels.WaterTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Air Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Aviation and atmospheric flight technology\">{IntToEhex(mainworld.TechLevels.AirTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Space Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Spacecraft, drives and orbital technology\">{IntToEhex(mainworld.TechLevels.SpaceTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Personal Military:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Personal weapons, armour and individual combat technology\">{IntToEhex(mainworld.TechLevels.PersonalMilitaryTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Heavy Military:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Military vehicles, warships and heavy weapons technology\">{IntToEhex(mainworld.TechLevels.HeavyMilitaryTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Novelty:</td>");
+            html.AppendLine("                    <td><span class=\"gov-tooltip\" data-tooltip=\"Experimental and cutting-edge technology (not yet defined)\">X</span></td>");
             html.AppendLine("                </tr>");
             html.AppendLine("            </table>");
 
             html.AppendLine("        </div>");
 
-            // Two-column layout for Factions and Trade Codes
-            html.AppendLine("        <div class=\"grid-2col\">");
-
-            // FACTIONS section (left column)
-            html.AppendLine("            <table>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <th>FACTIONS</th>");
-            html.AppendLine("                </tr>");
+            // FACTIONS section (full width)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>FACTIONS</th>");
+            html.AppendLine("            </tr>");
             if (worldFactions.Count == 0)
             {
-                html.AppendLine("                <tr>");
-                html.AppendLine("                    <td class=\"empty-field\" style=\"height: 40px;\"></td>");
-                html.AppendLine("                </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("            </tr>");
             }
             else if (mainworld.Government != 7)
             {
@@ -13094,9 +15869,9 @@ namespace TravellerSystemGenerator
                 foreach (var f in worldFactions)
                 {
                     string fTip = BuildFactionTooltip(f);
-                    html.AppendLine("                <tr>");
-                    html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></td>");
-                    html.AppendLine("                </tr>");
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><b><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></b></td>");
+                    html.AppendLine("            </tr>");
                 }
             }
             else
@@ -13115,53 +15890,52 @@ namespace TravellerSystemGenerator
                         ? govProfileStr
                         : $"<span class=\"gov-tooltip\" data-tooltip=\"{govTip}\">{govProfileStr}</span>";
 
-                    html.AppendLine("                <tr>");
-                    html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span> ({govProfileHtml})</td>");
-                    html.AppendLine("                </tr>");
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><b><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></b> ({govProfileHtml})</td>");
+                    html.AppendLine("            </tr>");
 
                     string fRoman = MajorCity.ToRoman(f.Number);
                     foreach (var n in f.Nations)
                     {
                         string nRoman = MajorCity.ToRoman(n.Number);
                         string nKey = $"{fRoman}-{nRoman}";
-                        string nGovProfile = n.Government.Profile;
-                        string nTip = n.Government.Code == 0 || n.Government.Profile.EndsWith("n/a") ? "" :
-                            BuildGovernmentTooltip(n.Government.Code, n.Government.Type,
-                                n.Government.CentralisationCode, n.Government.CentralisationType,
-                                n.Government.AuthorityCode, n.Government.AuthorityType,
-                                n.Government.StructureCode, n.Government.StructureType);
+                        string nGovProfile = n.Government.Code == 0 ? "0" : n.Government.Profile;
+                        string nTip = n.Government.Code == 0
+                            ? $"Gov: 0 - {n.Government.Type}"
+                            : (n.Government.Profile.EndsWith("n/a") ? "" :
+                                BuildGovernmentTooltip(n.Government.Code, n.Government.Type,
+                                    n.Government.CentralisationCode, n.Government.CentralisationType,
+                                    n.Government.AuthorityCode, n.Government.AuthorityType,
+                                    n.Government.StructureCode, n.Government.StructureType));
                         string nProfileHtml = string.IsNullOrEmpty(nTip)
                             ? nGovProfile
                             : $"<span class=\"gov-tooltip\" data-tooltip=\"{nTip}\">{nGovProfile}</span>";
 
-                        html.AppendLine("                <tr>");
-                        html.AppendLine($"                    <td class=\"indent-1\">{nKey} {nProfileHtml}</td>");
-                        html.AppendLine("                </tr>");
+                        string nJTip = $"{nKey} Judicial System&#10;Primary: {n.Judicial.JudicialSystemType}&#10;Secondary: {n.Judicial.SecondarySystemType}&#10;Uniformity: {n.Judicial.UniformityType}&#10;Presumption of Innocence: {(n.Judicial.PresumptionOfInnocence ? "Yes" : "No")}&#10;Death Penalty: {(n.Judicial.DeathPenalty ? "Yes" : "No")}";
+                        string nLlTip = $"{nKey} Law Level {IntToEhex(n.LawLevel)}&#10;Weapons: {IntToEhex(n.LawLevels.WeaponsLevel)}&#10;Economic: {IntToEhex(n.LawLevels.EconomicLevel)}&#10;Criminal: {IntToEhexFull(n.LawLevels.CriminalLevel)}&#10;Private: {IntToEhex(n.LawLevels.PrivateLevel)}&#10;Personal Rights: {IntToEhex(n.LawLevels.PersonalRightsLevel)}";
+                        string nTlTip = $"{nKey} Tech Levels&#10;High: {IntToEhex(n.TechLevels.HighCommonTL)}  Low: {IntToEhex(n.TechLevels.LowCommonTL)}&#10;Energy: {IntToEhex(n.TechLevels.EnergyTL)}  Electronics: {IntToEhex(n.TechLevels.ElectronicsTL)}  Manufacturing: {IntToEhex(n.TechLevels.ManufacturingTL)}&#10;Medical: {IntToEhex(n.TechLevels.MedicalTL)}  Environmental: {IntToEhex(n.TechLevels.EnvironmentalTL)}&#10;Land: {IntToEhex(n.TechLevels.LandTransportTL)}  Water: {IntToEhex(n.TechLevels.WaterTransportTL)}  Air: {IntToEhex(n.TechLevels.AirTransportTL)}  Space: {IntToEhex(n.TechLevels.SpaceTransportTL)}&#10;Personal Military: {IntToEhex(n.TechLevels.PersonalMilitaryTL)}  Heavy Military: {IntToEhex(n.TechLevels.HeavyMilitaryTL)}";
+                        string nJudicialHtml = string.IsNullOrEmpty(n.Judicial.Profile) ? "" : $"; Judicial: <span class=\"gov-tooltip\" data-tooltip=\"{nJTip}\">{n.Judicial.Profile}</span>";
+                        string nLlHtml = string.IsNullOrEmpty(n.LawLevels.Profile) ? "" : $"; Law Level: <span class=\"gov-tooltip\" data-tooltip=\"{nLlTip}\">{n.LawLevels.Profile}</span>";
+                        string nTlHtml = string.IsNullOrEmpty(n.TechLevels.Profile) ? "" : $"; Tech Levels: <span class=\"gov-tooltip\" data-tooltip=\"{nTlTip}\">{n.TechLevels.Profile}</span>";
+                        string nCultureHtml = (mainworld.Culture.Diversity >= 12 && !string.IsNullOrEmpty(n.Culture.Profile))
+                            ? $"; Cultural: <span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{n.Culture.Profile}</span>"
+                            : "";
+                        html.AppendLine("            <tr>");
+                        html.AppendLine($"                <td class=\"indent-1\"><b>{nKey}</b> {nProfileHtml}{nJudicialHtml}{nLlHtml}{nTlHtml}{nCultureHtml}</td>");
+                        html.AppendLine("            </tr>");
 
                         // Sub-factions under this nation
                         foreach (var sf in n.SubFactions)
                         {
                             string sfTip = BuildFactionTooltip(sf);
-                            html.AppendLine("                <tr>");
-                            html.AppendLine($"                    <td class=\"indent-2\">{nKey}-<span class=\"gov-tooltip\" data-tooltip=\"{sfTip}\">{sf.Profile}</span></td>");
-                            html.AppendLine("                </tr>");
+                            html.AppendLine("            <tr>");
+                            html.AppendLine($"                <td class=\"indent-2\"><b>{nKey}</b>-<span class=\"gov-tooltip\" data-tooltip=\"{sfTip}\">{sf.Profile}</span></td>");
+                            html.AppendLine("            </tr>");
                         }
                     }
                 }
             }
-            html.AppendLine("            </table>");
-
-            // TRADE CODE section (right column)
-            html.AppendLine("            <table>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <th>TRADE CODE(S)</th>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("                <tr>");
-            html.AppendLine($"                    <td>{tradeCodes}</td>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("            </table>");
-
-            html.AppendLine("        </div>");
+            html.AppendLine("        </table>");
 
             // RELATIONSHIPS section (full width)
             html.AppendLine("        <table>");
@@ -13212,53 +15986,127 @@ namespace TravellerSystemGenerator
             }
             html.AppendLine("        </table>");
 
-            // Two-column layout for Starport and Bases/Travel Zone
-            html.AppendLine("        <div class=\"grid-2col\">");
+            // ECONOMICS section (includes Trade Codes)
+            {
+                string impStr = mainworld.Economics.Importance >= 0
+                    ? $"+{mainworld.Economics.Importance}" : $"{mainworld.Economics.Importance}";
+                string efStr = mainworld.Economics.EfficiencyFactor > 0
+                    ? $"+{mainworld.Economics.EfficiencyFactor}" : $"{mainworld.Economics.EfficiencyFactor}";
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr><th colspan=\"2\">ECONOMICS</th></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Trade Code(s):</td><td>{tradeCodes}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Importance:</td><td>{impStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Resources:</td><td>{mainworld.Economics.ResourceFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Labour:</td><td>{mainworld.Economics.LabourFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Infrastructure:</td><td>{mainworld.Economics.InfrastructureFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Efficiency:</td><td>{efStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">RU:</td><td>{mainworld.Economics.ResourceUnits}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP per capita:</td><td>Cr {mainworld.Economics.GWPPerCapita:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">WTN:</td><td>{IntToEhex(mainworld.Economics.WorldTradeNumber)}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Inequality Rating:</td><td>{mainworld.Economics.InequalityRating}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Development Score:</td><td>{mainworld.Economics.DevelopmentScore:F2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP (MCr):</td><td>MCr {mainworld.Economics.TotalGWPMCr:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Tariffs:</td><td>{mainworld.Economics.Tariffs}</td></tr>");
+                html.AppendLine("        </table>");
+            }
 
-            // STARPORT section (left column)
-            html.AppendLine("            <table>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <th colspan=\"2\">STARPORT</th>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Class:</td>");
-            html.AppendLine($"                    <td>{mainworld.Starport}</td>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Facilities:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("                <tr>");
-            html.AppendLine("                    <td class=\"label\">Berthing Cost:</td>");
-            html.AppendLine("                    <td class=\"empty-field\"></td>");
-            html.AppendLine("                </tr>");
-            html.AppendLine("            </table>");
+            // STARPORT/BASES section
+            {
+                string highportStr  = mainworld.HasHighport     ? "Yes" : "No";
+                string navyStr      = mainworld.HasNavalBase    ? "Yes" : "No";
+                string scoutStr     = mainworld.HasScoutBase    ? "Yes" : "No";
+                string milStr       = mainworld.HasMilitaryBase ? "Yes" : "No";
+                var otherBases      = new List<string>();
+                if (mainworld.HasCorsairBase)      otherBases.Add("Corsair Base");
+                if (mainworld.HasXBoatWaystation)  otherBases.Add("X-Boat Waystation");
+                string otherStr     = otherBases.Count > 0 ? string.Join(", ", otherBases) : "No";
+                string trafficStr;
+                if (mainworld.ExpectedWeeklyTraffic > 0)
+                    trafficStr = mainworld.ExpectedWeeklyTraffic.ToString("N0");
+                else
+                    trafficStr = "-";
+                string capacityStr;
+                if (mainworld.HasHighport)
+                    capacityStr = $"Highport: {mainworld.HighportTotalDocking:N0} tons<br/>Downport: {mainworld.DownportTotalDocking:N0} tons";
+                else if (mainworld.DownportTotalDocking > 0)
+                    capacityStr = $"{mainworld.DownportTotalDocking:N0} tons";
+                else
+                    capacityStr = "-";
+                string shipyardStr = mainworld.StarportBuildCapacity > 0
+                    ? $"{mainworld.StarportBuildCapacity:N0} tons" : "-";
+                string annualStr = mainworld.AnnualShipyardOutput > 0
+                    ? $"{mainworld.AnnualShipyardOutput:N0} tons" : "-";
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">STARPORT</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Class:</td>");
+                html.AppendLine($"                <td>{mainworld.Starport}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Highport?</td>");
+                html.AppendLine($"                <td>{highportStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Expected Weekly Traffic:</td>");
+                html.AppendLine($"                <td>{trafficStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Berthing Fees:</td>");
+                html.AppendLine($"                <td>{mainworld.BerthingFees}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Capacity:</td>");
+                html.AppendLine($"                <td colspan=\"3\">{capacityStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Shipyard:</td>");
+                html.AppendLine($"                <td>{shipyardStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Annual Output:</td>");
+                html.AppendLine($"                <td colspan=\"2\">{annualStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Bases:</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{navyStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Scout:</td>");
+                html.AppendLine($"                <td>{scoutStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Military:</td>");
+                html.AppendLine($"                <td>{milStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Other:</td>");
+                html.AppendLine($"                <td>{otherStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Notes:</td>");
+                html.AppendLine("                <td colspan=\"8\" class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
 
-            // Right column with Bases and Travel Zone stacked
-            html.AppendLine("            <div>");
-
-            // BASES section
-            html.AppendLine("                <table>");
-            html.AppendLine("                    <tr>");
-            html.AppendLine("                        <th>BASES</th>");
-            html.AppendLine("                    </tr>");
-            html.AppendLine("                    <tr>");
-            html.AppendLine("                        <td class=\"empty-field\"></td>");
-            html.AppendLine("                    </tr>");
-            html.AppendLine("                </table>");
-
-            // TRAVEL ZONE section
-            html.AppendLine("                <table style=\"margin-top: 15px;\">");
-            html.AppendLine("                    <tr>");
-            html.AppendLine("                        <th>TRAVEL ZONE</th>");
-            html.AppendLine("                    </tr>");
-            html.AppendLine("                    <tr>");
-            html.AppendLine("                        <td class=\"empty-field\"></td>");
-            html.AppendLine("                    </tr>");
-            html.AppendLine("                </table>");
-
-            html.AppendLine("            </div>");
-            html.AppendLine("        </div>");
+            // MILITARY section
+            if (mainworld != null)
+            {
+                var m = mainworld.Military;
+                string MilVal(int v) => v == 0 ? "-" : IntToEhex(v);
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">MILITARY</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Effective Budget %:</td>");
+                html.AppendLine($"                <td colspan=\"7\">{m.BasicMilitaryBudget:F2}%</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Enforcement:</td>");
+                html.AppendLine($"                <td>{MilVal(m.EnforcementBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Militia:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MilitiaBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Army:</td>");
+                html.AppendLine($"                <td>{MilVal(m.ArmyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Wet Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.WetNavyBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Air Force:</td>");
+                html.AppendLine($"                <td>{MilVal(m.AirForceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">System Defence:</td>");
+                html.AppendLine($"                <td>{MilVal(m.SystemDefenceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.NavyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Marine:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MarineBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
 
             // NOTES section (full width)
             html.AppendLine("        <table>");
@@ -13333,6 +16181,10 @@ namespace TravellerSystemGenerator
                                 else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
                             }
                         }
+
+                        // Prepend spaceport class for uninhabited worlds with a spaceport
+                        if (!sahUwp.Contains('-') && tp.SpaceportClass != 'Y')
+                            sahUwp = $"{tp.SpaceportClass}{sahUwp}";
 
                         SurveyData surveyData = new SurveyData
                         {
@@ -13414,6 +16266,9 @@ namespace TravellerSystemGenerator
                                 else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                             }
 
+                            if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
+
                             SurveyData moonSurvey = new SurveyData
                             {
                                 WorldName = moonWorldName,
@@ -13493,6 +16348,9 @@ namespace TravellerSystemGenerator
                                 if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
                                 else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                             }
+
+                            if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
 
                             SurveyData moonSurvey = new SurveyData
                             {
@@ -13581,6 +16439,9 @@ namespace TravellerSystemGenerator
                                 else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
                             }
 
+                            if (!sahUwp.Contains('-') && tp.SpaceportClass != 'Y')
+                                sahUwp = $"{tp.SpaceportClass}{sahUwp}";
+
                             SurveyData surveyData = new SurveyData
                             {
                                 WorldName = worldName,
@@ -13643,10 +16504,15 @@ namespace TravellerSystemGenerator
                             // Generate surveys for moons
                             foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
                             {
+                                string csMoonSah = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                var csMoonAiw = GetAdditionalInhabitedWorld(moon);
+                                if (csMoonAiw != null && !string.IsNullOrEmpty(csMoonAiw.UWP)) csMoonSah = csMoonAiw.UWP;
+                                else if (!csMoonSah.Contains('-') && moon.SpaceportClass != 'Y') csMoonSah = $"{moon.SpaceportClass}{csMoonSah}";
+
                                 SurveyData moonSurvey = new SurveyData
                                 {
                                     WorldName = $"{tp.Designation} {moon.Designation}",
-                                    SAH_UWP = moon.Size + moon.Atmosphere + moon.HydrographicsCode,
+                                    SAH_UWP = csMoonSah,
                                     PrimaryObject = $"{tp.Designation}",
                                     SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
                                     OrbitNumber = moon.Orbit, // Moon orbit in world diameters
@@ -13722,6 +16588,9 @@ namespace TravellerSystemGenerator
                                     if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
                                     else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                                 }
+
+                                if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                    moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
 
                                 SurveyData moonSurvey = new SurveyData
                                 {
@@ -13811,6 +16680,9 @@ namespace TravellerSystemGenerator
                                 else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
                             }
 
+                            if (!sahUwp.Contains('-') && tp.SpaceportClass != 'Y')
+                                sahUwp = $"{tp.SpaceportClass}{sahUwp}";
+
                             SurveyData surveyData = new SurveyData
                             {
                                 WorldName = worldName,
@@ -13875,6 +16747,9 @@ namespace TravellerSystemGenerator
                                     if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
                                     else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                                 }
+
+                                if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                    moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
 
                                 SurveyData moonSurvey = new SurveyData
                                 {
@@ -13943,6 +16818,9 @@ namespace TravellerSystemGenerator
                                     if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
                                     else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
                                 }
+
+                                if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                    moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
 
                                 SurveyData moonSurvey = new SurveyData
                                 {
