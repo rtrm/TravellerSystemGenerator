@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 2;
-        public const int Minor = 10;
-        public const int Build = 4;
+        public const int Minor = 19;
+        public const int Build = 1;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -73,5 +73,23 @@ namespace TravellerSystemGenerator
         // 2.8.x - Additional Inhabited Worlds (TL-based probability, RR/HR modifiers, population generation, SAH+pop display)
         // 2.9.x - Factions, government profiles (centralisation/authority/structure/G-CAS), faction relationships, Populated World Details update
         // 2.10.x - Secondary world governments (independence/authority rolls), classifications, trade codes (Cy/Fa/Fp/Mb/Mi/Pe/Rb), trade code tooltips
+        // 2.11.x - Judicial systems for all inhabited worlds/nations (Judicial System, Law Uniformity, Presumption of Innocence, Death Penalty, Judicial Profile)
+        // 2.12.x - Law Level sub-categories (Weapons, Economics, Criminal, Private, Personal Rights) and Law Level Profile (O-WECPR) for all inhabited worlds/nations
+        // 2.13.0 - Nations display: bold IDs, readable format, nation-specific tooltips; Gov 0 faction tooltip; gov-tooltip font fix
+        // 2.13.1 - Responsive HTML: wider max-width (1800px, 95% width), table overflow scroll, media queries for narrow viewports
+        // 2.14.x - Secondary world law level adjustments: Gov 6 captive table, Gov 1-3 dependency roll, Freeport -1 DM; Pe recalculated after LL change
+        // 2.15.0 - Tech Level subcategories: High/Low Common TL, 12 subcategories (Energy→Novelty), TL Profile (H-L-abcde-fghi-jk-l), nation TL profiles for Gov 7
+        // 2.15.1 - Inhabited world forms: separate GOVERNMENT/TECH LEVEL/LAW LEVEL tables, Tech Level (UWP) row, consolidated NATIONS section for Gov 7
+        // 2.15.2 - Secondary world TL authority adjustment (trade code based: Cy/Fa/Fp/Mb/Mi/Pe/Rb, MSTL floor); PCR uses adjusted TL
+        // 2.16.x - Cultural attributes (Diversity, Xenophilia, Uniqueness, Symbology, Cohesion, Progressiveness, Expansionism, Militancy) and Cultural Profile (DXUS-CPEM)
+        // 2.16.2 - Secondary world cultural authority adjustment: 0-2 attributes rerolled (1/3 chance each), non-rerolled attributes adjusted by DM delta (no cascading)
+        // 2.17.x - Bases/XBoatWaystation flags; economic calculations (Importance, RF, LF, IF, EF, RU, GWP, WTN, Inequality, Development Score, Tariffs); ECONOMICS section on HTML forms
+        // 2.17.1 - STARPORT/BASES/TRAVEL ZONE section added to INHABITED WORLD form; BASES shows actual base data on both forms
+        // 2.17.2 - STARPORT section restructured: Class, Highport?, Expected Weekly Traffic, Berthing Fees, Capacity, Shipyard, Annual Output, Bases (Navy/Scout/Military/Other)
+        // 2.17.3 - Mainworld bases generated: Highport, Naval, Scout, Military, Corsair (dice rolls per WHB); docking space, shipyard, berthing fees calculated
+        // 2.17.4 - Starport capacity: traffic table (imp ± WTN), highport/downport docking, build capacity (shipyard), annual shipyard output
+        // 2.18.0 - Spaceports for non-mainworld worlds: roll class (H/G/F/Y), equivalent starport class, bases, capacity; AIW UWP uses spaceport class; system overview SAH prefix for uninhabited worlds
+        // 2.19.0 - Military branches: Enforcement, Militia, Army, Wet Navy, Air Force, System Defence, Navy, Marine; common modifiers (Militancy/Faction Relationship); faction relationships generated for AIWs
+        // 2.19.1 - Basic Military Budget: 2% × (1+EF/10) × (1+roll/10); DMs for gov/law/bases/militancy/branches; subordinate AIWs inherit mainworld DM (+6 for mil base or penal colony)
     }
 }

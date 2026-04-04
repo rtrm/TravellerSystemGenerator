@@ -84,6 +84,7 @@ namespace TravellerSystemGenerator
         public int CompatibilityRating { get; set; } = 0;          // Compatibility rating (0+)
         public int ResourceRating { get; set; } = 0;               // Resource rating
         public int HabitabilityRating { get; set; } = 0;           // Habitability rating (0+)
+        public char SpaceportClass { get; set; } = 'Y';            // Spaceport class (H/G/F/Y)
 
         public Moon() { }
     }
@@ -193,6 +194,7 @@ namespace TravellerSystemGenerator
         public int CompatibilityRating { get; set; } = 0;          // Compatibility rating (0+)
         public int ResourceRating { get; set; } = 0;               // Resource rating
         public int HabitabilityRating { get; set; } = 0;           // Habitability rating (0+)
+        public char SpaceportClass { get; set; } = 'Y';            // Spaceport class (H/G/F/Y)
 
         public TerrestrialPlanet() : base(CelestialBodyType.TerrestrialPlanet) { }
     }
