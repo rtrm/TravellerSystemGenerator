@@ -1,32 +1,16 @@
-Version 2.0.0 Latest
-This Traveller Star System Generator creates star systems based on the generation system published in the Mongoose Traveller World Builder's Handbook, written by Geir Lanesskog.. Traveller and the World Builder's Handbook are copyright by Mongoose Publishing
+Version 3.0.0
 
-The program is a command line tool, see the usage information below. It outputs to the command line, as well as creating HTML files containing information about the generated system, these are located in the folder the application runs from.
+This release includes the world social characteristics, completing the system generation system published in the World Builder's Handbook (WBH)
 
-This release includes the following features:
+The WBH does assume that a referee is there to make some decisions during the system creation process, and to allow full automation, I have chosen a route to go or randomised the result.
 
-Star generation, including companions, class, mass, diameter, luminosity and orbital eccentricity
-Generation of orbits and placement of planets, gas giants and Planetoid Belts
-Generation of the habitable zone
-Anomalous planets (eccentric, inclined, retrograde and trojan orbits)
-Orbital periods
-Significant moons
-World gas giant and moon sizing
-World and moon gravity, mass, orbital periods and day length
-Planetoid Belt characteristics
-World and moon atmospheres, including atmospheric pressure, Albedo and Hydrographics
-Tidal locks for planets and moons
-Mean, max and low temperature for Worlds and moons
-Generation of systems for existing systems
-HTML and console output
-Command line help
-I have not included
+You can use the program to either generate a system completely, or to take an existing UWP and have the program build a system around it, and flesh out some of the physical and social details.
 
-some of the details of atmospheres, particularly taint details, exotic details and atmospheric chemical composition
-the more detailed aspects of temperature calculation
-Seismology
-Native Lifeforms (this is next on the list)
-World Social Characteristics (this is also a priority)
+It is a command line tool, written for Windows. When run it outputs the basic details of the system to the console, and also generates several html files. Open StarSystem.html in the directory the program is located in, and this has links to the more detailed screens.
+
+Roy Martin
+4/4/2026
+
 Usage:
 TravellerSystemsGenerator [OPTIONS] [SEED]
 
@@ -57,6 +41,10 @@ Optional counts (3 digits):
 -n, --name NAME
 Specify system name (use quotes for multiple words)
 
+--no-mainworld
+Disable automatic mainworld selection
+No mainworld will be selected or marked
+
 SEED
 Optional integer seed for reproducible generation
 
@@ -79,9 +67,17 @@ Generate "Farhaven" system with seed 54321 and specific mainworld
 TravellerSystemsGenerator -u -n "New Terra"
 Generate with unique HTML filename and multi-word name
 
+TravellerSystemsGenerator --no-mainworld 12345
+Generate system without automatic mainworld selection
+
 Output:
 
 Console: System data in table format
 StarSystem.html: System overview (or system_[seed].html with -u)
 surveys/*.html: IISS Class IV Survey forms for worlds
 system_generation_debug.log: Debug information
+Installation
+Run TravellerSystemGenerator-3.0.0-Setup.exe — no .NET runtime required (self-contained).
+
+Based On
+Traveller World Builder's Handbook by Mongoose Publishing
