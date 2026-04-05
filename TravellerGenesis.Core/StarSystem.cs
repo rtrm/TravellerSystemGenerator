@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
+using System.Text.Json.Serialization;
 //using System.Deployment.Internal;
 using System.Linq;
 using System.Reflection;
@@ -105,7 +106,7 @@ namespace TravellerSystemGenerator
         public List<Moon> Moons { get; set; } = new List<Moon>();
         public string Filename { get; set; } = "";
         public AdditionalInhabitedWorld? AIWData { get; set; } = null;  // non-null if this is an AIW world
-        public object? WorldObject { get; set; } = null;  // the actual world object (TP, Moon, Belt)
+        [JsonIgnore] public object? WorldObject { get; set; } = null;  // the actual world object (TP, Moon, Belt)
     }
 
     internal class TradeCode
@@ -113,6 +114,7 @@ namespace TravellerSystemGenerator
         public string Name { get; set; } = "";
         public string Code { get; set; } = "";
 
+        public TradeCode() {}
         public TradeCode(string name, string code)
         {
             Name = name;
@@ -127,6 +129,7 @@ namespace TravellerSystemGenerator
         public long Population { get; set; }
         public double PercentOfMajorCityPop { get; set; }
 
+        public MajorCity() {}
         public MajorCity(int number, long population, double percent)
         {
             Number = number;
@@ -162,7 +165,7 @@ namespace TravellerSystemGenerator
         public int? PlanetoidBeltCount { get; set; }
         public int? OtherWorldCount { get; set; }
         public string UWP { get; set; } = ""; // The 8-character UWP (A123456-7)
-        public object? PlacedWorld { get; set; } // The world/moon selected as mainworld (CelestialBody or Moon)
+        [JsonIgnore] public object? PlacedWorld { get; set; } // The world/moon selected as mainworld (CelestialBody or Moon)
         public int PopulationP { get; set; } // Population multiplier (0-9)
         public long ActualPopulation { get; set; } // Actual population count
         public string GovernmentType { get; set; } = ""; // Government type description
@@ -213,7 +216,7 @@ namespace TravellerSystemGenerator
 
     internal class AdditionalInhabitedWorld
     {
-        public object World { get; set; } = null!;  // TerrestrialPlanet, Moon, or PlanetoidBelt
+        [JsonIgnore] public object World { get; set; } = null!;  // TerrestrialPlanet, Moon, or PlanetoidBelt
         public string WorldDesignation { get; set; } = "";
         public int PopulationCode { get; set; }  // ehex digit 1+ (never 0 after checks)
         public int PopulationP { get; set; }     // multiplier 0-9
@@ -411,17 +414,27 @@ namespace TravellerSystemGenerator
         private Random dice;
         internal int Seed { get; private set; }
         private bool uniqueHtmlFilename;
-        private MainworldData? mainworld;
-        private string? systemName;
+        private bool saveJson;
+        private bool generateFiles;
+        internal MainworldData? mainworld;
+        internal string? systemName;
+        private string primaryDesignation = "";
         private bool NoMainworld;
         private List<MainworldData> sophontWorlds = new List<MainworldData>(); // List of worlds/moons with native sophonts
-        private List<AdditionalInhabitedWorld> additionalInhabitedWorlds = new List<AdditionalInhabitedWorld>();
-        private List<Faction> worldFactions = new List<Faction>();
-        private List<FactionRelationship> factionRelationships = new List<FactionRelationship>();
+        internal List<AdditionalInhabitedWorld> additionalInhabitedWorlds = new List<AdditionalInhabitedWorld>();
+        internal List<Faction> worldFactions = new List<Faction>();
+        internal List<FactionRelationship> factionRelationships = new List<FactionRelationship>();
 
-        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false)
+        // Accessible after generation when generateFiles = false (for GUI consumers)
+        internal List<StarDisplayData> StarData { get; private set; } = new();
+        internal List<WorldDisplayData> WorldData { get; private set; } = new();
+        internal List<SurveyData> SurveyDataList { get; private set; } = new();
+
+        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false, bool saveJson = true, bool generateFiles = true)
         {
             this.uniqueHtmlFilename = uniqueHtmlFilename;
+            this.saveJson = saveJson;
+            this.generateFiles = generateFiles;
             this.NoMainworld = noMainworld;
             DebugLogger.LogSection("STAR SYSTEM GENERATION");
 
@@ -503,6 +516,8 @@ namespace TravellerSystemGenerator
 
             // Assign star designations
             AssignStarDesignations();
+            if (primaryObject.celestrialObject is Star pDesig)
+                primaryDesignation = pDesig.Designation;
 
             // Calculate orbital periods for all companion stars
             CalculateAllOrbitalPeriods();
@@ -945,38 +960,51 @@ namespace TravellerSystemGenerator
             DetermineStarportCapacity(dice);
             DetermineWorldMilitary(dice);
 
-            // Collect data for table-based output
-            List<StarDisplayData> starData = CollectAllStarData();
-            List<WorldDisplayData> worldData = CollectAllWorldData();
+            // Collect data for output (always — GUI consumers read these)
+            StarData = CollectAllStarData();
+            WorldData = CollectAllWorldData();
 
-            // Print console output header
-            Console.WriteLine();
-            Console.WriteLine("═══════════════════════════════════════════════════════════════");
-            Console.WriteLine("              TRAVELLER STAR SYSTEM GENERATION");
-            Console.WriteLine($"                        Version {Version.VersionString}");
-            Console.WriteLine($"                          Seed: {Seed}");
-            Console.WriteLine("═══════════════════════════════════════════════════════════════");
-            Console.WriteLine();
+            if (generateFiles)
+            {
+                // Print console output header
+                Console.WriteLine();
+                Console.WriteLine("═══════════════════════════════════════════════════════════════");
+                Console.WriteLine("              TRAVELLER GENESIS CLI");
+                Console.WriteLine($"                        Version {Version.VersionString}");
+                Console.WriteLine($"                          Seed: {Seed}");
+                Console.WriteLine("═══════════════════════════════════════════════════════════════");
+                Console.WriteLine();
 
-            DebugLogger.LogSection("SYSTEM SUMMARY");
+                DebugLogger.LogSection("SYSTEM SUMMARY");
 
-            // Print STELLAR summary
-            PrintStellarSummary();
+                // Print STELLAR summary
+                PrintStellarSummary();
 
-            // Print STARS table
-            PrintStarsTable(starData);
+                // Print STARS table
+                PrintStarsTable(StarData);
 
-            // Print OBJECTS table
-            PrintObjectsTable(worldData);
+                // Print OBJECTS table
+                PrintObjectsTable(WorldData);
 
-            // Print console output footer
-            Console.WriteLine("═══════════════════════════════════════════════════════════════");
+                // Print console output footer
+                Console.WriteLine("═══════════════════════════════════════════════════════════════");
 
-            // Generate HTML output
-            GenerateHtmlOutput(starData, worldData);
+                // Generate HTML output
+                GenerateHtmlOutput(StarData, WorldData);
 
-            // Generate IISS Class IV Survey forms
-            GenerateSurveyForms();
+                // Generate IISS Class IV Survey forms
+                SurveyDataList = GenerateSurveyForms();
+
+                // Save JSON snapshot
+                if (saveJson)
+                    SystemSave.Save(this, StarData, WorldData, SurveyDataList, additionalInhabitedWorlds,
+                        worldFactions, factionRelationships, uniqueHtmlFilename);
+            }
+            else
+            {
+                // GUI mode: collect survey data without writing files
+                SurveyDataList = CollectSurveyData();
+            }
 
             DebugLogger.Log("");
             DebugLogger.Log("NON-STELLAR OBJECTS SUMMARY:");
@@ -1016,6 +1044,36 @@ namespace TravellerSystemGenerator
             //}
 
 
+        }
+
+        // Constructor for loading from a saved JSON snapshot — regenerates HTML without re-rolling
+        internal StarSystem(SystemSnapshot snapshot, bool uniqueHtmlFilename)
+        {
+            this.uniqueHtmlFilename = uniqueHtmlFilename;
+            this.Seed = snapshot.Seed;
+            this.systemName = snapshot.SystemName;
+            this.mainworld = snapshot.Mainworld;
+            this.primaryDesignation = snapshot.Stars.FirstOrDefault(s => !s.IsCombined)?.Component ?? "";
+            this.additionalInhabitedWorlds = snapshot.AdditionalInhabitedWorlds;
+            this.worldFactions = snapshot.WorldFactions;
+            this.factionRelationships = snapshot.FactionRelationships;
+            this.GasGiantCount = snapshot.GasGiantCount;
+            this.PlanetoidBeltCount = snapshot.PlanetoidBeltCount;
+            this.TerrestrialPlanetCount = snapshot.TerrestrialPlanetCount;
+
+            // Regenerate HTML overview
+            GenerateHtmlOutput(snapshot.Stars, snapshot.Worlds);
+
+            // Regenerate survey forms from stored data
+            string surveysFolder = "surveys";
+            if (System.IO.Directory.Exists(surveysFolder) && !uniqueHtmlFilename)
+            {
+                try { System.IO.Directory.Delete(surveysFolder, true); }
+                catch { }
+            }
+            WriteSurveyForms(snapshot.Surveys, surveysFolder);
+
+            Console.WriteLine($"\nSystem loaded from snapshot (seed {Seed}).");
         }
 
         private void GenerateAnomalousOrbits(Random dice)
@@ -14270,7 +14328,9 @@ namespace TravellerSystemGenerator
             html.AppendLine($"        <h1>TRAVELLER STAR SYSTEM GENERATION<br>Version {Version.VersionString}<br>Seed: {Seed}</h1>");
 
             // STELLAR summary
-            int starCount = CountAllStars();
+            int starCount = primaryObject?.celestrialObject != null
+                ? CountAllStars()
+                : starData.Count(s => !s.IsCombined);
             html.AppendLine("        <h2>Stellar</h2>");
             html.AppendLine("        <table class=\"stellar-table\">");
             html.AppendLine("            <tr>");
@@ -15444,11 +15504,7 @@ namespace TravellerSystemGenerator
             StringBuilder html = new StringBuilder();
 
             // Get primary object name
-            string primaryObjectName = "";
-            if (this.primaryObject.celestrialObject is Star star)
-            {
-                primaryObjectName = star.Designation;
-            }
+            string primaryObjectName = primaryDesignation;
 
             // Format trade codes with tooltips
             string tradeCodes = mainworld.TradeCodes.Count > 0
@@ -16125,7 +16181,13 @@ namespace TravellerSystemGenerator
             return html.ToString();
         }
 
-        private void GenerateSurveyForms()
+        // Collect survey data without writing any files (used by GUI)
+        private List<SurveyData> CollectSurveyData()
+        {
+            return CollectSurveyDataInternal();
+        }
+
+        private List<SurveyData> GenerateSurveyForms()
         {
             // Create surveys folder (delete existing if not using unique filenames)
             string surveysFolder = "surveys";
@@ -16148,6 +16210,16 @@ namespace TravellerSystemGenerator
                 DebugLogger.Log("Created surveys folder");
             }
 
+            List<SurveyData> surveyDataList = CollectSurveyDataInternal();
+
+
+            WriteSurveyForms(surveyDataList, surveysFolder);
+            return surveyDataList;
+        }
+
+
+        private List<SurveyData> CollectSurveyDataInternal()
+        {
             List<SurveyData> surveyDataList = new List<SurveyData>();
 
             // Collect survey data for primary star's terrestrial worlds
@@ -16890,6 +16962,12 @@ namespace TravellerSystemGenerator
                     }
                 }
             }
+            return surveyDataList;
+        }
+        private void WriteSurveyForms(List<SurveyData> surveyDataList, string surveysFolder)
+        {
+            if (!System.IO.Directory.Exists(surveysFolder))
+                System.IO.Directory.CreateDirectory(surveysFolder);
 
             // Generate HTML files
             foreach (var surveyData in surveyDataList)

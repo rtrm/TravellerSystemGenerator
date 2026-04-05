@@ -27,6 +27,8 @@ namespace TravellerSystemGenerator
             string? mainworldUWP = null;
             string? systemName = null;
             bool noMainworld = false;
+            bool saveJson = true;
+            string? loadFile = null;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -35,6 +37,21 @@ namespace TravellerSystemGenerator
                 if (arg == "-u" || arg == "--unique")
                 {
                     uniqueHtmlFilename = true;
+                }
+                else if (arg == "--no-json")
+                {
+                    saveJson = false;
+                }
+                else if (arg == "--load")
+                {
+                    if (i + 1 < args.Length)
+                        loadFile = args[++i];
+                    else
+                    {
+                        Console.WriteLine("Error: --load requires a file path.");
+                        PrintUsage();
+                        return;
+                    }
                 }
                 else if (arg == "--no-mainworld")
                 {
@@ -110,8 +127,17 @@ namespace TravellerSystemGenerator
 
             try
             {
-                StarSystem starsystem = new StarSystem(seed, uniqueHtmlFilename, mainworldUWP, systemName, noMainworld);
-                DebugLogger.Log("System generation completed successfully");
+                if (loadFile != null)
+                {
+                    var snapshot = SystemSave.Load(loadFile);
+                    _ = new StarSystem(snapshot, uniqueHtmlFilename);
+                    DebugLogger.Log("System loaded from snapshot successfully");
+                }
+                else
+                {
+                    _ = new StarSystem(seed, uniqueHtmlFilename, mainworldUWP, systemName, noMainworld, saveJson);
+                    DebugLogger.Log("System generation completed successfully");
+                }
             }
             catch (Exception ex)
             {
@@ -133,7 +159,7 @@ namespace TravellerSystemGenerator
             Console.WriteLine($"{Version.GetFullVersionString()}");
             Console.WriteLine();
             Console.WriteLine("Usage:");
-            Console.WriteLine("  TravellerSystemsGenerator [OPTIONS] [SEED]");
+            Console.WriteLine("  TravellerGenesisCLI [OPTIONS] [SEED]");
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  -h, -?, /?, /h, --help");
@@ -166,29 +192,37 @@ namespace TravellerSystemGenerator
             Console.WriteLine("                       Disable automatic mainworld selection");
             Console.WriteLine("                       No mainworld will be selected or marked");
             Console.WriteLine();
+            Console.WriteLine("  --no-json");
+            Console.WriteLine("                       Skip saving the JSON snapshot file");
+            Console.WriteLine("                       Default: saves to systems/StarSystem.json");
+            Console.WriteLine();
+            Console.WriteLine("  --load FILE");
+            Console.WriteLine("                       Load a saved JSON snapshot and regenerate HTML");
+            Console.WriteLine("                       FILE: path to a systems/*.json snapshot file");
+            Console.WriteLine();
             Console.WriteLine("  SEED");
             Console.WriteLine("                       Optional integer seed for reproducible generation");
             Console.WriteLine();
             Console.WriteLine("Examples:");
-            Console.WriteLine("  TravellerSystemsGenerator");
+            Console.WriteLine("  TravellerGenesisCLI");
             Console.WriteLine("    Generate a random system");
             Console.WriteLine();
-            Console.WriteLine("  TravellerSystemsGenerator 12345");
+            Console.WriteLine("  TravellerGenesisCLI 12345");
             Console.WriteLine("    Generate system with seed 12345");
             Console.WriteLine();
-            Console.WriteLine("  TravellerSystemsGenerator -m B765432-9");
+            Console.WriteLine("  TravellerGenesisCLI -m B765432-9");
             Console.WriteLine("    Generate system with specified mainworld");
             Console.WriteLine();
-            Console.WriteLine("  TravellerSystemsGenerator -m B765432-9 223");
+            Console.WriteLine("  TravellerGenesisCLI -m B765432-9 223");
             Console.WriteLine("    Generate with mainworld: 2 gas giants, 2 belts, 3 terrestrials");
             Console.WriteLine();
-            Console.WriteLine("  TravellerSystemsGenerator -m D552325-3 222 -n Farhaven 54321");
+            Console.WriteLine("  TravellerGenesisCLI -m D552325-3 222 -n Farhaven 54321");
             Console.WriteLine("    Generate \"Farhaven\" system with seed 54321 and specific mainworld");
             Console.WriteLine();
-            Console.WriteLine("  TravellerSystemsGenerator -u -n \"New Terra\"");
+            Console.WriteLine("  TravellerGenesisCLI -u -n \"New Terra\"");
             Console.WriteLine("    Generate with unique HTML filename and multi-word name");
             Console.WriteLine();
-            Console.WriteLine("  TravellerSystemsGenerator --no-mainworld 12345");
+            Console.WriteLine("  TravellerGenesisCLI --no-mainworld 12345");
             Console.WriteLine("    Generate system without automatic mainworld selection");
             Console.WriteLine();
             Console.WriteLine("Output:");

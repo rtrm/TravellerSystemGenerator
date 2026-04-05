@@ -1,5 +1,11 @@
 <Solution>
-  <Folder Name="/TravellerSystemsGenerator/">
+  <Folder Name="/TravellerGenesis.Core/">
+    <Project Path="TravellerGenesis.Core/TravellerGenesis.Core.csproj" />
+  </Folder>
+  <Folder Name="/TravellerGenesisCLI/">
     <Project Path="TravellerSystemsGenerator/TravellerSystemsGenerator.csproj" />
+  </Folder>
+  <Folder Name="/TravellerGenesis/">
+    <Project Path="TravellerGenesis/TravellerGenesis.csproj" />
   </Folder>
 </Solution>

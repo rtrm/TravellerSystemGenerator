@@ -1,14 +1,14 @@
-; Inno Setup Script for Traveller System Generator v3.0.0
+; Inno Setup Script for Traveller Genesis v4.0.0
 ; Requires Inno Setup 6.0 or later (download from https://jrsoftware.org/isinfo.php)
 
-#define MyAppName "Traveller System Generator"
-#define MyAppVersion "3.0.0"
+#define MyAppName "Traveller Genesis"
+#define MyAppVersion "4.0.0"
 #define MyAppPublisher "Roy Martin"
-#define MyAppURL "https://github.com/rtrm/TravellerSystemGenerator"
-#define MyAppExeName "TravellerSystemsGenerator.exe"
+#define MyAppURL "https://github.com/rtrm/TravellerGenesis"
+#define MyAppExeName "TravellerGenesis.exe"
+#define MyCLIExeName "TravellerGenesisCLI.exe"
 
 [Setup]
-; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 AppId={{8F4A7C3D-2B1E-4F9A-A5C8-9D6E3B2F1A7C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -20,7 +20,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=LICENSE
 OutputDir=installer_output
-OutputBaseFilename=TravellerSystemGenerator-{#MyAppVersion}-Setup
+OutputBaseFilename=TravellerGenesis-{#MyAppVersion}-Setup
 SetupIconFile=
 Compression=lzma
 SolidCompression=yes
@@ -35,19 +35,20 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "addtopath"; Description: "Add to PATH environment variable"; GroupDescription: "Additional options:"; Flags: unchecked
+Name: "addtopath"; Description: "Add CLI to PATH environment variable"; GroupDescription: "Additional options:"; Flags: unchecked
 
 [Files]
-Source: "TravellerSystemsGenerator\bin\Release\net10.0\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "TravellerGenesis\bin\Release\net10.0-windows\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "TravellerSystemsGenerator\bin\Release\net10.0\win-x64\publish\{#MyCLIExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\{#MyAppName} CLI"; Filename: "{app}\{#MyCLIExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "-h"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: postinstall nowait skipifsilent
 
 [Code]
 const
@@ -62,21 +63,16 @@ var
 begin
     InstallPath := ExpandConstant('{app}');
 
-    // Get current PATH from registry
     if RegQueryStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths) then
     begin
-        // Check if already in PATH
         if Pos(';' + Uppercase(InstallPath) + ';', ';' + Uppercase(Paths) + ';') = 0 then
         begin
-            // Add to PATH
             if Paths <> '' then
                 Paths := Paths + ';' + InstallPath
             else
                 Paths := InstallPath;
 
             RegWriteStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths);
-
-            // Notify system of environment change
             SendBroadcastMessage(WM_SETTINGCHANGE, 0, 0);
         end;
     end;
@@ -123,4 +119,4 @@ end;
 
 [Messages]
 WelcomeLabel1=Welcome to the [name/ver] Setup Wizard
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nThis is a self-contained application that includes all required .NET components. No additional software installation is required.%n%nIt is recommended that you close all other applications before continuing.
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nIncludes both the Traveller Genesis GUI application and the Traveller Genesis CLI tool. Both are self-contained and require no additional software.%n%nIt is recommended that you close all other applications before continuing.
