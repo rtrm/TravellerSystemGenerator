@@ -6,21 +6,28 @@ using TravellerSystemGenerator;
 
 namespace TravellerGenesis.Forms
 {
-    internal class SurveyForm : Form
+    internal class PhysicalSurveyForm : Form
     {
         private readonly GeneratedSystem gs;
         private readonly SurveyData data;
         private readonly SystemOverviewForm? owner;
+        private readonly MainworldData? mainworld;
+        private readonly AdditionalInhabitedWorld? aiw;
 
         private TextBox txtName  = null!;
         private TextBox txtNotes = null!;
         private readonly string nameKey;
 
-        public SurveyForm(GeneratedSystem gs, SurveyData data, SystemOverviewForm? owner = null)
+        private Form? _socialForm;
+
+        public PhysicalSurveyForm(GeneratedSystem gs, SurveyData data, SystemOverviewForm? owner = null,
+            MainworldData? mainworld = null, AdditionalInhabitedWorld? aiw = null)
         {
-            this.gs    = gs;
-            this.data  = data;
-            this.owner = owner;
+            this.gs        = gs;
+            this.data      = data;
+            this.owner     = owner;
+            this.mainworld = mainworld;
+            this.aiw       = aiw;
 
             nameKey = $"world:{data.WorldName.Split('<')[0].Trim()}";
 
@@ -37,10 +44,26 @@ namespace TravellerGenesis.Forms
             // Name bar at top
             var topPanel = new Panel { Dock = DockStyle.Top, Height = 32, Padding = new Padding(4) };
             topPanel.Controls.Add(new Label { Text = "Name:", AutoSize = true, Top = 8, Left = 4 });
-            txtName = new TextBox { Left = 48, Top = 4, Width = 300 };
+            txtName = new TextBox { Left = 48, Top = 4, Width = 280 };
             txtName.Text = gs.Names.TryGetValue(nameKey, out var n) ? n : "";
             txtName.TextChanged += (s, e) => { gs.Names[nameKey] = txtName.Text; gs.IsDirty = true; RefreshTitle(); owner?.RefreshTitle(); };
             topPanel.Controls.Add(txtName);
+
+            // Social Survey button for populated worlds
+            if (mainworld != null || aiw != null)
+            {
+                var btnSocial = new Button
+                {
+                    Text   = "Social Survey →",
+                    Left   = 340,
+                    Top    = 4,
+                    Width  = 120,
+                    Height = 24
+                };
+                btnSocial.Click += BtnSocial_Click;
+                topPanel.Controls.Add(btnSocial);
+            }
+
             Controls.Add(topPanel);
 
             // Scrollable content
@@ -122,23 +145,14 @@ namespace TravellerGenesis.Forms
             if (data.ExtinctNativeSophont)
                 AddRow(content, "Extinct Sophonts:", "Evidence of extinct sophonts");
 
-            // AIW data if inhabited
-            if (data.AIWData != null)
-            {
-                AddSectionHeader(content, "Population");
-                AddRow(content, "Population Code:", data.AIWData.PopulationCode.ToString());
-                AddRow(content, "Population:", data.AIWData.ActualPopulation.ToString("N0"));
-                AddRow(content, "UWP:", data.AIWData.UWP);
-            }
-
             // Notes
             AddSectionHeader(content, "Notes");
             txtNotes = new TextBox
             {
-                Multiline   = true,
-                Height      = 80,
-                Dock        = DockStyle.Fill,
-                ScrollBars  = ScrollBars.Vertical
+                Multiline  = true,
+                Height     = 80,
+                Dock       = DockStyle.Fill,
+                ScrollBars = ScrollBars.Vertical
             };
             txtNotes.Text = gs.Names.TryGetValue($"{nameKey}:notes", out var nt) ? nt : "";
             txtNotes.TextChanged += (s, e) => { gs.Names[$"{nameKey}:notes"] = txtNotes.Text; gs.IsDirty = true; };
@@ -147,6 +161,24 @@ namespace TravellerGenesis.Forms
 
             scroll.Controls.Add(content);
             Controls.Add(scroll);
+        }
+
+        private void BtnSocial_Click(object? sender, EventArgs e)
+        {
+            if (_socialForm != null && !_socialForm.IsDisposed)
+            {
+                _socialForm.Activate();
+                return;
+            }
+            if (mainworld != null)
+                _socialForm = new SocialSurveyForm(gs, mainworld, owner);
+            else if (aiw != null)
+                _socialForm = new InhabitedWorldForm(gs, aiw, owner);
+            else
+                return;
+
+            _socialForm.FormClosed += (s, e) => _socialForm = null;
+            _socialForm.Show();
         }
 
         private static void AddSectionHeader(TableLayoutPanel tlp, string title)
@@ -187,7 +219,7 @@ namespace TravellerGenesis.Forms
         {
             string name  = gs.Names.TryGetValue(nameKey, out var n) && !string.IsNullOrWhiteSpace(n) ? n : data.WorldName.Split('<')[0].Trim();
             string dirty = gs.IsDirty ? " *" : "";
-            Text = $"Survey — {data.SAH_UWP} — {name}{dirty}";
+            Text = $"Physical Survey — {data.SAH_UWP} — {name}{dirty}";
         }
     }
 }

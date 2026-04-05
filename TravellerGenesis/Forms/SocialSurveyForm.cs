@@ -7,7 +7,7 @@ using TravellerSystemGenerator;
 
 namespace TravellerGenesis.Forms
 {
-    internal class PopulatedWorldDetailsForm : Form
+    internal class SocialSurveyForm : Form
     {
         private readonly GeneratedSystem gs;
         private readonly MainworldData mw;
@@ -17,7 +17,7 @@ namespace TravellerGenesis.Forms
         private TextBox txtNotes = null!;
         private readonly string nameKey = "world:mainworld";
 
-        public PopulatedWorldDetailsForm(GeneratedSystem gs, MainworldData mw, SystemOverviewForm? owner = null)
+        public SocialSurveyForm(GeneratedSystem gs, MainworldData mw, SystemOverviewForm? owner = null)
         {
             this.gs    = gs;
             this.mw    = mw;
@@ -254,7 +254,7 @@ namespace TravellerGenesis.Forms
         {
             string name  = gs.DisplayName;
             string dirty = gs.IsDirty ? " *" : "";
-            Text = $"Populated — {name}{dirty}";
+            Text = $"Social Survey — {name}{dirty}";
         }
     }
 }

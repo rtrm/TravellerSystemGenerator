@@ -23,6 +23,9 @@ namespace TravellerGenesis.Forms
         private const int StarNameCol  = 0;
         private const int WorldNameCol = 0;
 
+        // ── SDI detail window tracking ────────────────────────────────
+        private readonly Dictionary<string, Form> _openDetails = new();
+
         public SystemOverviewForm(GeneratedSystem gs, MainForm parent)
         {
             GeneratedSystem = gs;
@@ -191,7 +194,6 @@ namespace TravellerGenesis.Forms
                     s.MAO.ToString("F1"),
                     s.HZCO > 0 ? s.HZCO.ToString("F1") : "-"
                 );
-                // Store key in tag
                 dgvStars.Rows[dgvStars.Rows.Count - 1].Tag = nameKey;
             }
 
@@ -201,7 +203,6 @@ namespace TravellerGenesis.Forms
             {
                 string nameKey = $"world:{w.Object}";
                 string wname = GeneratedSystem.Names.TryGetValue(nameKey, out var wn) ? wn : "";
-                // Strip HTML from notes for display
                 string notes = StripHtml(w.Notes);
                 dgvWorlds.Rows.Add(
                     wname,
@@ -263,55 +264,48 @@ namespace TravellerGenesis.Forms
         private void DgvWorlds_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            var row      = dgvWorlds.Rows[e.RowIndex];
-            string obj   = row.Cells[2].Value?.ToString() ?? "";
-            string type  = row.Cells[3].Value?.ToString() ?? "";
-            string uwp   = row.Cells[4].Value?.ToString() ?? "";
+            var row     = dgvWorlds.Rows[e.RowIndex];
+            string obj  = row.Cells[2].Value?.ToString() ?? "";   // designation
+            string uwp  = row.Cells[4].Value?.ToString() ?? "";   // SAH/UWP
 
             var snap = GeneratedSystem.Snapshot;
 
-            // Mainworld (full UWP contains '-')
+            // Determine social data for this world (mainworld or AIW)
+            MainworldData? mw = null;
+            AdditionalInhabitedWorld? aiw = null;
             if (uwp.Contains('-') && snap.Mainworld != null && snap.Mainworld.Population > 0)
-            {
-                OpenOrActivate<PopulatedWorldDetailsForm>(
-                    () => new PopulatedWorldDetailsForm(GeneratedSystem, snap.Mainworld, this));
-                return;
-            }
+                mw = snap.Mainworld;
+            else
+                aiw = snap.AdditionalInhabitedWorlds.FirstOrDefault(a => a.WorldDesignation == obj);
 
-            // Additional Inhabited World
-            var aiw = snap.AdditionalInhabitedWorlds.FirstOrDefault(a => a.WorldDesignation == obj);
-            if (aiw != null)
-            {
-                OpenOrActivate<InhabitedWorldForm>(
-                    () => new InhabitedWorldForm(GeneratedSystem, aiw, this),
-                    obj);
-                return;
-            }
-
-            // Survey form (terrestrial, moon, gas giant, belt)
-            var survey = snap.Surveys.FirstOrDefault(s => s.WorldName.StartsWith(obj) || s.SAH_UWP == uwp.Substring(0, Math.Min(3, uwp.Length)));
-            if (survey == null) survey = snap.Surveys.FirstOrDefault(); // fallback
+            // Physical Survey — always preferred when survey data exists
+            var survey = snap.Surveys.FirstOrDefault(s => s.WorldName.StartsWith(obj));
             if (survey != null)
             {
-                OpenOrActivate<SurveyForm>(
-                    () => new SurveyForm(GeneratedSystem, survey, this),
-                    obj);
+                OpenOrActivate($"{obj}:physical",
+                    () => new PhysicalSurveyForm(GeneratedSystem, survey, this, mw, aiw));
+                return;
             }
+
+            // No physical data — open social form directly
+            if (mw != null)
+                OpenOrActivate($"{obj}:social", () => new SocialSurveyForm(GeneratedSystem, mw, this));
+            else if (aiw != null)
+                OpenOrActivate($"{obj}:social", () => new InhabitedWorldForm(GeneratedSystem, aiw, this));
         }
 
-        private void OpenOrActivate<T>(Func<T> factory, string? key = null) where T : Form
+        // ── SDI window management ─────────────────────────────────────
+
+        private void OpenOrActivate(string key, Func<Form> factory)
         {
-            foreach (Form child in MdiParent!.MdiChildren)
+            if (_openDetails.TryGetValue(key, out var existing) && !existing.IsDisposed)
             {
-                if (child is T t && (key == null || child.Tag?.ToString() == key))
-                {
-                    child.Activate();
-                    return;
-                }
+                existing.Activate();
+                return;
             }
             var f = factory();
-            f.Tag       = key;
-            f.MdiParent = MdiParent;
+            f.FormClosed += (s, e) => _openDetails.Remove(key);
+            _openDetails[key] = f;
             f.Show();
         }
 
