@@ -293,17 +293,16 @@ namespace TravellerGenesis.Forms
             return tab;
         }
 
-        // ── Inhabited World tab (AIW) ─────────────────────────────────
+        // ── Social Survey tab (AIW secondary world) ───────────────────
 
         private TabPage BuildInhabitedTab()
         {
             var w      = aiw!;
-            var tab    = new TabPage("Inhabited World");
+            var tab    = new TabPage("Social Survey");
             var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
-            var tlp    = MakeTlp(200);
+            var tlp    = MakeTlp(220);
 
             AddSH(tlp, "World");
-            AddRow(tlp, "Designation:", w.WorldDesignation);
             AddRow(tlp, "UWP:", w.UWP);
             AddRow(tlp, "Authority:", w.IsIndependent ? "Independent World" : $"Under authority of {w.AuthorityDesignation}");
 
@@ -312,15 +311,26 @@ namespace TravellerGenesis.Forms
             AddRow(tlp, "Total Population:", w.ActualPopulation.ToString("N0"));
 
             AddSH(tlp, "Government");
-            AddRow(tlp, "Government Type:", w.GovernmentType);
-            AddRow(tlp, "Gov Profile:", w.GovernmentProfile);
+            AddRow(tlp, "Government Code:", w.GovernmentCode.ToString());
+            AddRow(tlp, "Type:", w.GovernmentType);
+            AddRow(tlp, "Profile:", w.GovernmentProfile);
             AddRow(tlp, "Centralisation:", $"{w.CentralisationCode} — {w.CentralisationType}");
             AddRow(tlp, "Authority:", $"{w.AuthorityCode} — {w.AuthorityType}");
             AddRow(tlp, "Structure:", $"{w.StructureCode} — {w.StructureType}");
 
+            if (w.Factions.Count > 0)
+            {
+                AddSH(tlp, "Factions");
+                foreach (var f in w.Factions)
+                    AddRow(tlp, $"Faction {f.Number}:", $"{f.StrengthType} — {f.Government.Type}  ({f.Profile})");
+                if (w.FactionRelationships.Count > 0)
+                    AddRow(tlp, "Relationships:", string.Join("  |  ",
+                        w.FactionRelationships.Select(r => $"{r.Faction1Number}↔{r.Faction2Number}: {r.Type}")));
+            }
+
             AddSH(tlp, "Law Level");
             AddRow(tlp, "Law Level:", w.LawLevel.ToString());
-            AddRow(tlp, "Law Profile:", w.LawLevels.Profile);
+            AddRow(tlp, "Profile:", w.LawLevels.Profile);
             AddRow(tlp, "Weapons:", w.LawLevels.WeaponsLevel.ToString());
             AddRow(tlp, "Economic:", w.LawLevels.EconomicLevel.ToString());
             AddRow(tlp, "Criminal:", w.LawLevels.CriminalLevel.ToString());
@@ -329,24 +339,9 @@ namespace TravellerGenesis.Forms
 
             AddSH(tlp, "Tech Level");
             AddRow(tlp, "Tech Level:", w.TechLevel.ToString());
-            AddRow(tlp, "TL Profile:", w.TechLevels.Profile);
             AddRow(tlp, "High Common TL:", w.TechLevels.HighCommonTL.ToString());
             AddRow(tlp, "Low Common TL:", w.TechLevels.LowCommonTL.ToString());
-
-            AddSH(tlp, "Spaceport & Bases");
-            AddRow(tlp, "Spaceport Class:", w.SpaceportClass.ToString());
-            AddRow(tlp, "Equivalent Starport:", w.EquivalentStarportClass.ToString());
-            AddRow(tlp, "Berthing Fees:", w.BerthingFees);
-            AddRow(tlp, "Highport:", w.HasHighport ? "Yes" : "No");
-            var bases = string.Join(", ", new[] {
-                w.HasNavalBase ? "Naval" : null, w.HasScoutBase ? "Scout" : null,
-                w.HasMilitaryBase ? "Military" : null, w.HasCorsairBase ? "Corsair" : null
-            }.Where(b => b != null));
-            AddRow(tlp, "Bases:", string.IsNullOrEmpty(bases) ? "None" : bases);
-
-            AddSH(tlp, "Trade Codes");
-            AddRow(tlp, "Codes:", w.TradeCodes.Count > 0
-                ? string.Join("  ", w.TradeCodes.Select(t => t.Code)) : "None");
+            AddRow(tlp, "TL Profile:", w.TechLevels.Profile);
 
             AddSH(tlp, "Judicial System");
             AddRow(tlp, "System:", $"{w.Judicial.JudicialSystemCode} — {w.Judicial.JudicialSystemType}");
@@ -366,11 +361,27 @@ namespace TravellerGenesis.Forms
             AddRow(tlp, "Expansionism:", w.Culture.Expansionism.ToString());
             AddRow(tlp, "Militancy:", w.Culture.Militancy.ToString());
 
-            if (w.Factions.Count > 0)
+            AddSH(tlp, "Bases & Spaceport");
+            AddRow(tlp, "Spaceport:", $"{w.SpaceportClass} (equiv. Starport {w.EquivalentStarportClass})");
+            AddRow(tlp, "Highport:", w.HasHighport ? "Yes" : "No");
+            var bases = string.Join(", ", new[] {
+                w.HasNavalBase ? "Naval" : null, w.HasScoutBase ? "Scout" : null,
+                w.HasMilitaryBase ? "Military" : null, w.HasCorsairBase ? "Corsair" : null
+            }.Where(b => b != null));
+            AddRow(tlp, "Bases:", string.IsNullOrEmpty(bases) ? "None" : bases);
+            AddRow(tlp, "Berthing Fees:", w.BerthingFees);
+            AddRow(tlp, "Weekly Traffic:", w.ExpectedWeeklyTraffic > 0 ? $"{w.ExpectedWeeklyTraffic:N0} dt" : "-");
+            if (w.HasHighport)
             {
-                AddSH(tlp, "Factions");
-                foreach (var f in w.Factions)
-                    AddRow(tlp, $"Faction {f.Number}:", $"{f.StrengthType} — {f.Government.Type} ({f.Profile})");
+                AddRow(tlp, "Highport Docking:", $"{w.HighportTotalDocking:N0} dt");
+                AddRow(tlp, "Downport Docking:", $"{w.DownportTotalDocking:N0} dt");
+            }
+            else if (w.DownportTotalDocking > 0)
+                AddRow(tlp, "Downport Docking:", $"{w.DownportTotalDocking:N0} dt");
+            if (w.StarportBuildCapacity > 0)
+            {
+                AddRow(tlp, "Shipyard Capacity:", $"{w.StarportBuildCapacity:N0} dt");
+                AddRow(tlp, "Annual Output:", $"{w.AnnualShipyardOutput:N0} dt");
             }
 
             AddSH(tlp, "Economics");
@@ -380,7 +391,7 @@ namespace TravellerGenesis.Forms
             AddRow(tlp, "Infrastructure:", w.Economics.InfrastructureFactor.ToString());
             AddRow(tlp, "Efficiency:", w.Economics.EfficiencyFactor.ToString("+0;-0;0"));
             AddRow(tlp, "Resource Units:", w.Economics.ResourceUnits.ToString());
-            AddRow(tlp, "GWP/capita:", $"{w.Economics.GWPPerCapita:N0} Cr");
+            AddRow(tlp, "GWP / capita:", $"{w.Economics.GWPPerCapita:N0} Cr");
             AddRow(tlp, "Total GWP:", $"{w.Economics.TotalGWPMCr:N2} MCr");
             AddRow(tlp, "WTN:", w.Economics.WorldTradeNumber.ToString());
             AddRow(tlp, "Tariffs:", w.Economics.Tariffs);
@@ -395,6 +406,10 @@ namespace TravellerGenesis.Forms
             if (w.Military.SystemDefenceBranch > 0) AddRow(tlp, "System Defence:", EHex(w.Military.SystemDefenceBranch));
             if (w.Military.NavyBranch          > 0) AddRow(tlp, "Navy:",           EHex(w.Military.NavyBranch));
             if (w.Military.MarineBranch        > 0) AddRow(tlp, "Marine:",         EHex(w.Military.MarineBranch));
+
+            AddSH(tlp, "Trade Codes");
+            AddRow(tlp, "Codes:", w.TradeCodes.Count > 0
+                ? string.Join("  ", w.TradeCodes.Select(t => t.Code)) : "None");
 
             AddNotes(tlp, $"{nameKey}:social:notes");
 

@@ -37,6 +37,10 @@ namespace TravellerGenesis.Forms
             IsMdiContainer = true;
             StartPosition = FormStartPosition.CenterScreen;
 
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "TravellerGenesis.ico");
+            if (File.Exists(iconPath))
+                Icon = new System.Drawing.Icon(iconPath);
+
             BuildMenu();
             BuildToolStrip();
             BuildStatusStrip();

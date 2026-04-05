@@ -21,7 +21,7 @@ DisableProgramGroupPage=yes
 LicenseFile=LICENSE
 OutputDir=installer_output
 OutputBaseFilename=TravellerGenesis-{#MyAppVersion}-Setup
-SetupIconFile=
+SetupIconFile=TravellerGenesis\TravellerGenesis.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -41,6 +41,7 @@ Name: "addtopath"; Description: "Add CLI to PATH environment variable"; GroupDes
 Source: "TravellerGenesis\bin\Release\net10.0-windows\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "TravellerSystemsGenerator\bin\Release\net10.0\win-x64\publish\{#MyCLIExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "TravellerGenesis\TravellerGenesis.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
