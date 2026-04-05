@@ -57,9 +57,9 @@ namespace TravellerGenesis.Forms
                 owner?.RefreshTitle();
             };
             topPanel.Controls.Add(txtName);
-            Controls.Add(topPanel);
 
-            // Tab control
+            // Tab control — must be added to Controls before topPanel so Fill
+            // is laid out first, leaving room for the Top-docked name bar.
             var tabs = new TabControl { Dock = DockStyle.Fill };
 
             if (survey != null)
@@ -71,6 +71,7 @@ namespace TravellerGenesis.Forms
                 tabs.TabPages.Add(BuildInhabitedTab());
 
             Controls.Add(tabs);
+            Controls.Add(topPanel);
         }
 
         // ── Physical Survey tab ───────────────────────────────────────
