@@ -40,6 +40,7 @@ namespace TravellerSystemGenerator
 
         public static void LoadOrbitalValues ()
         {
+            if (orbitValues.Count > 0) return;  // already initialised (static dict is shared across instances)
             orbitValues.Add(0, 0);
             orbitValues.Add(1, 0.4F);
             orbitValues.Add(2, 0.7F);

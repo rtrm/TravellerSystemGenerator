@@ -291,18 +291,22 @@ namespace TravellerGenesis.Forms
         // ── Survey name matching ──────────────────────────────────────
 
         // WorldName can be:
-        //   "A III"             (plain designation)
-        //   "Sol (A III)"       (mainworld with system name)
-        //   "A III a"           (moon)
+        //   "A III"                            plain designation
+        //   "Sol (A III)"                      mainworld with system name
+        //   "A III a"                          moon
+        //   "A II<br>Independent World"        AIW — HTML appended in post-processing
         private static bool MatchesSurvey(string worldName, string desig)
         {
-            // Extract bare designation: strip leading "SystemName (" and trailing ")"
-            string bare = worldName;
-            int paren = worldName.IndexOf('(');
-            if (paren >= 0 && worldName.EndsWith(")"))
-                bare = worldName.Substring(paren + 1, worldName.Length - paren - 2).Trim();
+            // Strip HTML suffix appended for AIW worlds (e.g. "<br>Independent World")
+            int br = worldName.IndexOf('<');
+            string clean = br >= 0 ? worldName.Substring(0, br).Trim() : worldName;
 
-            return bare == desig || bare.StartsWith(desig + " ");
+            // Strip leading "SystemName (" and trailing ")" for mainworld-with-name form
+            int paren = clean.IndexOf('(');
+            if (paren >= 0 && clean.EndsWith(")"))
+                clean = clean.Substring(paren + 1, clean.Length - paren - 2).Trim();
+
+            return clean == desig || clean.StartsWith(desig + " ");
         }
 
         // ── Window management (MDI or SDI per settings) ───────────────
