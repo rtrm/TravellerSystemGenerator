@@ -35,6 +35,7 @@ namespace TravellerGenesis.Forms
             Size          = new Size(920, 820);
             StartPosition = FormStartPosition.WindowsDefaultLocation;
             MinimumSize   = new Size(640, 480);
+            if (AppIcon.Get() is System.Drawing.Icon icon) Icon = icon;
 
             BuildControls();
             RefreshTitle();

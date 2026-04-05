@@ -13,4 +13,11 @@
     <ProjectReference Include="..\TravellerGenesis.Core\TravellerGenesis.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\TravellerGenesis\TravellerGenesis.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>TravellerGenesis.ico</Link>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -14231,6 +14231,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("<head>");
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"favicon.ico\" type=\"image/x-icon\">");
             html.AppendLine($"    <title>Traveller Star System - Seed {Seed}</title>");
             html.AppendLine("    <style>");
             html.AppendLine("        body {");
@@ -14503,6 +14504,16 @@ namespace TravellerSystemGenerator
             html.AppendLine("</body>");
             html.AppendLine("</html>");
 
+            // Copy favicon.ico to output directory so HTML pages can reference it
+            try
+            {
+                string exeDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? ".";
+                string icoSrc = System.IO.Path.Combine(exeDir, "TravellerGenesis.ico");
+                if (System.IO.File.Exists(icoSrc))
+                    System.IO.File.Copy(icoSrc, "favicon.ico", overwrite: true);
+            }
+            catch { /* best-effort */ }
+
             // Save HTML file
             string filename = uniqueHtmlFilename ? $"StarSystem_{Seed}.html" : "StarSystem.html";
             try
@@ -14526,6 +14537,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("<head>");
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"../favicon.ico\" type=\"image/x-icon\">");
             html.AppendLine($"    <title>IISS Class IV Survey - {data.WorldName}</title>");
             html.AppendLine("    <style>");
             html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
@@ -15027,6 +15039,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("<head>");
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"../favicon.ico\" type=\"image/x-icon\">");
             html.AppendLine($"    <title>Inhabited World - {designation}</title>");
             html.AppendLine("    <style>");
             html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
@@ -15516,6 +15529,7 @@ namespace TravellerSystemGenerator
             html.AppendLine("<head>");
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"../favicon.ico\" type=\"image/x-icon\">");
             html.AppendLine($"    <title>Inhabited World - {systemName ?? "Mainworld"}</title>");
             html.AppendLine("    <style>");
             html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
