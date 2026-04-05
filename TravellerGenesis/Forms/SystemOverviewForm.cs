@@ -12,6 +12,7 @@ namespace TravellerGenesis.Forms
     {
         public GeneratedSystem GeneratedSystem { get; }
         private readonly MainForm mainForm;
+        private readonly AppSettings settings;
 
         // ── Controls ─────────────────────────────────────────────────
         private TextBox txtSystemName = null!;
@@ -23,13 +24,14 @@ namespace TravellerGenesis.Forms
         private const int StarNameCol  = 0;
         private const int WorldNameCol = 0;
 
-        // ── SDI detail window tracking ────────────────────────────────
+        // ── Detail window tracking ────────────────────────────────────
         private readonly Dictionary<string, Form> _openDetails = new();
 
-        public SystemOverviewForm(GeneratedSystem gs, MainForm parent)
+        public SystemOverviewForm(GeneratedSystem gs, MainForm parent, AppSettings settings)
         {
             GeneratedSystem = gs;
             mainForm        = parent;
+            this.settings   = settings;
 
             Size            = new Size(1200, 700);
             StartPosition   = FormStartPosition.WindowsDefaultLocation;
@@ -278,8 +280,10 @@ namespace TravellerGenesis.Forms
             else
                 aiw = snap.AdditionalInhabitedWorlds.FirstOrDefault(a => a.WorldDesignation == obj);
 
-            // Physical Survey — always preferred when survey data exists
-            var survey = snap.Surveys.FirstOrDefault(s => s.WorldName.StartsWith(obj));
+            // Physical Survey — always preferred when survey data exists.
+            // obj may have '*' suffix (mainworld marker); WorldName may be "SystemName (Designation)".
+            string objClean = obj.TrimEnd('*');
+            var survey = snap.Surveys.FirstOrDefault(s => MatchesSurvey(s.WorldName, objClean));
             if (survey != null)
             {
                 OpenOrActivate($"{obj}:physical",
@@ -294,7 +298,24 @@ namespace TravellerGenesis.Forms
                 OpenOrActivate($"{obj}:social", () => new InhabitedWorldForm(GeneratedSystem, aiw, this));
         }
 
-        // ── SDI window management ─────────────────────────────────────
+        // ── Survey name matching ──────────────────────────────────────
+
+        // WorldName can be:
+        //   "A III"             (plain designation)
+        //   "Sol (A III)"       (mainworld with system name)
+        //   "A III a"           (moon)
+        private static bool MatchesSurvey(string worldName, string desig)
+        {
+            // Extract bare designation: strip leading "SystemName (" and trailing ")"
+            string bare = worldName;
+            int paren = worldName.IndexOf('(');
+            if (paren >= 0 && worldName.EndsWith(")"))
+                bare = worldName.Substring(paren + 1, worldName.Length - paren - 2).Trim();
+
+            return bare == desig || bare.StartsWith(desig + " ");
+        }
+
+        // ── Window management (MDI or SDI per settings) ───────────────
 
         private void OpenOrActivate(string key, Func<Form> factory)
         {
@@ -306,6 +327,10 @@ namespace TravellerGenesis.Forms
             var f = factory();
             f.FormClosed += (s, e) => _openDetails.Remove(key);
             _openDetails[key] = f;
+            if (settings.DetailWindowsMdi)
+            {
+                f.MdiParent = MdiParent;
+            }
             f.Show();
         }
 

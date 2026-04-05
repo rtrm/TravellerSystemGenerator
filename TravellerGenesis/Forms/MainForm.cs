@@ -23,6 +23,9 @@ namespace TravellerGenesis.Forms
         // ── Session state ────────────────────────────────────────────
         private readonly List<GeneratedSystem> sessionSystems = new();
 
+        // ── Settings ──────────────────────────────────────────────────
+        internal readonly AppSettings Settings = AppSettings.Load();
+
         // ── JSON options ─────────────────────────────────────────────
         private static readonly JsonSerializerOptions JsonWrite = new() { WriteIndented = true };
         private static readonly JsonSerializerOptions JsonRead  = new() { PropertyNameCaseInsensitive = true };
@@ -54,6 +57,8 @@ namespace TravellerGenesis.Forms
             fileMenu.DropDownItems.Add("&Open...",              null, (s, e) => OpenSystem());
             fileMenu.DropDownItems.Add("&Save",                 null, (s, e) => SaveActiveSystem());
             fileMenu.DropDownItems.Add("Save &As...",           null, (s, e) => SaveSystemAs());
+            fileMenu.DropDownItems.Add(new ToolStripSeparator());
+            fileMenu.DropDownItems.Add("&Options...",           null, (s, e) => OpenOptions());
             fileMenu.DropDownItems.Add(new ToolStripSeparator());
             fileMenu.DropDownItems.Add("E&xit",                 null, (s, e) => Close());
 
@@ -207,13 +212,19 @@ namespace TravellerGenesis.Forms
                     return;
                 }
 
-            var form = new SystemOverviewForm(gs, this);
+            var form = new SystemOverviewForm(gs, this, Settings);
             form.MdiParent = this;
             form.Show();
             UpdateStatus();
         }
 
         // ── Actions ───────────────────────────────────────────────────
+
+        private void OpenOptions()
+        {
+            using var dlg = new OptionsDialog(Settings);
+            dlg.ShowDialog(this);
+        }
 
         private void NewRandomSystem()
         {
