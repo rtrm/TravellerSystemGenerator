@@ -266,36 +266,26 @@ namespace TravellerGenesis.Forms
         private void DgvWorlds_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            var row     = dgvWorlds.Rows[e.RowIndex];
-            string obj  = row.Cells[2].Value?.ToString() ?? "";   // designation
-            string uwp  = row.Cells[4].Value?.ToString() ?? "";   // SAH/UWP
+            var row      = dgvWorlds.Rows[e.RowIndex];
+            string obj   = row.Cells[2].Value?.ToString() ?? "";   // designation (mainworld has trailing '*')
+            string objClean = obj.TrimEnd('*');
 
             var snap = GeneratedSystem.Snapshot;
 
-            // Determine social data for this world (mainworld or AIW)
+            // Physical survey data
+            var survey = snap.Surveys.FirstOrDefault(s => MatchesSurvey(s.WorldName, objClean));
+
+            // Social data: '*' suffix marks the mainworld; otherwise check AIWs
             MainworldData? mw = null;
             AdditionalInhabitedWorld? aiw = null;
-            if (uwp.Contains('-') && snap.Mainworld != null && snap.Mainworld.Population > 0)
+            if (obj.EndsWith('*') && snap.Mainworld?.Population > 0)
                 mw = snap.Mainworld;
             else
-                aiw = snap.AdditionalInhabitedWorlds.FirstOrDefault(a => a.WorldDesignation == obj);
+                aiw = snap.AdditionalInhabitedWorlds.FirstOrDefault(a => a.WorldDesignation == objClean);
 
-            // Physical Survey — always preferred when survey data exists.
-            // obj may have '*' suffix (mainworld marker); WorldName may be "SystemName (Designation)".
-            string objClean = obj.TrimEnd('*');
-            var survey = snap.Surveys.FirstOrDefault(s => MatchesSurvey(s.WorldName, objClean));
-            if (survey != null)
-            {
-                OpenOrActivate($"{obj}:physical",
-                    () => new PhysicalSurveyForm(GeneratedSystem, survey, this, mw, aiw));
-                return;
-            }
-
-            // No physical data — open social form directly
-            if (mw != null)
-                OpenOrActivate($"{obj}:social", () => new SocialSurveyForm(GeneratedSystem, mw, this));
-            else if (aiw != null)
-                OpenOrActivate($"{obj}:social", () => new InhabitedWorldForm(GeneratedSystem, aiw, this));
+            if (survey != null || mw != null || aiw != null)
+                OpenOrActivate($"{objClean}:properties",
+                    () => new WorldPropertiesForm(GeneratedSystem, objClean, survey, mw, aiw, this));
         }
 
         // ── Survey name matching ──────────────────────────────────────
