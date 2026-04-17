@@ -2,7 +2,7 @@
 ; Requires Inno Setup 6.0 or later (download from https://jrsoftware.org/isinfo.php)
 
 #define MyAppName "Traveller Genesis"
-#define MyAppVersion "4.0.0"
+#define MyAppVersion "2.0.8"
 #define MyAppPublisher "Roy Martin"
 #define MyAppURL "https://github.com/rtrm/TravellerGenesis"
 #define MyAppExeName "TravellerGenesis.exe"
