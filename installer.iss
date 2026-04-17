@@ -39,7 +39,9 @@ Name: "addtopath"; Description: "Add CLI to PATH environment variable"; GroupDes
 
 [Files]
 Source: "TravellerGenesis\bin\Release\net10.0-windows\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "TravellerGenesis\bin\Release\net10.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
 Source: "TravellerSystemsGenerator\bin\Release\net10.0\win-x64\publish\{#MyCLIExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "TravellerSystemsGenerator\bin\Release\net10.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb,*.exe"
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "TravellerGenesis\TravellerGenesis.ico"; DestDir: "{app}"; Flags: ignoreversion
 
