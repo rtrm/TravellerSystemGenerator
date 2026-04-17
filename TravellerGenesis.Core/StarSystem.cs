@@ -1710,6 +1710,11 @@ namespace TravellerSystemGenerator
             foreach (var moon in moons)
             {
                 var (orbit, tier) = DetermineMoonOrbit(mor, dice);
+                if (orbit > hillSphereMoonLimit)
+                {
+                    DebugLogger.LogFormat("    Moon {0}: Orbit {1:F2} capped to Hill Sphere Moon Limit {2:F2}", moon.Designation, orbit, hillSphereMoonLimit);
+                    orbit = hillSphereMoonLimit;
+                }
                 moon.Orbit = orbit;
                 moonTiers[moon] = tier;
                 DebugLogger.LogFormat("    Moon {0}: Orbit {1:F2} diameters", moon.Designation, moon.Orbit);
@@ -2831,8 +2836,7 @@ namespace TravellerSystemGenerator
 
             int dm = systemAge > 4f ? 1 : 0;
             float oxygenFraction = ((Starhelper.diceRoll(6, 1, dice) + dm) / 20f)
-                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f)
-                                 + ((Starhelper.diceRoll(6, 1, dice) - 1) / 20f);
+                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f);
 
             // Clamp to 0-100%
             if (oxygenFraction < 0) oxygenFraction = 0;
@@ -2854,8 +2858,7 @@ namespace TravellerSystemGenerator
 
             int dm = systemAge > 4f ? 1 : 0;
             float oxygenFraction = ((Starhelper.diceRoll(6, 1, dice) + dm) / 20f)
-                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f)
-                                 + ((Starhelper.diceRoll(6, 1, dice) - 1) / 20f);
+                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f);
 
             // Clamp to 0-100%
             if (oxygenFraction < 0) oxygenFraction = 0;
@@ -2903,8 +2906,8 @@ namespace TravellerSystemGenerator
             // Calculate temperature in Kelvin
             int temperatureK = roll switch
             {
-                <= -1 => 178 + (roll * -5),
-                0 => 178,
+                <= -1 => 188 + (roll * -5),
+                0 => 188,
                 1 => 198,
                 2 => 218,
                 3 => 238,
@@ -2959,8 +2962,8 @@ namespace TravellerSystemGenerator
             // Calculate temperature in Kelvin
             int temperatureK = roll switch
             {
-                <= -1 => 178 + (roll * -5),
-                0 => 178,
+                <= -1 => 188 + (roll * -5),
+                0 => 188,
                 1 => 198,
                 2 => 218,
                 3 => 238,
@@ -3149,7 +3152,7 @@ namespace TravellerSystemGenerator
             float albedo = 0;
 
             // Base albedo calculation based on density
-            if (planet.Density > 0.5f)
+            if (planet.Density > 0.4f)
             {
                 // Albedo = 0.04 + (2d6-2) * 0.02
                 albedo = 0.04f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f);
@@ -3208,7 +3211,7 @@ namespace TravellerSystemGenerator
             float albedo = 0;
 
             // Base albedo calculation based on density
-            if (moon.Density > 0.5f)
+            if (moon.Density > 0.4f)
             {
                 // Albedo = 0.04 + (2d6-2) * 0.02
                 albedo = 0.04f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f);
@@ -5179,6 +5182,7 @@ namespace TravellerSystemGenerator
             public float OrbitalPeriodYears { get; set; } // For recalculating solar days
             public Moon? TargetMoon { get; set; } // For world-to-moon locks
             public int Priority { get; set; } // For tie-breaking (0=highest priority)
+            public CelestrialObject? OrbitalObject { get; set; } // For planet eccentricity re-roll
         }
 
         private void CalculateTidalLocks(Random dice)
@@ -5251,7 +5255,8 @@ namespace TravellerSystemGenerator
                             OrbitNumber = cobj.orbit,
                             Eccentricity = cobj.orbitEccentricity,
                             OrbitalPeriodYears = cobj.OrbitalPeriodYears,
-                            Priority = 1 // Lower priority than moon-to-world
+                            Priority = 1, // Lower priority than moon-to-world
+                            OrbitalObject = cobj
                         });
                     }
 
@@ -5517,7 +5522,7 @@ namespace TravellerSystemGenerator
 
             if (candidate.Body is TerrestrialPlanet planet)
             {
-                ApplyTidalEffectToPlanet(planet, roll, candidate.LockType, candidate.TargetMoon, candidate.OrbitalPeriodYears, dice);
+                ApplyTidalEffectToPlanet(planet, roll, candidate.LockType, candidate.TargetMoon, candidate.OrbitalPeriodYears, candidate.OrbitalObject, dice);
             }
             else if (candidate.Body is Moon moon)
             {
@@ -5526,7 +5531,7 @@ namespace TravellerSystemGenerator
             }
         }
 
-        private void ApplyTidalEffectToPlanet(TerrestrialPlanet planet, int roll, string lockType, Moon? targetMoon, float orbitalPeriodYears, Random dice)
+        private void ApplyTidalEffectToPlanet(TerrestrialPlanet planet, int roll, string lockType, Moon? targetMoon, float orbitalPeriodYears, CelestrialObject? orbitalObject, Random dice)
         {
             if (roll == 3)
             {
@@ -5576,11 +5581,9 @@ namespace TravellerSystemGenerator
                 planet.TidalLockStatus = lockType == "ToMoon" && targetMoon != null
                     ? $"3:2 lock to moon {targetMoon.Designation}"
                     : "3:2 lock to star";
-                // Calculate rotation period for 3:2 resonance
-                // The world rotates 3 times for every 2 orbits
-                // So rotation period = (2/3) * orbital period
-                // We need the orbital period in hours
-                // This will be calculated based on the orbital period
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (planet.AxialTilt > 3f)
+                    planet.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
             }
             else if (roll >= 12)
             {
@@ -5591,7 +5594,7 @@ namespace TravellerSystemGenerator
                     int secondRoll = Starhelper.diceRoll(6, 2, dice);
                     if (secondRoll != 12)
                     {
-                        ApplyTidalEffectToPlanet(planet, secondRoll, lockType, targetMoon, orbitalPeriodYears, dice);
+                        ApplyTidalEffectToPlanet(planet, secondRoll, lockType, targetMoon, orbitalPeriodYears, orbitalObject, dice);
                         return;
                     }
                 }
@@ -5601,12 +5604,18 @@ namespace TravellerSystemGenerator
                     ? $"1:1 lock to moon {targetMoon.Designation}"
                     : "1:1 lock to star";
 
-                // Recalculate axial tilt (1d6 only)
-                planet.AxialTilt = Starhelper.diceRoll(6, 1, dice);
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (planet.AxialTilt > 3f)
+                    planet.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
 
-                // Recalculate eccentricity with -2 modifier
-                // This would require access to the orbital object, which we don't have here
-                // We'll note this for future enhancement
+                // Eccentricity: if > 0.1, re-roll with -2 modifier and keep the lower value
+                if (orbitalObject != null && orbitalObject.orbitEccentricity > 0.1f)
+                {
+                    float oldEcc = orbitalObject.orbitEccentricity;
+                    orbitalObject.OrbitEccentricity(starsOrbited: 1, dice, modifier: -2);
+                    if (oldEcc < orbitalObject.orbitEccentricity)
+                        orbitalObject.orbitEccentricity = oldEcc;
+                }
             }
 
             // Recalculate solar days if rotation changed
@@ -5663,6 +5672,9 @@ namespace TravellerSystemGenerator
                 moon.TidalLockStatus = "3:2 lock to world";
                 // The moon rotates 3 times for every 2 orbits around its parent
                 moon.BasicRotationRateHours = (moon.OrbitalPeriod * 2.0f) / 3.0f;
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (moon.AxialTilt > 3f)
+                    moon.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
             }
             else if (roll >= 12)
             {
@@ -5682,16 +5694,40 @@ namespace TravellerSystemGenerator
                 moon.TidalLockStatus = "1:1 lock to world";
                 moon.BasicRotationRateHours = moon.OrbitalPeriod;
 
-                // Recalculate axial tilt (1d6 only)
-                moon.AxialTilt = Starhelper.diceRoll(6, 1, dice);
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (moon.AxialTilt > 3f)
+                    moon.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
 
-                // Recalculate eccentricity with -2 modifier
-                // This would require recalculating the moon's orbital eccentricity
-                // We'll note this for future enhancement
+                // Eccentricity: if > 0.1, re-roll with -2 modifier and keep the lower value
+                if (moon.Eccentricity > 0.1f)
+                {
+                    float newEcc = RollMoonEccentricity(-2, dice);
+                    if (newEcc < moon.Eccentricity)
+                        moon.Eccentricity = newEcc;
+                }
             }
 
             // Recalculate solar days if rotation changed
             RecalculateSolarDays(moon, parentWorldOrbitalPeriodHours);
+        }
+
+        private static float RollMoonEccentricity(int modifier, Random dice)
+        {
+            float[,] eccValues = {
+                {5, 7, 9, 10, 11, 12 },
+                {-0.001F, 0, 0.03F, 0.05F, 0.05F, 0.3F },
+                {1, 1, 1, 1, 2, 1 },
+                {1000, 200, 100, 20, 20, 20 }
+            };
+            int roll = Starhelper.diceRoll(6, 2, dice) + modifier;
+            if (roll > 12) roll = 12;
+            if (roll < 0) roll = 0;
+            int x = 0;
+            while (x < 5 && (int)eccValues[0, x] < roll) x++;
+            float eccBase = eccValues[1, x];
+            int numDice = (int)eccValues[2, x];
+            float divisor = eccValues[3, x];
+            return numDice > 0 ? eccBase + Starhelper.diceRoll(6, numDice, dice) / divisor : eccBase;
         }
 
         private void RecalculateSolarDays(TerrestrialPlanet planet, float orbitalPeriodYears)
@@ -8710,7 +8746,7 @@ namespace TravellerSystemGenerator
 
         // ─── Tech Level Subcategory Generation ────────────────────────────────────
 
-        private int RollTLM(Random dice) => Starhelper.diceRoll(6, 2, dice) switch
+        internal static int RollTLM(Random dice) => Starhelper.diceRoll(6, 2, dice) switch
         {
             2  => -3,
             3  => -2,
@@ -8721,7 +8757,7 @@ namespace TravellerSystemGenerator
             _  => 0
         };
 
-        private int CalculateLowCommonTL(int highTL, int govCode, int popCode, int pcr, Random dice)
+        internal static int CalculateLowCommonTL(int highTL, int govCode, int popCode, int pcr, Random dice)
         {
             int dm = 0;
             if (popCode >= 1 && popCode <= 5) dm += 1;
@@ -8757,7 +8793,7 @@ namespace TravellerSystemGenerator
             return Math.Clamp(worldLowTL + dm, lowerBound, nationHighTL);
         }
 
-        private TechLevelData GenerateTechLevelData(
+        internal static TechLevelData GenerateTechLevelData(
             int highCommonTL, int lowCommonTL, int govCode, int popCode,
             int atmosphere, int hydrographics, int pcr, int habitabilityRating,
             char starport, int lawLevel, int weaponsLawLevel, int worldSize,
@@ -10709,6 +10745,7 @@ namespace TravellerSystemGenerator
 
             // Highport
             int highportDM = 0;
+            if (pop <= 6) highportDM -= 1;
             if (pop >= 9) highportDM += 1;
             if (tl >= 9 && tl <= 11) highportDM += 1;
             if (tl >= 12) highportDM += 2;
@@ -11016,7 +11053,7 @@ namespace TravellerSystemGenerator
             _   =>  0
         };
 
-        private MilitaryData CalculateWorldMilitary(
+        internal static MilitaryData CalculateWorldMilitary(
             int    popCode,
             int    govCode,
             int    lawLevel,
@@ -11188,7 +11225,7 @@ namespace TravellerSystemGenerator
             return mil;
         }
 
-        private static int CalcBudgetDM(int govCode, int lawLevel,
+        internal static int CalcBudgetDM(int govCode, int lawLevel,
             bool hasNavalBase, bool hasMilitaryBase, int militancy, MilitaryData mil)
         {
             int dm = 0;
@@ -11208,7 +11245,7 @@ namespace TravellerSystemGenerator
             return dm;
         }
 
-        private static double CalcBasicMilitaryBudget(int efficiencyFactor, int budgetDM, Random dice)
+        internal static double CalcBasicMilitaryBudget(int efficiencyFactor, int budgetDM, Random dice)
         {
             int roll = Math.Max(-9, Starhelper.diceRoll(6, 2, dice) - 7 + budgetDM);
             return 2.0 * (1.0 + efficiencyFactor / 10.0) * (1.0 + roll / 10.0);
@@ -11504,7 +11541,7 @@ namespace TravellerSystemGenerator
             return minTL;
         }
 
-        private string IntToEhex(int value)
+        internal static string IntToEhex(int value)
         {
             if (value < 10)
                 return value.ToString();
@@ -11512,7 +11549,7 @@ namespace TravellerSystemGenerator
                 return ((char)('A' + value - 10)).ToString();
         }
 
-        private int GetWTNStarportModifier(int baseWTN, char starport)
+        internal static int GetWTNStarportModifier(int baseWTN, char starport)
         {
             int row = baseWTN switch { <= 1 => 0, <= 3 => 1, <= 5 => 2, <= 7 => 3, <= 9 => 4, <= 11 => 5, <= 13 => 6, _ => 7 };
             int col = starport switch { 'A' => 0, 'B' => 1, 'C' => 2, 'D' => 3, 'E' => 4, _ => 5 };

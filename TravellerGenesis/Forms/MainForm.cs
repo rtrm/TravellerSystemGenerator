@@ -17,11 +17,15 @@ namespace TravellerGenesis.Forms
         private StatusStrip statusStrip = null!;
         private ToolStripStatusLabel statusLabel = null!;
         private Panel leftPanel = null!;
+        private Label leftPanelHeader = null!;
         private ListView sessionListView = null!;
         private Splitter splitter = null!;
+        private Panel rightPanel = null!;
 
         // ── Session state ────────────────────────────────────────────
         private readonly List<GeneratedSystem> sessionSystems = new();
+        private readonly Dictionary<GeneratedSystem, SystemOverviewPanel> _panels = new();
+        private SystemOverviewPanel? _activePanel;
 
         // ── Settings ──────────────────────────────────────────────────
         internal readonly AppSettings Settings = AppSettings.Load();
@@ -34,15 +38,21 @@ namespace TravellerGenesis.Forms
         {
             Text = Version.GetFullVersionString();
             Size = new Size(1280, 768);
-            IsMdiContainer = true;
             StartPosition = FormStartPosition.CenterScreen;
 
             if (AppIcon.Get() is System.Drawing.Icon icon) Icon = icon;
 
-            BuildMenu();
-            BuildToolStrip();
-            BuildStatusStrip();
+            // Add order matters: dock layout processes back-to-front (last added first).
+            // Menu and toolbar must be added LAST so they claim full-width rows at the
+            // top of the form before the left panel claims x=0..300.
+            BuildRightPanel();
             BuildLeftPanel();
+            BuildStatusStrip();
+            BuildToolStrip();    // Top — processed 2nd → below menu
+            BuildMenu();         // Top — added last → processed 1st → at very top
+
+            // Begin fetching the travellermap.com sector list in the background
+            TravellerMapImporter.BeginPrefetchSectors();
         }
 
         // ── Menu ─────────────────────────────────────────────────────
@@ -57,18 +67,13 @@ namespace TravellerGenesis.Forms
             fileMenu.DropDownItems.Add("New from &UWP...",      null, (s, e) => NewFromUWP());
             fileMenu.DropDownItems.Add(new ToolStripSeparator());
             fileMenu.DropDownItems.Add("&Open...",              null, (s, e) => OpenSystem());
+            fileMenu.DropDownItems.Add("&Import from Travellermap...", null, (s, e) => ImportFromTravellermap());
             fileMenu.DropDownItems.Add("&Save",                 null, (s, e) => SaveActiveSystem());
             fileMenu.DropDownItems.Add("Save &As...",           null, (s, e) => SaveSystemAs());
             fileMenu.DropDownItems.Add(new ToolStripSeparator());
             fileMenu.DropDownItems.Add("&Options...",           null, (s, e) => OpenOptions());
             fileMenu.DropDownItems.Add(new ToolStripSeparator());
             fileMenu.DropDownItems.Add("E&xit",                 null, (s, e) => Close());
-
-            // Window menu
-            var windowMenu = new ToolStripMenuItem("&Window");
-            windowMenu.DropDownItems.Add("&Cascade",       null, (s, e) => LayoutMdi(MdiLayout.Cascade));
-            windowMenu.DropDownItems.Add("Tile &Horizontal", null, (s, e) => LayoutMdi(MdiLayout.TileHorizontal));
-            windowMenu.DropDownItems.Add("Tile &Vertical", null, (s, e) => LayoutMdi(MdiLayout.TileVertical));
 
             // Help menu
             var helpMenu = new ToolStripMenuItem("&Help");
@@ -80,9 +85,7 @@ namespace TravellerGenesis.Forms
                     MessageBoxIcon.Information));
 
             menuStrip.Items.Add(fileMenu);
-            menuStrip.Items.Add(windowMenu);
             menuStrip.Items.Add(helpMenu);
-            menuStrip.MdiWindowListItem = windowMenu;
 
             MainMenuStrip = menuStrip;
             Controls.Add(menuStrip);
@@ -90,13 +93,25 @@ namespace TravellerGenesis.Forms
 
         private void BuildToolStrip()
         {
-            toolStrip = new ToolStrip();
-            toolStrip.Items.Add(new ToolStripButton("New Random", null,  (s, e) => NewRandomSystem())  { ToolTipText = "Generate a new random system" });
-            toolStrip.Items.Add(new ToolStripButton("New from UWP", null, (s, e) => NewFromUWP())      { ToolTipText = "Generate a system with a specified mainworld UWP" });
+            toolStrip = new ToolStrip { ImageScalingSize = new Size(32, 32), Dock = DockStyle.Top };
+
+            toolStrip.Items.Add(new ToolStripButton("New Random",   LoadIcon("Random"),   (s, e) => NewRandomSystem())       { ToolTipText = "Generate a new random system",                  TextImageRelation = TextImageRelation.ImageAboveText, DisplayStyle = ToolStripItemDisplayStyle.ImageAndText });
+            toolStrip.Items.Add(new ToolStripButton("New from UWP", LoadIcon("UWP"),      (s, e) => NewFromUWP())            { ToolTipText = "Generate a system with a specified mainworld UWP", TextImageRelation = TextImageRelation.ImageAboveText, DisplayStyle = ToolStripItemDisplayStyle.ImageAndText });
             toolStrip.Items.Add(new ToolStripSeparator());
-            toolStrip.Items.Add(new ToolStripButton("Open", null,  (s, e) => OpenSystem())             { ToolTipText = "Open a saved JSON snapshot" });
-            toolStrip.Items.Add(new ToolStripButton("Save", null,  (s, e) => SaveActiveSystem())       { ToolTipText = "Save the active system" });
+            toolStrip.Items.Add(new ToolStripButton("Open",         LoadIcon("Open"),     (s, e) => OpenSystem())            { ToolTipText = "Open a saved JSON snapshot",                    TextImageRelation = TextImageRelation.ImageAboveText, DisplayStyle = ToolStripItemDisplayStyle.ImageAndText });
+            toolStrip.Items.Add(new ToolStripButton("Import",       LoadIcon("Download"), (s, e) => ImportFromTravellermap()) { ToolTipText = "Import systems from travellermap.com",           TextImageRelation = TextImageRelation.ImageAboveText, DisplayStyle = ToolStripItemDisplayStyle.ImageAndText });
+            toolStrip.Items.Add(new ToolStripButton("Save",         LoadIcon("Save"),     (s, e) => SaveActiveSystem())      { ToolTipText = "Save the active system",                        TextImageRelation = TextImageRelation.ImageAboveText, DisplayStyle = ToolStripItemDisplayStyle.ImageAndText });
+
             Controls.Add(toolStrip);
+        }
+
+        private static Image? LoadIcon(string name)
+        {
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            string resourceName = $"TravellerGenesis.{name}.png";
+            using var stream = asm.GetManifestResourceStream(resourceName);
+            if (stream == null) return null;
+            return Image.FromStream(stream);
         }
 
         private void BuildStatusStrip()
@@ -116,7 +131,7 @@ namespace TravellerGenesis.Forms
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            var header = new Label
+            leftPanelHeader = new Label
             {
                 Text = "Session Systems",
                 Dock = DockStyle.Top,
@@ -133,7 +148,8 @@ namespace TravellerGenesis.Forms
                 View = View.Details,
                 FullRowSelect = true,
                 GridLines = true,
-                MultiSelect = false
+                MultiSelect = false,
+                ShowGroups = true
             };
             sessionListView.Columns.Add("Seed",     60);
             sessionListView.Columns.Add("Name",    110);
@@ -141,10 +157,33 @@ namespace TravellerGenesis.Forms
             sessionListView.Columns.Add("GG",       36);
             sessionListView.Columns.Add("Belts",    42);
             sessionListView.Columns.Add("Worlds",   46);
-            sessionListView.DoubleClick += SessionListView_DoubleClick;
+            sessionListView.SelectedIndexChanged += SessionListView_SelectedIndexChanged;
+
+            var btnDelete = new Button
+            {
+                Text    = "Clear",
+                Dock    = DockStyle.Left,
+                Width   = 80,
+                Height  = 28
+            };
+            btnDelete.Click += (s, e) => DeleteSelectedSystem();
+
+            var btnClearAll = new Button
+            {
+                Text    = "Clear All",
+                Dock    = DockStyle.Left,
+                Width   = 80,
+                Height  = 28
+            };
+            btnClearAll.Click += (s, e) => ClearAllSystems();
+
+            var btnPanel = new Panel { Dock = DockStyle.Bottom, Height = 32, Padding = new Padding(2) };
+            btnPanel.Controls.Add(btnClearAll);
+            btnPanel.Controls.Add(btnDelete);
 
             leftPanel.Controls.Add(sessionListView);
-            leftPanel.Controls.Add(header);
+            leftPanel.Controls.Add(btnPanel);
+            leftPanel.Controls.Add(leftPanelHeader);
 
             splitter = new Splitter { Dock = DockStyle.Left, Width = 4 };
 
@@ -152,13 +191,57 @@ namespace TravellerGenesis.Forms
             Controls.Add(leftPanel);
         }
 
+        private void BuildRightPanel()
+        {
+            rightPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BorderStyle = BorderStyle.None
+            };
+            Controls.Add(rightPanel);
+        }
+
         // ── Session list helpers ──────────────────────────────────────
+
+        private void DeleteSelectedSystem()
+        {
+            if (sessionListView.SelectedItems.Count == 0) return;
+            var item = sessionListView.SelectedItems[0];
+            var gs   = (GeneratedSystem)item.Tag!;
+
+            sessionSystems.Remove(gs);
+            _panels.Remove(gs);
+            sessionListView.Items.Remove(item);
+
+            if (_activePanel?.GeneratedSystem == gs)
+            {
+                _activePanel = null;
+                rightPanel.Controls.Clear();
+            }
+
+            UpdateStatus();
+        }
+
+        private void ClearAllSystems()
+        {
+            if (sessionSystems.Count == 0) return;
+            if (MessageBox.Show("Remove all systems from the session?", "Clear All",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            sessionSystems.Clear();
+            _panels.Clear();
+            sessionListView.Items.Clear();
+            sessionListView.Groups.Clear();
+            _activePanel = null;
+            rightPanel.Controls.Clear();
+            UpdateStatus();
+        }
 
         private void AddToSessionList(GeneratedSystem gs)
         {
             sessionSystems.Add(gs);
             RefreshSessionRow(gs);
-            UpdateStatus();
+            ShowSystemPanel(gs);
         }
 
         internal void RefreshSessionRow(GeneratedSystem gs)
@@ -180,8 +263,11 @@ namespace TravellerGenesis.Forms
 
             if (existing == null)
             {
-                var item = new ListViewItem(cols) { Tag = gs };
+                var item = new ListViewItem(cols) { Tag = gs, Group = GetOrCreateGroup(gs) };
                 sessionListView.Items.Add(item);
+                // Select the newly added item
+                item.Selected = true;
+                item.EnsureVisible();
             }
             else
             {
@@ -190,34 +276,80 @@ namespace TravellerGenesis.Forms
             }
         }
 
+        private void RefreshLeftPanelHeader()
+        {
+            if (sessionListView.Groups.Count == 1)
+                leftPanelHeader.Text = sessionListView.Groups[0].Header;
+            else
+                leftPanelHeader.Text = "Session Systems";
+        }
+
+        private ListViewGroup GetOrCreateGroup(GeneratedSystem gs)
+        {
+            string groupKey = gs.Snapshot.ImportSource ?? "Session";
+            string groupHeader = groupKey == "Session" ? "Session" : groupKey;
+
+            foreach (ListViewGroup g in sessionListView.Groups)
+                if (g.Name == groupKey) return g;
+
+            var group = new ListViewGroup(groupKey, groupHeader);
+            sessionListView.Groups.Add(group);
+            return group;
+        }
+
         private void UpdateStatus()
         {
             int n = sessionSystems.Count;
-            string active = ActiveMdiChild is SystemOverviewForm sof ? $" | {sof.GeneratedSystem.DisplayName}" : "";
-            statusLabel.Text = $"{n} system{(n == 1 ? "" : "s")} in session{active}";
+            if (_activePanel != null)
+            {
+                var gs = _activePanel.GeneratedSystem;
+                string dirty = gs.IsDirty ? " *" : "";
+                string name = $"System — {gs.Seed} — {gs.DisplayName}{dirty}";
+                statusLabel.Text = $"{n} system{(n == 1 ? "" : "s")} in session  |  {name}";
+            }
+            else
+            {
+                statusLabel.Text = $"{n} system{(n == 1 ? "" : "s")} in session";
+            }
         }
 
-        private void SessionListView_DoubleClick(object? sender, EventArgs e)
+        // Called by SystemOverviewPanel when data changes
+        internal void NotifySystemChanged(GeneratedSystem gs)
+        {
+            RefreshSessionRow(gs);
+            UpdateStatus();
+        }
+
+        private void SessionListView_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (sessionListView.SelectedItems.Count == 0) return;
             var gs = (GeneratedSystem)sessionListView.SelectedItems[0].Tag!;
-            OpenOrActivateOverview(gs);
+            ShowSystemPanel(gs);
         }
 
-        private void OpenOrActivateOverview(GeneratedSystem gs)
+        private void ShowSystemPanel(GeneratedSystem gs)
         {
-            // Look for an already-open child
-            foreach (Form child in MdiChildren)
-                if (child is SystemOverviewForm sof && sof.GeneratedSystem == gs)
-                {
-                    sof.Activate();
-                    return;
-                }
+            // Reuse existing panel for this system
+            if (!_panels.TryGetValue(gs, out var panel))
+            {
+                panel = new SystemOverviewPanel(gs, this, Settings);
+                _panels[gs] = panel;
+            }
 
-            var form = new SystemOverviewForm(gs, this, Settings);
-            form.MdiParent = this;
-            form.Show();
+            if (_activePanel == panel) return;
+
+            // Swap the panel
+            rightPanel.SuspendLayout();
+            rightPanel.Controls.Clear();
+            rightPanel.Controls.Add(panel);
+            rightPanel.ResumeLayout();
+
+            _activePanel = panel;
             UpdateStatus();
+
+            // Sync list selection
+            foreach (ListViewItem lvi in sessionListView.Items)
+                if (lvi.Tag == gs && !lvi.Selected) { lvi.Selected = true; break; }
         }
 
         // ── Actions ───────────────────────────────────────────────────
@@ -228,6 +360,25 @@ namespace TravellerGenesis.Forms
             dlg.ShowDialog(this);
         }
 
+        private void ImportFromTravellermap()
+        {
+            using var dlg = new ImportDialog();
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            Cursor = Cursors.WaitCursor;
+            try
+            {
+                foreach (var gs in dlg.ImportedSystems)
+                {
+                    MaybeApplyBenford(gs);
+                    AddToSessionList(gs);
+                }
+                if (dlg.ImportedSystems.Count > 0)
+                    statusLabel.Text = $"Imported {dlg.ImportedSystems.Count} system{(dlg.ImportedSystems.Count == 1 ? "" : "s")}.";
+                RefreshLeftPanelHeader();
+            }
+            finally { Cursor = Cursors.Default; }
+        }
+
         private void NewRandomSystem()
         {
             Cursor = Cursors.WaitCursor;
@@ -236,8 +387,8 @@ namespace TravellerGenesis.Forms
                 var ss = new StarSystem(generateFiles: false);
                 var snapshot = BuildSnapshot(ss, new Dictionary<string, string>());
                 var gs = new GeneratedSystem { System = ss, Snapshot = snapshot };
+                MaybeApplyBenford(gs);
                 AddToSessionList(gs);
-                OpenOrActivateOverview(gs);
             }
             catch (Exception ex)
             {
@@ -267,8 +418,8 @@ namespace TravellerGenesis.Forms
 
                 var snapshot = BuildSnapshot(ss, names);
                 var gs = new GeneratedSystem { System = ss, Snapshot = snapshot, Names = names };
+                MaybeApplyBenford(gs);
                 AddToSessionList(gs);
-                OpenOrActivateOverview(gs);
             }
             catch (Exception ex)
             {
@@ -297,7 +448,6 @@ namespace TravellerGenesis.Forms
                     Names = new Dictionary<string, string>(snapshot.Names)
                 };
                 AddToSessionList(gs);
-                OpenOrActivateOverview(gs);
             }
             catch (Exception ex)
             {
@@ -307,14 +457,14 @@ namespace TravellerGenesis.Forms
 
         private void SaveActiveSystem()
         {
-            if (ActiveMdiChild is SystemOverviewForm sof)
-                SaveSystem(sof.GeneratedSystem, forceDialog: false);
+            if (_activePanel != null)
+                SaveSystem(_activePanel.GeneratedSystem, forceDialog: false);
         }
 
         private void SaveSystemAs()
         {
-            if (ActiveMdiChild is SystemOverviewForm sof)
-                SaveSystem(sof.GeneratedSystem, forceDialog: true);
+            if (_activePanel != null)
+                SaveSystem(_activePanel.GeneratedSystem, forceDialog: true);
         }
 
         internal void SaveSystem(GeneratedSystem gs, bool forceDialog)
@@ -340,16 +490,38 @@ namespace TravellerGenesis.Forms
                 File.WriteAllText(gs.FilePath, json);
                 gs.IsDirty = false;
                 RefreshSessionRow(gs);
-                // Update any open child title
-                foreach (Form child in MdiChildren)
-                    if (child is SystemOverviewForm sof && sof.GeneratedSystem == gs)
-                        sof.RefreshTitle();
+                UpdateStatus();
                 statusLabel.Text = $"Saved: {Path.GetFileName(gs.FilePath)}";
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error saving: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // ── Benford's Law post-processor ─────────────────────────────
+
+        private void MaybeApplyBenford(GeneratedSystem gs)
+        {
+            if (!Settings.UseBenfordsLaw) return;
+            // Use a seed derived from the system seed for reproducibility
+            var rng  = new Random(gs.Seed ^ 0x42BEFF);
+            var snap = gs.Snapshot;
+
+            if (snap.Mainworld != null)
+            {
+                snap.Mainworld.ActualPopulation    = BenfordsLaw.Apply(snap.Mainworld.ActualPopulation, rng);
+                snap.Mainworld.TotalUrbanPopulation = BenfordsLaw.Apply(snap.Mainworld.TotalUrbanPopulation, rng);
+                foreach (var city in snap.Mainworld.MajorCities)
+                    city.Population = BenfordsLaw.Apply(city.Population, rng);
+                // Re-sum city total to stay consistent
+                snap.Mainworld.MajorCityPopulation = 0;
+                foreach (var city in snap.Mainworld.MajorCities)
+                    snap.Mainworld.MajorCityPopulation += city.Population;
+            }
+
+            foreach (var aiw in snap.AdditionalInhabitedWorlds)
+                aiw.ActualPopulation = BenfordsLaw.Apply(aiw.ActualPopulation, rng);
         }
 
         // ── Snapshot builder ──────────────────────────────────────────
@@ -381,12 +553,6 @@ namespace TravellerGenesis.Forms
             string path = Path.Combine(Directory.GetCurrentDirectory(), "systems");
             Directory.CreateDirectory(path);
             return path;
-        }
-
-        protected override void OnMdiChildActivate(EventArgs e)
-        {
-            base.OnMdiChildActivate(e);
-            UpdateStatus();
         }
     }
 }

@@ -14,8 +14,8 @@ namespace TravellerSystemGenerator
         // Build: Increment with each build
 
         public const int Major = 4;
-        public const int Minor = 0;
-        public const int Build = 0;
+        public const int Minor = 1;
+        public const int Build = 11;
 
         public static string VersionString => $"{Major}.{Minor}.{Build}";
 
@@ -94,5 +94,17 @@ namespace TravellerSystemGenerator
         // 3.0.0  - Major release: spaceports, military branches, military budget
         // 3.0.1  - JSON save/load: systems/*.json snapshots, --no-json flag, --load <file> option
         // 4.0.0  - Rebranded to Traveller Genesis; Core library extracted; generateFiles flag; GUI support (TravellerGenesis.exe)
+        // 4.1.0  - Travellermap.com import: TravellerMapImporter, ImportedSystemBuilder, T5SS field overrides; new SystemSnapshot fields (HexLocation, Allegiance, TravelZone, ImportSource, Nobility)
+        // 4.1.1  - Fix imported UWP: patch Worlds/Surveys lists as well as Mainworld.UWP; fix Stars column name lookup
+        // 4.1.2  - Pre-populate mainworld Name from system name on import; background sector prefetch on startup
+        // 4.1.3  - Cap moon orbits at Hill Sphere Moon Limit
+        // 4.1.4  - Oxygen fraction formula simplified: removed third term ((1d6-1)/20)
+        // 4.1.5  - Tidal lock axial tilt: 3:2 and 1:1 locks cap tilt to ((2d6)-2)/10° if > 3°; 1:1 lock re-rolls eccentricity with -2 DM if > 0.1, keeps lower
+        // 4.1.6  - Basic mean temperature: adjusted result 0 corrected from 178 K to 188 K (−85 °C)
+        // 4.1.7  - Albedo: rocky terrestrial density threshold lowered from > 0.5 to > 0.4
+        // 4.1.8  - Highport: add Population <= 6: -1 DM
+        // 4.1.9  - Import fix: RecalculateStarportDependents resets highport/berthing/traffic/docking/shipyard after canonical UWP+bases applied
+        // 4.1.10 - Import fix: ApplyBases always resets all base flags (was skipping reset for empty/"-" field); RecalculateTechLevels+RecalculateMilitary added to use canonical TL/starport/bases
+        // 4.1.11 - Import fix: RecalculateEconomicDerivedFields recomputes GWP/WTN/DevelopmentScore using canonical TL/starport/EF/R/I/trade-codes after all T5SS overrides applied
     }
 }

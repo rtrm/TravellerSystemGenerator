@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IISS Class IV Survey - A V o</title>
+    <title>IISS Class IV Survey - A V<br>Under the authority of A VII</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
+        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
         .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; }
         .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }
         .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }
@@ -16,14 +16,23 @@
         .field-label { font-weight: bold; width: 150px; }
         .field-value { }
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 900px) {
+            body { margin: 8px; }
+            .container { padding: 10px; width: 100%; }
+            .two-column { grid-template-columns: 1fr; }
+        }
         .back-link { margin-bottom: 10px; }
         .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }
+        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 1em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }
+        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="back-link">
-            <a href="../system.html">&larr; Back to System Overview</a>
+            <a href="../StarSystem.html">&larr; Back to System Overview</a>
+            | <a href="PopulatedWorldDetails.html">Population Details &rarr;</a>
         </div>
         <div class="header" style="text-align: center;">
             <h1 style="margin: 0;">IISS CLASS IV SURVEY</h1>
@@ -35,8 +44,8 @@
                 <th>SAH/UWP</th>
             </tr>
             <tr>
-                <td>A V o</td>
-                <td>1</td>
+                <td>A V<br>Under the authority of A VII</td>
+                <td>FAA2463-E</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -58,7 +67,7 @@
                 <th>Travel Zone</th>
             </tr>
             <tr>
-                <td colspan="2">A V</td>
+                <td colspan="2">A</td>
                 <td>6.20</td>
                 <td></td>
             </tr>
@@ -73,10 +82,10 @@
             </tr>
             <tr>
                 <td><strong>Notes:</strong></td>
-                <td>2.43</td>
-                <td colspan="2">0.83</td>
-                <td>0.000</td>
-                <td colspan="2"></td>
+                <td>2.20</td>
+                <td colspan="2">0.76</td>
+                <td>0.003</td>
+                <td colspan="2">304.6d</td>
             </tr>
             <tr>
                 <td colspan="7"></td>
@@ -94,12 +103,12 @@
             </tr>
             <tr>
                 <td style="background-color: #d3d3d3; border-top: none;"></td>
-                <td>1,947</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td>16,266</td>
+                <td>Rock and Metal</td>
+                <td>0.97</td>
+                <td>1.24</td>
+                <td>1.58</td>
+                <td>12.45</td>
             </tr>
             <tr>
                 <td colspan="7"><strong>Notes:</strong></td>
@@ -108,23 +117,21 @@
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="2">ATMOSPHERE</th>
-                <th colspan="2">Pressure (bar)</th>
-                <th colspan="3">Composition</th>
+                <th>Pressure (bar)</th>
+                <td></td>
+                <th>Composition</th>
+                <td colspan="2">Exotic</td>
                 <th>O<sub>2</sub> (bar)</th>
-            </tr>
-            <tr>
-                <td colspan="2"></td>
-                <td colspan="3"></td>
                 <td></td>
             </tr>
             <tr>
                 <th>Taints</th>
-                <td colspan="5"></td>
+                <td colspan="4">None</td>
                 <th>Scale Height</th>
+                <td></td>
             </tr>
             <tr>
-                <th>Notes</th>
-                <td colspan="6"></td>
+                <td colspan="8"><strong>Notes:</strong></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -135,9 +142,9 @@
                 <th colspan="2">Distribution</th>
             </tr>
             <tr>
+                <td colspan="2">24.5%</td>
                 <td colspan="2"></td>
-                <td colspan="2"></td>
-                <td colspan="2"></td>
+                <td colspan="2">Very Concentrated</td>
             </tr>
             <tr>
                 <th>Major bodies</th>
@@ -153,47 +160,49 @@
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="2">ROTATION</th>
-                <th colspan="2">Sidereal</th>
-                <th colspan="2">Solar</th>
+                <th>Sidereal</th>
+                <td style="background-color: white;">20d 0h 0m (20.00)</td>
+                <th>Solar</th>
+                <td style="background-color: white;">21d 9h 43m (21.41)</td>
                 <th>Solar days/year</th>
+                <td style="background-color: white;">14.2294</td>
                 <th>Axial Tilt</th>
+                <td style="background-color: white;">1° 0' (1.00°)</td>
             </tr>
             <tr>
-                <td colspan="2"></td>
-                <td colspan="2"></td>
-                <td></td>
-                <td></td>
+                <th>Tidal lock?</th>
+                <td style="background-color: white;">No</td>
+                <th>Tides</th>
+                <td colspan="5" style="background-color: white;">Total: 22.4m; A: 0.5m; A V c: 17.6m</td>
             </tr>
-            <tr>
-                <th></th>
-                <th colspan="2">Tidal lock?</th>
-                <th colspan="3">Tides</th>
-                <td></td>
-            </tr>
+        </table>
+        <table style="margin-bottom: 10px;">
             <tr>
                 <th>Notes</th>
-                <td colspan="6"></td>
+            </tr>
+            <tr>
+                <td>Very slow rotation</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="3">TEMPERATURE</th>
                 <th>High</th>
-                <td></td>
+                <td>212K (-61°C)</td>
                 <th colspan="2">Luminosity</th>
                 <th colspan="2"><strong>Notes:</strong></th>
             </tr>
             <tr>
                 <th>Mean</th>
-                <td></td>
+                <td>178K (-95°C)</td>
                 <th colspan="2">Albedo</th>
-                <td colspan="2"></td>
+                <td colspan="2">0.64</td>
             </tr>
             <tr>
                 <th>Low</th>
-                <td></td>
+                <td>56K (-217°C)</td>
                 <th colspan="2">Greenhouse</th>
-                <td colspan="2"></td>
+                <td colspan="2">0.50</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -205,11 +214,11 @@
                 <th>Major Tectonic Plates</th>
             </tr>
             <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td colspan="2"></td>
-                <td></td>
+                <td>16.4</td>
+                <td>14.4</td>
+                <td>2.0</td>
+                <td colspan="2">0.0</td>
+                <td>8</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -223,11 +232,14 @@
             </tr>
             <tr>
                 <th>Notes</th>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td>0</td>
+                <td>0</td>
+                <td>No</td>
+                <td>0</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td colspan="6"></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -238,7 +250,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td></td>
+                <td>8</td>
                 <td colspan="4"></td>
             </tr>
         </table>
@@ -250,8 +262,50 @@
             </tr>
             <tr>
                 <td></td>
-                <td></td>
+                <td>0</td>
                 <td colspan="4"></td>
+            </tr>
+        </table>
+        <table style="margin-bottom: 10px;">
+            <tr>
+                <th>SUBORDINATES</th>
+                <th>SAH/UWP</th>
+                <th>Orbit (PD)</th>
+                <th>Orbit (km)</th>
+                <th>Ecc</th>
+                <th>Diameter</th>
+                <th>Density</th>
+                <th>Mass</th>
+                <th>Period (h)</th>
+                <th>Size(°)</th>
+            </tr>
+            <tr>
+                <td><a href="A_V_c.html">A V<br>Under the authority of A VII c</a></td>
+                <td>S</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>818</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="A_V_a.html">A V<br>Under the authority of A VII a</a></td>
+                <td>S</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>890</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <th>Notes</th>
+                <td colspan="9"></td>
             </tr>
         </table>
         <table>
@@ -260,6 +314,31 @@
             </tr>
             <tr>
                 <td style="height: 100px;"></td>
+            </tr>
+        </table>
+        <table style="margin-top: 10px;">
+            <tr>
+                <th colspan="2">SECONDARY WORLD STATUS</th>
+            </tr>
+            <tr>
+                <th>Authority</th>
+                <td>Under the authority of A VII</td>
+            </tr>
+            <tr>
+                <th>Government</th>
+                <td>6 - Captive Government (under A VII)</td>
+            </tr>
+            <tr>
+                <th>Gov Profile</th>
+                <td><span class="gov-tooltip" data-tooltip="Gov: 6 Captive Government&#10;Centralisation: C Confederal&#10;Authority: E Executive&#10;Structure: R Ruler">6-CER</span></td>
+            </tr>
+            <tr>
+                <th>Tech Level</th>
+                <td>E</td>
+            </tr>
+            <tr>
+                <th>Law Level</th>
+                <td>3</td>
             </tr>
         </table>
     </div>

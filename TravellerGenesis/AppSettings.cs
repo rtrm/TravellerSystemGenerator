@@ -9,6 +9,9 @@ namespace TravellerGenesis
         // Detail windows (Physical Survey, Social Survey, Inhabited World)
         public bool DetailWindowsMdi { get; set; } = false;  // false = SDI (default)
 
+        // Generation options
+        public bool UseBenfordsLaw { get; set; } = false;    // Apply Benford's Law to population figures
+
         // ── Persistence ───────────────────────────────────────────────
 
         private static readonly string SettingsPath = Path.Combine(

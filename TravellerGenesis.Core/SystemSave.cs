@@ -24,6 +24,13 @@ namespace TravellerSystemGenerator
         public int TerrestrialPlanetCount { get; set; }
         // User-assigned names: key = designation ("A III", "A II a") or "system"
         public Dictionary<string, string> Names { get; set; } = new();
+
+        // Travellermap.com import fields (null for locally-generated systems)
+        public string? HexLocation { get; set; }    // e.g. "1910"
+        public string? Allegiance { get; set; }     // e.g. "ImDd"
+        public string? TravelZone { get; set; }     // null / "A" (Amber) / "R" (Red)
+        public string? ImportSource { get; set; }   // e.g. "Spinward Marches / Cronor"
+        public string? Nobility { get; set; }       // raw nobility string from T5SS
     }
 
     internal static class SystemSave

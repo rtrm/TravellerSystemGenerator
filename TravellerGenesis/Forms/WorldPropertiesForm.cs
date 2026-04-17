@@ -15,13 +15,68 @@ namespace TravellerGenesis.Forms
         private readonly SurveyData? survey;
         private readonly MainworldData? mainworld;
         private readonly AdditionalInhabitedWorld? aiw;
-        private readonly SystemOverviewForm? owner;
+        private readonly SystemOverviewPanel? owner;
 
         private TextBox txtName = null!;
 
+        private readonly ToolTip toolTip = new ToolTip
+        {
+            InitialDelay  = 800,
+            AutoPopDelay  = 10000,
+            ReshowDelay   = 400,
+            ShowAlways    = true
+        };
+
+        // ── Tooltip text constants ────────────────────────────────────
+
+        private const string TT_GOV_PROFILE =
+            "G-CAS format\n" +
+            "G: Government Code\n" +
+            "C: Centralisation  (C=Centralised, F=Fractured, U=Unified)\n" +
+            "A: Authority  (L=Legislative, E=Executive, J=Judicial, B=Balanced)\n" +
+            "S: Structure  (D=Democratic, M=Monarchic, R=Republican, S=Single Party)";
+
+        private const string TT_LAW_PROFILE =
+            "O-WECPR format\n" +
+            "O: Overall Law Level\n" +
+            "W: Weapons & Armour\n" +
+            "E: Economic\n" +
+            "C: Criminal\n" +
+            "P: Private\n" +
+            "R: Personal Rights";
+
+        private const string TT_TL_PROFILE =
+            "H-L-abcde-fghi-jk-l format\n" +
+            "H: High Common TL    L: Low Common TL\n" +
+            "a: Energy            b: Electronics\n" +
+            "c: Manufacturing     d: Medical\n" +
+            "e: Environmental     f: Land Transport\n" +
+            "g: Water Transport   h: Air Transport\n" +
+            "i: Space Transport   j: Personal Military\n" +
+            "k: Heavy Military    l: Novelty";
+
+        private const string TT_JUDICIAL_PROFILE =
+            "PSU-I-D format\n" +
+            "P: Primary Judicial System  (I=Inquisitorial, A=Adversarial, T=Traditional, N=None)\n" +
+            "S: Secondary System\n" +
+            "U: Law Uniformity  (P=Personal, T=Territorial, U=Universal)\n" +
+            "I: Presumption of Innocence  (Y=Yes, N=No)\n" +
+            "D: Death Penalty  (Y=Yes, N=No)";
+
+        private const string TT_CULTURE_PROFILE =
+            "DXUS-CPEM format\n" +
+            "D: Diversity (Heterogeneity)\n" +
+            "X: Xenophilia (Acceptance)\n" +
+            "U: Uniqueness (Strangeness)\n" +
+            "S: Symbology\n" +
+            "C: Cohesion\n" +
+            "P: Progressiveness\n" +
+            "E: Expansionism\n" +
+            "M: Militancy";
+
         public WorldPropertiesForm(GeneratedSystem gs, string desig,
             SurveyData? survey, MainworldData? mainworld, AdditionalInhabitedWorld? aiw,
-            SystemOverviewForm? owner = null)
+            SystemOverviewPanel? owner = null)
         {
             this.gs        = gs;
             this.desig     = desig;
@@ -86,6 +141,10 @@ namespace TravellerGenesis.Forms
             AddSH(tlp, "World Identification");
             AddRow(tlp, "SAH / UWP:", survey!.SAH_UWP);
             AddRow(tlp, "Designation:", desig);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.HexLocation))
+                AddRow(tlp, "Hex Location:", gs.Snapshot.HexLocation);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.TravelZone))
+                AddRow(tlp, "Travel Zone:", gs.Snapshot.TravelZone == "R" ? "Red (Interdicted)" : "Amber (Caution)");
 
             AddSH(tlp, "Orbital Data");
             AddRow(tlp, "Orbit #:", survey.OrbitNumber.ToString("F1"));
@@ -160,6 +219,16 @@ namespace TravellerGenesis.Forms
             AddSH(tlp, "World");
             AddRow(tlp, "UWP:", mw.UWP);
             AddRow(tlp, "Starport:", mw.Starport.ToString());
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.HexLocation))
+                AddRow(tlp, "Hex Location:", gs.Snapshot.HexLocation);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.Allegiance))
+                AddRow(tlp, "Allegiance:", gs.Snapshot.Allegiance);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.TravelZone))
+                AddRow(tlp, "Travel Zone:", gs.Snapshot.TravelZone == "R" ? "Red (Interdicted)" : "Amber (Caution)");
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.Nobility))
+                AddRow(tlp, "Nobility:", gs.Snapshot.Nobility);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.ImportSource))
+                AddRow(tlp, "Import Source:", gs.Snapshot.ImportSource);
 
             AddSH(tlp, "Population");
             AddRow(tlp, "Population Code:", mw.Population.ToString());
@@ -188,7 +257,7 @@ namespace TravellerGenesis.Forms
             AddSH(tlp, "Government");
             AddRow(tlp, "Government Code:", mw.Government.ToString());
             AddRow(tlp, "Type:", mw.GovernmentType);
-            AddRow(tlp, "Profile:", mw.GovernmentProfile);
+            AddRow(tlp, "Profile:", mw.GovernmentProfile, TT_GOV_PROFILE);
             AddRow(tlp, "Centralisation:", $"{mw.CentralisationCode} — {mw.CentralisationType}");
             AddRow(tlp, "Authority:", $"{mw.AuthorityCode} — {mw.AuthorityType}");
             AddRow(tlp, "Structure:", $"{mw.StructureCode} — {mw.StructureType}");
@@ -205,7 +274,7 @@ namespace TravellerGenesis.Forms
 
             AddSH(tlp, "Law Level");
             AddRow(tlp, "Law Level:", mw.LawLevel.ToString());
-            AddRow(tlp, "Profile:", mw.LawLevels.Profile);
+            AddRow(tlp, "Profile:", mw.LawLevels.Profile, TT_LAW_PROFILE);
             AddRow(tlp, "Weapons:", mw.LawLevels.WeaponsLevel.ToString());
             AddRow(tlp, "Economic:", mw.LawLevels.EconomicLevel.ToString());
             AddRow(tlp, "Criminal:", mw.LawLevels.CriminalLevel.ToString());
@@ -216,17 +285,17 @@ namespace TravellerGenesis.Forms
             AddRow(tlp, "Tech Level (UWP):", mw.TechLevel.ToString());
             AddRow(tlp, "High Common TL:", mw.TechLevels.HighCommonTL.ToString());
             AddRow(tlp, "Low Common TL:", mw.TechLevels.LowCommonTL.ToString());
-            AddRow(tlp, "TL Profile:", mw.TechLevels.Profile);
+            AddRow(tlp, "TL Profile:", mw.TechLevels.Profile, TT_TL_PROFILE);
 
             AddSH(tlp, "Judicial System");
             AddRow(tlp, "System:", $"{mw.Judicial.JudicialSystemCode} — {mw.Judicial.JudicialSystemType}");
-            AddRow(tlp, "Profile:", mw.Judicial.Profile);
+            AddRow(tlp, "Profile:", mw.Judicial.Profile, TT_JUDICIAL_PROFILE);
             AddRow(tlp, "Uniformity:", mw.Judicial.UniformityType);
             AddRow(tlp, "Presumption:", mw.Judicial.PresumptionOfInnocence ? "Innocent until proven guilty" : "Guilty until proven innocent");
             AddRow(tlp, "Death Penalty:", mw.Judicial.DeathPenalty ? "Yes" : "No");
 
             AddSH(tlp, "Culture");
-            AddRow(tlp, "Profile:", mw.Culture.Profile);
+            AddRow(tlp, "Profile:", mw.Culture.Profile, TT_CULTURE_PROFILE);
             AddRow(tlp, "Diversity:", mw.Culture.Diversity.ToString());
             AddRow(tlp, "Xenophilia:", mw.Culture.Xenophilia.ToString());
             AddRow(tlp, "Uniqueness:", mw.Culture.Uniqueness.ToString());
@@ -284,8 +353,9 @@ namespace TravellerGenesis.Forms
             if (mw.Military.MarineBranch        > 0) AddRow(tlp, "Marine:",         EHex(mw.Military.MarineBranch));
 
             AddSH(tlp, "Trade Codes");
-            AddRow(tlp, "Codes:", mw.TradeCodes.Count > 0
-                ? string.Join("  ", mw.TradeCodes.Select(t => t.Code)) : "None");
+            string tcText = mw.TradeCodes.Count > 0 ? string.Join("  ", mw.TradeCodes.Select(t => t.Code)) : "None";
+            string? tcTip = mw.TradeCodes.Count > 0 ? string.Join("\n", mw.TradeCodes.Select(t => $"{t.Code}: {t.Name}")) : null;
+            AddRow(tlp, "Codes:", tcText, tcTip);
 
             AddNotes(tlp, $"{nameKey}:social:notes");
 
@@ -306,6 +376,14 @@ namespace TravellerGenesis.Forms
             AddSH(tlp, "World");
             AddRow(tlp, "UWP:", w.UWP);
             AddRow(tlp, "Authority:", w.IsIndependent ? "Independent World" : $"Under authority of {w.AuthorityDesignation}");
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.HexLocation))
+                AddRow(tlp, "Hex Location:", gs.Snapshot.HexLocation);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.Allegiance))
+                AddRow(tlp, "Allegiance:", gs.Snapshot.Allegiance);
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.TravelZone))
+                AddRow(tlp, "Travel Zone:", gs.Snapshot.TravelZone == "R" ? "Red (Interdicted)" : "Amber (Caution)");
+            if (!string.IsNullOrWhiteSpace(gs.Snapshot.Nobility))
+                AddRow(tlp, "Nobility:", gs.Snapshot.Nobility);
 
             AddSH(tlp, "Population");
             AddRow(tlp, "Population Code:", w.PopulationCode.ToString());
@@ -314,7 +392,7 @@ namespace TravellerGenesis.Forms
             AddSH(tlp, "Government");
             AddRow(tlp, "Government Code:", w.GovernmentCode.ToString());
             AddRow(tlp, "Type:", w.GovernmentType);
-            AddRow(tlp, "Profile:", w.GovernmentProfile);
+            AddRow(tlp, "Profile:", w.GovernmentProfile, TT_GOV_PROFILE);
             AddRow(tlp, "Centralisation:", $"{w.CentralisationCode} — {w.CentralisationType}");
             AddRow(tlp, "Authority:", $"{w.AuthorityCode} — {w.AuthorityType}");
             AddRow(tlp, "Structure:", $"{w.StructureCode} — {w.StructureType}");
@@ -331,7 +409,7 @@ namespace TravellerGenesis.Forms
 
             AddSH(tlp, "Law Level");
             AddRow(tlp, "Law Level:", w.LawLevel.ToString());
-            AddRow(tlp, "Profile:", w.LawLevels.Profile);
+            AddRow(tlp, "Profile:", w.LawLevels.Profile, TT_LAW_PROFILE);
             AddRow(tlp, "Weapons:", w.LawLevels.WeaponsLevel.ToString());
             AddRow(tlp, "Economic:", w.LawLevels.EconomicLevel.ToString());
             AddRow(tlp, "Criminal:", w.LawLevels.CriminalLevel.ToString());
@@ -342,17 +420,17 @@ namespace TravellerGenesis.Forms
             AddRow(tlp, "Tech Level:", w.TechLevel.ToString());
             AddRow(tlp, "High Common TL:", w.TechLevels.HighCommonTL.ToString());
             AddRow(tlp, "Low Common TL:", w.TechLevels.LowCommonTL.ToString());
-            AddRow(tlp, "TL Profile:", w.TechLevels.Profile);
+            AddRow(tlp, "TL Profile:", w.TechLevels.Profile, TT_TL_PROFILE);
 
             AddSH(tlp, "Judicial System");
             AddRow(tlp, "System:", $"{w.Judicial.JudicialSystemCode} — {w.Judicial.JudicialSystemType}");
-            AddRow(tlp, "Profile:", w.Judicial.Profile);
+            AddRow(tlp, "Profile:", w.Judicial.Profile, TT_JUDICIAL_PROFILE);
             AddRow(tlp, "Uniformity:", w.Judicial.UniformityType);
             AddRow(tlp, "Presumption:", w.Judicial.PresumptionOfInnocence ? "Innocent until proven guilty" : "Guilty until proven innocent");
             AddRow(tlp, "Death Penalty:", w.Judicial.DeathPenalty ? "Yes" : "No");
 
             AddSH(tlp, "Culture");
-            AddRow(tlp, "Profile:", w.Culture.Profile);
+            AddRow(tlp, "Profile:", w.Culture.Profile, TT_CULTURE_PROFILE);
             AddRow(tlp, "Diversity:", w.Culture.Diversity.ToString());
             AddRow(tlp, "Xenophilia:", w.Culture.Xenophilia.ToString());
             AddRow(tlp, "Uniqueness:", w.Culture.Uniqueness.ToString());
@@ -409,8 +487,9 @@ namespace TravellerGenesis.Forms
             if (w.Military.MarineBranch        > 0) AddRow(tlp, "Marine:",         EHex(w.Military.MarineBranch));
 
             AddSH(tlp, "Trade Codes");
-            AddRow(tlp, "Codes:", w.TradeCodes.Count > 0
-                ? string.Join("  ", w.TradeCodes.Select(t => t.Code)) : "None");
+            string wTcText = w.TradeCodes.Count > 0 ? string.Join("  ", w.TradeCodes.Select(t => t.Code)) : "None";
+            string? wTcTip = w.TradeCodes.Count > 0 ? string.Join("\n", w.TradeCodes.Select(t => $"{t.Code}: {t.Name}")) : null;
+            AddRow(tlp, "Codes:", wTcText, wTcTip);
 
             AddNotes(tlp, $"{nameKey}:social:notes");
 
@@ -468,10 +547,12 @@ namespace TravellerGenesis.Forms
             tlp.Controls.Add(lbl);
         }
 
-        private static void AddRow(TableLayoutPanel tlp, string label, string value)
+        private void AddRow(TableLayoutPanel tlp, string label, string value, string? tooltip = null)
         {
             tlp.Controls.Add(new Label { Text = label, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 6, 0) });
-            tlp.Controls.Add(new Label { Text = value, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
+            var val = new Label { Text = value, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+            if (tooltip != null) toolTip.SetToolTip(val, tooltip);
+            tlp.Controls.Add(val);
         }
 
         private static string EHex(int v) =>

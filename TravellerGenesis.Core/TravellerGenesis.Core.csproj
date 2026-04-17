@@ -15,4 +15,9 @@
       <_Parameter1>TravellerGenesis</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
+
+  <Target Name="SignOutput" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Exec Command="powershell -NoProfile -Command &quot;&amp; (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Where-Object { $_.FullName -like '*x64*' } | Sort-Object FullName -Descending | Select-Object -First 1).FullName sign /t http://time.certum.pl /fd sha1 /sha1 18F514F64CFE362CDC6684FE5C2E6F6A50BAC98F /v '$(TargetPath)'&quot;" />
+  </Target>
+
 </Project>

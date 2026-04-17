@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IISS Class IV Survey - A V a</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
+        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
         .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; }
         .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }
         .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }
@@ -16,14 +16,22 @@
         .field-label { font-weight: bold; width: 150px; }
         .field-value { }
         .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 900px) {
+            body { margin: 8px; }
+            .container { padding: 10px; width: 100%; }
+            .two-column { grid-template-columns: 1fr; }
+        }
         .back-link { margin-bottom: 10px; }
         .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }
+        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 1em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }
+        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="back-link">
-            <a href="../system.html">&larr; Back to System Overview</a>
+            <a href="../StarSystem.html">&larr; Back to System Overview</a>
         </div>
         <div class="header" style="text-align: center;">
             <h1 style="margin: 0;">IISS CLASS IV SURVEY</h1>
@@ -36,7 +44,7 @@
             </tr>
             <tr>
                 <td>A V a</td>
-                <td>D</td>
+                <td>S00</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -67,16 +75,16 @@
             <tr>
                 <th>ORBIT</th>
                 <th>O#</th>
-                <th colspan="2">AU</th>
+                <th colspan="2">Distance</th>
                 <th>Eccentricity</th>
                 <th colspan="2">Period</th>
             </tr>
             <tr>
                 <td><strong>Notes:</strong></td>
-                <td>2.43</td>
-                <td colspan="2">0.83</td>
-                <td>0.000</td>
-                <td colspan="2"></td>
+                <td>5.95</td>
+                <td colspan="2">96783 km</td>
+                <td>0.090</td>
+                <td colspan="2">2d 18.2h R</td>
             </tr>
             <tr>
                 <td colspan="7"></td>
@@ -94,12 +102,12 @@
             </tr>
             <tr>
                 <td style="background-color: #d3d3d3; border-top: none;"></td>
-                <td>21,307</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td>890</td>
+                <td>Mostly Ice</td>
+                <td>0.24</td>
+                <td>0.02</td>
+                <td>0.00</td>
+                <td>1.45</td>
             </tr>
             <tr>
                 <td colspan="7"><strong>Notes:</strong></td>
@@ -108,23 +116,21 @@
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="2">ATMOSPHERE</th>
-                <th colspan="2">Pressure (bar)</th>
-                <th colspan="3">Composition</th>
+                <th>Pressure (bar)</th>
+                <td></td>
+                <th>Composition</th>
+                <td colspan="2">None</td>
                 <th>O<sub>2</sub> (bar)</th>
-            </tr>
-            <tr>
-                <td colspan="2"></td>
-                <td colspan="3"></td>
                 <td></td>
             </tr>
             <tr>
                 <th>Taints</th>
-                <td colspan="5"></td>
+                <td colspan="4">None</td>
                 <th>Scale Height</th>
+                <td></td>
             </tr>
             <tr>
-                <th>Notes</th>
-                <td colspan="6"></td>
+                <td colspan="8"><strong>Notes:</strong></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -153,47 +159,49 @@
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="2">ROTATION</th>
-                <th colspan="2">Sidereal</th>
-                <th colspan="2">Solar</th>
+                <th>Sidereal</th>
+                <td style="background-color: white;">66h 12m 13s (66.20)</td>
+                <th>Solar</th>
+                <td style="background-color: white;">66h 48m 31s (66.81)</td>
                 <th>Solar days/year</th>
+                <td style="background-color: white;">109.4183</td>
                 <th>Axial Tilt</th>
+                <td style="background-color: white;">6° 0' (6.00°)</td>
             </tr>
             <tr>
-                <td colspan="2"></td>
-                <td colspan="2"></td>
-                <td></td>
-                <td></td>
+                <th>Tidal lock?</th>
+                <td style="background-color: white;">1:1</td>
+                <th>Tides</th>
+                <td colspan="5" style="background-color: white;">Total: 320.9m; A V: 310.4m</td>
             </tr>
-            <tr>
-                <th></th>
-                <th colspan="2">Tidal lock?</th>
-                <th colspan="3">Tides</th>
-                <td></td>
-            </tr>
+        </table>
+        <table style="margin-bottom: 10px;">
             <tr>
                 <th>Notes</th>
-                <td colspan="6"></td>
+            </tr>
+            <tr>
+                <td>1:1 lock to world</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
             <tr>
                 <th rowspan="3">TEMPERATURE</th>
                 <th>High</th>
-                <td></td>
+                <td>197K (-76°C)</td>
                 <th colspan="2">Luminosity</th>
                 <th colspan="2"><strong>Notes:</strong></th>
             </tr>
             <tr>
                 <th>Mean</th>
-                <td></td>
+                <td>165K (-108°C)</td>
                 <th colspan="2">Albedo</th>
-                <td colspan="2"></td>
+                <td colspan="2">0.00</td>
             </tr>
             <tr>
                 <th>Low</th>
-                <td></td>
+                <td>52K (-221°C)</td>
                 <th colspan="2">Greenhouse</th>
-                <td colspan="2"></td>
+                <td colspan="2">0.00</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -205,11 +213,11 @@
                 <th>Major Tectonic Plates</th>
             </tr>
             <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td colspan="2"></td>
-                <td></td>
+                <td>32.0</td>
+                <td>0.0</td>
+                <td>32.0</td>
+                <td colspan="2">0.0</td>
+                <td>0</td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -223,11 +231,14 @@
             </tr>
             <tr>
                 <th>Notes</th>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td>0</td>
+                <td>0</td>
+                <td>No</td>
+                <td>0</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td colspan="6"></td>
             </tr>
         </table>
         <table style="margin-bottom: 10px;">
@@ -238,7 +249,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td></td>
+                <td>2</td>
                 <td colspan="4"></td>
             </tr>
         </table>
@@ -250,7 +261,7 @@
             </tr>
             <tr>
                 <td></td>
-                <td></td>
+                <td>0</td>
                 <td colspan="4"></td>
             </tr>
         </table>

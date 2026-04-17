@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inhabited World - A V</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }
+        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th, td { border: 1px solid #000; padding: 6px; }
+        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }
+        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }
+        @media (max-width: 900px) {
+            body { margin: 8px; }
+            .container { padding: 10px; width: 100%; }
+            .label { width: 120px; }
+        }
+        .back-link { margin-bottom: 10px; }
+        .back-link a { text-decoration: none; color: #0066cc; }
+        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; }
+        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }
+        .header-tooltip { position: relative; }
+        .header-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre; font-family: monospace; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 300px; }
+        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .grid-2col table { margin-bottom: 0; }
+        .empty-field { background-color: #f9f9f9; }
+        @media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-link">
+            <a href="../StarSystem.html">&larr; Back to System Overview</a>
+            &nbsp;|&nbsp; <a href="A_V.html">IISS Class IV Survey</a>
+        </div>
+        <div class="header">
+            <h2 style="margin: 0;">INHABITED WORLD</h2>
+        </div>
+        <table>
+            <tr>
+                <th style="width: 60%;">World</th>
+                <th style="width: 40%;">UWP</th>
+            </tr>
+            <tr>
+                <td>A V</td>
+                <td>FAA2463-E</td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th colspan="2">AUTHORITY</th>
+            </tr>
+            <tr>
+                <td class="label">Status:</td>
+                <td>Under the authority of A VII</td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th colspan="2">POPULATION</th>
+            </tr>
+            <tr>
+                <td class="label">Population Code:</td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td class="label">Total:</td>
+                <td>87,093</td>
+            </tr>
+            <tr>
+                <td class="label">Demographics:</td>
+                <td></td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th colspan="2">GOVERNMENT</th>
+            </tr>
+            <tr>
+                <td class="label">Type:</td>
+                <td>6 - Captive Government (under A VII)</td>
+            </tr>
+            <tr>
+                <td class="label">Gov Profile:</td>
+                <td><span class="gov-tooltip" data-tooltip="Gov: 6 Captive Government&#10;Centralisation: C Confederal&#10;Authority: E Executive&#10;Structure: R Ruler">6-CER</span></td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th colspan="2">TECH LEVEL</th>
+            </tr>
+            <tr>
+                <td class="label">Tech Level (UWP):</td>
+                <td>E</td>
+            </tr>
+            <tr>
+                <td class="label">High Common TL:</td>
+                <td>E</td>
+            </tr>
+            <tr>
+                <td class="label">Low Common TL:</td>
+                <td>E</td>
+            </tr>
+            <tr>
+                <td class="label">Tech Level Profile:</td>
+                <td><span class="gov-tooltip" data-tooltip="H-L-abcde-fghi-jk-l format&#10;H: High Common TL  L: Low Common TL&#10;a: Energy  b: Electronics  c: Manufacturing  d: Medical  e: Environmental&#10;f: Land Transport  g: Water Transport  h: Air Transport  i: Space Transport&#10;j: Personal Military  k: Heavy Military  l: Novelty">E-E-EFDFE-EEED-ED-X</span></td>
+            </tr>
+            <tr>
+                <td class="label">Energy:</td>
+                <td><span class="gov-tooltip" data-tooltip="Power generation, storage and distribution technology">E</span></td>
+            </tr>
+            <tr>
+                <td class="label">Electronics:</td>
+                <td><span class="gov-tooltip" data-tooltip="Computing, communications and sensor technology">F</span></td>
+            </tr>
+            <tr>
+                <td class="label">Manufacturing:</td>
+                <td><span class="gov-tooltip" data-tooltip="Industrial production and materials technology">D</span></td>
+            </tr>
+            <tr>
+                <td class="label">Medical:</td>
+                <td><span class="gov-tooltip" data-tooltip="Healthcare, biology and pharmaceutical technology">F</span></td>
+            </tr>
+            <tr>
+                <td class="label">Environmental:</td>
+                <td><span class="gov-tooltip" data-tooltip="Life support, terraforming and habitat technology">E</span></td>
+            </tr>
+            <tr>
+                <td class="label">Land Transport:</td>
+                <td><span class="gov-tooltip" data-tooltip="Ground vehicle and surface transport technology">E</span></td>
+            </tr>
+            <tr>
+                <td class="label">Water Transport:</td>
+                <td><span class="gov-tooltip" data-tooltip="Naval and aquatic transport technology">E</span></td>
+            </tr>
+            <tr>
+                <td class="label">Air Transport:</td>
+                <td><span class="gov-tooltip" data-tooltip="Aviation and atmospheric flight technology">E</span></td>
+            </tr>
+            <tr>
+                <td class="label">Space Transport:</td>
+                <td><span class="gov-tooltip" data-tooltip="Spacecraft, drives and orbital technology">D</span></td>
+            </tr>
+            <tr>
+                <td class="label">Personal Military:</td>
+                <td><span class="gov-tooltip" data-tooltip="Personal weapons, armour and individual combat technology">E</span></td>
+            </tr>
+            <tr>
+                <td class="label">Heavy Military:</td>
+                <td><span class="gov-tooltip" data-tooltip="Military vehicles, warships and heavy weapons technology">D</span></td>
+            </tr>
+            <tr>
+                <td class="label">Novelty:</td>
+                <td><span class="gov-tooltip" data-tooltip="Experimental and cutting-edge technology (not yet defined)">X</span></td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th colspan="2">LAW LEVEL</th>
+            </tr>
+            <tr>
+                <td class="label">Law Level:</td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td class="label">Judicial System:</td>
+                <td><span class="gov-tooltip" data-tooltip="Adversarial&#10;Also called common law. Precedents and interpretations of the law are paramount. The judicial court acts as a referee for a prosecutor and defendant who present evidence to determine guilt. Final determination may be by judicial court officials, a jury or some other method.">A - Adversarial</span></td>
+            </tr>
+            <tr>
+                <td class="label">Law Uniformity:</td>
+                <td><span class="gov-tooltip" data-tooltip="Territorial&#10;Within the world or nation's government, subdivisions or local governments are able to set specific laws that may not apply to the government as a whole. Often, such differing restrictions apply to only one or two subcategories of Law Level or may result in complications such as non-transferable contracts, licenses or permits.">T - Territorial</span></td>
+            </tr>
+            <tr>
+                <td class="label">Presumption of Innocence:</td>
+                <td>Yes</td>
+            </tr>
+            <tr>
+                <td class="label">Death Penalty:</td>
+                <td>No</td>
+            </tr>
+            <tr>
+                <td class="label">Judicial Profile:</td>
+                <td><span class="gov-tooltip" data-tooltip="PSU-I-D format&#10;P: Primary Judicial System (I=Inquisitorial, A=Adversarial, T=Traditional, N=None)&#10;S: Secondary System (same as primary if none)&#10;U: Law Uniformity (P=Personal, T=Territorial, U=Universal)&#10;I: Presumption of Innocence (Y=Yes, N=No)&#10;D: Death Penalty (Y=Yes, N=No)">AAT-Y-N</span></td>
+            </tr>
+            <tr>
+                <td class="label">Law Level Profile:</td>
+                <td><span class="gov-tooltip" data-tooltip="O-WECPR format&#10;O: Overall Law Level&#10;W: Weapons & Armour Law Level&#10;E: Economic Law Level&#10;C: Criminal Law Level&#10;P: Private Law Level&#10;R: Personal Rights Law Level">3-43535</span></td>
+            </tr>
+            <tr>
+                <td class="label">Weapons:</td>
+                <td><span class="gov-tooltip" data-tooltip="1: Poison gas, explosives, undetectable weapons, WMDs & battle dress&#10;2: Portable energy and laser weapons, combat armour&#10;3: Military weapons (portable heavy weapons), flak jackets & obvious armour&#10;4: Light assault weapons & SMGs (all fully automatic weapons), cloth armour">4</span></td>
+            </tr>
+            <tr>
+                <td class="label">Economics:</td>
+                <td><span class="gov-tooltip" data-tooltip="Basic permitting and zoning laws, required licensing of corporations and tax reporting, bankruptcy law">3</span></td>
+            </tr>
+            <tr>
+                <td class="label">Criminal:</td>
+                <td><span class="gov-tooltip" data-tooltip="Trivial crimes prosecuted">5</span></td>
+            </tr>
+            <tr>
+                <td class="label">Private:</td>
+                <td><span class="gov-tooltip" data-tooltip="Private settlement of all crimes prohibited">3</span></td>
+            </tr>
+            <tr>
+                <td class="label">Personal Rights:</td>
+                <td><span class="gov-tooltip" data-tooltip="Mandatory identification papers">5</span></td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th colspan="2" class="header-tooltip" data-tooltip="Cultural Trait Summary&#10;&#10;Trait            Code  Low Value        High Value&#10;Diversity        D     Monolithic       Multicultural&#10;Xenophilia       X     Xenophobic       Xenophilic&#10;Uniqueness       U     Normal           Obscure&#10;Symbology        S     Concrete         Abstract&#10;Cohesion         C     Individualistic  Collective&#10;Progressiveness  P     Reactionary      Radical&#10;Expansionism     E     Passive          Expansionistic&#10;Militancy        M     Peaceful         Militant">CULTURAL</th>
+            </tr>
+            <tr>
+                <td class="label">Diversity:</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td class="label">Xenophilia:</td>
+                <td>6</td>
+            </tr>
+            <tr>
+                <td class="label">Uniqueness:</td>
+                <td>E</td>
+            </tr>
+            <tr>
+                <td class="label">Symbology:</td>
+                <td>D</td>
+            </tr>
+            <tr>
+                <td class="label">Cohesion:</td>
+                <td>A</td>
+            </tr>
+            <tr>
+                <td class="label">Progressiveness:</td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td class="label">Expansionism:</td>
+                <td>6</td>
+            </tr>
+            <tr>
+                <td class="label">Militancy:</td>
+                <td>9</td>
+            </tr>
+            <tr>
+                <td class="label">Cultural Profile:</td>
+                <td><span class="gov-tooltip" data-tooltip="DXUS-CPEM format&#10;D: Diversity  X: Xenophilia  U: Uniqueness  S: Symbology&#10;C: Cohesion  P: Progressiveness  E: Expansionism  M: Militancy">06ED-A469</span></td>
+            </tr>
+        </table>
+        <table>
+            <tr><th colspan="2">ECONOMICS</th></tr>
+            <tr><td class="label">Trade Code(s):</td><td>None</td></tr>
+            <tr><td class="label">Importance:</td><td>+0</td></tr>
+            <tr><td class="label">Resources:</td><td>8</td></tr>
+            <tr><td class="label">Labour:</td><td>3</td></tr>
+            <tr><td class="label">Infrastructure:</td><td>5</td></tr>
+            <tr><td class="label">Efficiency:</td><td>+4</td></tr>
+            <tr><td class="label">RU:</td><td>480</td></tr>
+            <tr><td class="label">GWP per capita:</td><td>Cr 43,680.00</td></tr>
+            <tr><td class="label">WTN:</td><td>4</td></tr>
+            <tr><td class="label">Inequality Rating:</td><td>46</td></tr>
+            <tr><td class="label">Development Score:</td><td>23.59</td></tr>
+            <tr><td class="label">GWP (MCr):</td><td>MCr 3,804.22</td></tr>
+            <tr><td class="label">Tariffs:</td><td>Free Trade Zone, no tariffs</td></tr>
+        </table>
+        <table>
+            <tr>
+                <th style="width: 120px;">SPACEPORT</th>
+                <td class="label" style="width: auto;">Class:</td>
+                <td>F</td>
+                <td class="label" style="width: auto;">Highport?</td>
+                <td>No</td>
+                <td class="label" style="width: auto;">Expected Weekly Traffic:</td>
+                <td>5</td>
+                <td class="label" style="width: auto;">Berthing Fees:</td>
+                <td>Cr 300</td>
+            </tr>
+            <tr>
+                <td class="label">Capacity:</td>
+                <td colspan="3">26,400 tons</td>
+                <td class="label" style="width: auto;">Shipyard:</td>
+                <td>-</td>
+                <td class="label" style="width: auto;">Annual Output:</td>
+                <td colspan="2">-</td>
+            </tr>
+            <tr>
+                <td class="label">Bases:</td>
+                <td class="label" style="width: auto;">Navy:</td>
+                <td>No</td>
+                <td class="label" style="width: auto;">Scout:</td>
+                <td>Yes</td>
+                <td class="label" style="width: auto;">Military:</td>
+                <td>No</td>
+                <td class="label" style="width: auto;">Other:</td>
+                <td>No</td>
+            </tr>
+            <tr>
+                <td class="label">Notes:</td>
+                <td colspan="8" class="empty-field" style="height: 40px;"></td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th style="width: 120px;">MILITARY</th>
+                <td class="label" style="width: auto;">Effective Budget %:</td>
+                <td colspan="7">4.76%</td>
+            </tr>
+            <tr>
+                <td class="label">Enforcement:</td>
+                <td>6</td>
+                <td class="label" style="width: auto;">Militia:</td>
+                <td>-</td>
+                <td class="label" style="width: auto;">Army:</td>
+                <td>7</td>
+                <td class="label" style="width: auto;">Wet Navy:</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td class="label">Air Force:</td>
+                <td>-</td>
+                <td class="label" style="width: auto;">System Defence:</td>
+                <td>-</td>
+                <td class="label" style="width: auto;">Navy:</td>
+                <td>-</td>
+                <td class="label" style="width: auto;">Marine:</td>
+                <td>-</td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <th>COMMENTS</th>
+            </tr>
+            <tr>
+                <td style="height: 100px;"></td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
