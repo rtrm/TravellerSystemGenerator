@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>TravellerGenesis</AssemblyName>
+    <RootNamespace>TravellerGenesis</RootNamespace>
+    <ApplicationIcon>TravellerGenesis.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="TravellerGenesis.ico" />
+    <EmbeddedResource Include="Random.png" />
+    <EmbeddedResource Include="UWP.png" />
+    <EmbeddedResource Include="Open.png" />
+    <EmbeddedResource Include="Download.png" />
+    <EmbeddedResource Include="Save.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TravellerGenesis.Core\TravellerGenesis.Core.csproj" />
+  </ItemGroup>
+
+
+  <Target Name="SignOutput" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Exec Command="powershell -NoProfile -Command &quot;&amp; (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Where-Object { $_.FullName -like '*x64*' } | Sort-Object FullName -Descending | Select-Object -First 1).FullName sign /t http://time.certum.pl /fd sha1 /sha1 18F514F64CFE362CDC6684FE5C2E6F6A50BAC98F /v '$(TargetPath)'&quot;" />
+  </Target>
+
+</Project>

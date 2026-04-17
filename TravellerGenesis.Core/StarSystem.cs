@@ -1,0 +1,19491 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.Text.Json.Serialization;
+//using System.Deployment.Internal;
+using System.Linq;
+using System.Reflection;
+//using System.Runtime.InteropServices.WindowsRuntime;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace TravellerSystemGenerator
+{
+    // Helper class for displaying star data in table format
+    internal class StarDisplayData
+    {
+        public string Component { get; set; } = "";
+        public string? ParentDesignation { get; set; } // For "Aab (A)" notation
+        public string Class { get; set; } = "";
+        public float Mass { get; set; }
+        public float Temp { get; set; }
+        public float Diameter { get; set; }
+        public float Luminosity { get; set; }
+        public float? Orbit { get; set; } // nullable for primary
+        public float? AU { get; set; }
+        public float? Ecc { get; set; }
+        public string? Period { get; set; }
+        public float MAO { get; set; }
+        public float HZCO { get; set; }
+        public bool IsCombined { get; set; }
+        public int SortOrder { get; set; } // For proper ordering
+    }
+
+    // Helper class for displaying world data in table format
+    internal class WorldDisplayData
+    {
+        public string Name { get; set; } = "";  // System name (only for mainworld)
+        public string Primary { get; set; } = "";
+        public string Object { get; set; } = "";
+        public string Type { get; set; } = "";  // Object type: Gas Giant, Planetoid Belt, Terrestrial Planet
+        public string Size { get; set; } = ""; // Size code for terrestrial planets (or UWP for mainworld)
+        public string Orbit { get; set; } = ""; // Orbit number (may include (R) suffix for Random orbit)
+        public float OrbitNumber { get; set; } // Numeric orbit for sorting
+        public float AU { get; set; }
+        public float Ecc { get; set; }
+        public string Period { get; set; } = "";
+        public string Sub { get; set; } = "";  // Significant moons count minus rings
+        public string Notes { get; set; } = "";
+        public List<Moon> Moons { get; set; } = new List<Moon>();
+    }
+
+    // Helper class for IISS Class IV Survey data
+    internal class SurveyData
+    {
+        public string WorldName { get; set; } = "";
+        public string SAH_UWP { get; set; } = "";
+        public string PrimaryObject { get; set; } = "";
+        public string SystemAge { get; set; } = "";
+        public float OrbitNumber { get; set; }
+        public float AU { get; set; }
+        public float Eccentricity { get; set; }
+        public string Period { get; set; } = "";
+        public int Diameter { get; set; }
+        public string Composition { get; set; } = "";
+        public float Density { get; set; } = 0;
+        public float Gravity { get; set; } = 0;
+        public float Mass { get; set; } = 0;
+        public float EscapeVelocity { get; set; } = 0;
+        public string Atmosphere { get; set; } = "";
+        public string AtmosphereComposition { get; set; } = "";
+        public float AtmosphericPressure { get; set; } = 0;
+        public int MeanTemperatureK { get; set; } = 0;
+        public int MeanTemperatureC { get; set; } = 0;
+        public float HydrographicsCoverage { get; set; } = 0;
+        public string HydrographicsCode { get; set; } = "";
+        public string SurfaceDistribution { get; set; } = "";
+        public float Albedo { get; set; } = 0;
+        public float Greenhouse { get; set; } = 0;
+        public int HighTemperatureK { get; set; } = 0;
+        public int HighTemperatureC { get; set; } = 0;
+        public int LowTemperatureK { get; set; } = 0;
+        public int LowTemperatureC { get; set; } = 0;
+        public float BasicRotationRateHours { get; set; } = 0;  // Sidereal rotation period
+        public float SolarDaysInLocalYear { get; set; } = 0;    // Solar days per year
+        public float SolarDayHours { get; set; } = 0;           // Solar day length
+        public float AxialTilt { get; set; } = 0;               // Axial tilt in degrees
+        public string TidalLockStatus { get; set; } = "";       // Tidal lock status
+        public float TotalTidalForce { get; set; } = 0;         // Total tidal force in meters
+        public List<TidalForceContribution> TidalForceContributions { get; set; } = new List<TidalForceContribution>();
+        public float ResidualSeismicStress { get; set; } = 0;   // Residual seismic stress
+        public float TidalStressFactor { get; set; } = 0;       // Tidal stress factor
+        public float TidalHeatingEffects { get; set; } = 0;     // Tidal heating effects
+        public float TotalSeismicStress { get; set; } = 0;      // Total seismic stress
+        public int NumberOfMajorTectonicPlates { get; set; } = 0; // Number of major tectonic plates
+        public string AtmosphericTaint { get; set; } = "None";   // Atmospheric taint
+        public int BiomassRating { get; set; } = 0;              // Biomass rating
+        public int BiocomplexityRating { get; set; } = 0;        // Biocomplexity rating
+        public string BiocomplexityDescription { get; set; } = ""; // Biocomplexity description
+        public string CurrentNativeSophont { get; set; } = "No"; // Current native sophonts
+        public bool ExtinctNativeSophont { get; set; } = false;  // Extinct native sophonts
+        public int BiodiversityRating { get; set; } = 0;         // Biodiversity rating
+        public int CompatibilityRating { get; set; } = 0;        // Compatibility rating
+        public int ResourceRating { get; set; } = 0;             // Resource rating
+        public int HabitabilityRating { get; set; } = 0;         // Habitability rating
+        public List<Moon> Moons { get; set; } = new List<Moon>();
+        public string Filename { get; set; } = "";
+        public AdditionalInhabitedWorld? AIWData { get; set; } = null;  // non-null if this is an AIW world
+        [JsonIgnore] public object? WorldObject { get; set; } = null;  // the actual world object (TP, Moon, Belt)
+    }
+
+    internal class TradeCode
+    {
+        public string Name { get; set; } = "";
+        public string Code { get; set; } = "";
+
+        public TradeCode() {}
+        public TradeCode(string name, string code)
+        {
+            Name = name;
+            Code = code;
+        }
+    }
+
+    internal class MajorCity
+    {
+        public int Number { get; set; }
+        public string Name { get; set; } = "";
+        public long Population { get; set; }
+        public double PercentOfMajorCityPop { get; set; }
+
+        public MajorCity() {}
+        public MajorCity(int number, long population, double percent)
+        {
+            Number = number;
+            Name = ToRoman(number);
+            Population = population;
+            PercentOfMajorCityPop = percent;
+        }
+
+        internal static string ToRoman(int number)
+        {
+            if (number < 1) return "";
+            if (number >= 40) return "XL" + ToRoman(number - 40);
+            if (number >= 10) return "X" + ToRoman(number - 10);
+            if (number >= 9) return "IX" + ToRoman(number - 9);
+            if (number >= 5) return "V" + ToRoman(number - 5);
+            if (number >= 4) return "IV" + ToRoman(number - 4);
+            if (number >= 1) return "I" + ToRoman(number - 1);
+            return "";
+        }
+    }
+
+    internal class MainworldData
+    {
+        public char Starport { get; set; }
+        public int Size { get; set; }
+        public int Atmosphere { get; set; }
+        public int Hydrographics { get; set; }
+        public int Population { get; set; }
+        public int Government { get; set; }
+        public int LawLevel { get; set; }
+        public int TechLevel { get; set; }
+        public int? GasGiantCount { get; set; }
+        public int? PlanetoidBeltCount { get; set; }
+        public int? OtherWorldCount { get; set; }
+        public string UWP { get; set; } = ""; // The 8-character UWP (A123456-7)
+        [JsonIgnore] public object? PlacedWorld { get; set; } // The world/moon selected as mainworld (CelestialBody or Moon)
+        public int PopulationP { get; set; } // Population multiplier (0-9)
+        public long ActualPopulation { get; set; } // Actual population count
+        public string GovernmentType { get; set; } = ""; // Government type description
+
+        // Population Details
+        public List<TradeCode> TradeCodes { get; set; } = new List<TradeCode>();
+        public int PCR { get; set; } // Population Concentration Rating (0-9)
+        public string PCRDescription { get; set; } = ""; // Description of PCR
+        public int UrbanisationPercent { get; set; } // Urbanisation percentage (0-100)
+        public long TotalUrbanPopulation { get; set; } // Total urban population count
+        public int NumberOfMajorCities { get; set; } // Number of major cities
+        public long MajorCityPopulation { get; set; } // Total population in major cities
+        public List<MajorCity> MajorCities { get; set; } = new List<MajorCity>();
+
+        // Government Profile Details
+        public string CentralisationCode { get; set; } = "";  // C/F/U or "n/a"
+        public string CentralisationType { get; set; } = "";
+        public string AuthorityCode { get; set; } = "";       // L/E/J/B or "n/a"
+        public string AuthorityType { get; set; } = "";
+        public string StructureCode { get; set; } = "";       // D/M/R/S or "n/a"
+        public string StructureType { get; set; } = "";
+        public string GovernmentProfile { get; set; } = "";   // G-CAS
+
+        // Judicial System
+        public JudicialData Judicial { get; set; } = new();
+        public LawLevelData LawLevels { get; set; } = new();
+        public TechLevelData TechLevels { get; set; } = new();
+        public CulturalData Culture { get; set; } = new();
+
+        // Bases, Waystation, and Starport details
+        public bool HasHighport         { get; set; }
+        public bool HasNavalBase        { get; set; }
+        public bool HasScoutBase        { get; set; }
+        public bool HasMilitaryBase     { get; set; }
+        public bool HasCorsairBase      { get; set; }
+        public bool HasXBoatWaystation  { get; set; }
+        public string BerthingFees      { get; set; } = "";
+
+        public int ExpectedWeeklyTraffic { get; set; }
+        public int HighportTotalDocking  { get; set; }  // tons
+        public int DownportTotalDocking  { get; set; }  // tons
+        public int StarportBuildCapacity { get; set; }  // tons (shown as Shipyard)
+        public int AnnualShipyardOutput  { get; set; }  // tons
+
+        public EconomicsData Economics  { get; set; } = new();
+        public MilitaryData Military    { get; set; } = new();
+    }
+
+    internal class AdditionalInhabitedWorld
+    {
+        [JsonIgnore] public object World { get; set; } = null!;  // TerrestrialPlanet, Moon, or PlanetoidBelt
+        public string WorldDesignation { get; set; } = "";
+        public int PopulationCode { get; set; }  // ehex digit 1+ (never 0 after checks)
+        public int PopulationP { get; set; }     // multiplier 0-9
+        public long ActualPopulation { get; set; }
+
+        // Stored world properties (captured at generation time)
+        public int HabitabilityRating { get; set; }
+        public int ResourceRating { get; set; }
+        public int Atmosphere { get; set; }       // numeric value
+        public int Hydrographics { get; set; }    // numeric 0-10
+        public bool IsInHabitableZone { get; set; }
+
+        // Government (set by DetermineSecondaryWorldGovernments)
+        public bool IsIndependent { get; set; } = true;
+        public string AuthorityDesignation { get; set; } = "";  // e.g. "A VI"
+        public int GovernmentCode { get; set; }
+        public string GovernmentType { get; set; } = "";
+        public string CentralisationCode { get; set; } = "";
+        public string CentralisationType { get; set; } = "";
+        public string AuthorityCode { get; set; } = "";
+        public string AuthorityType { get; set; } = "";
+        public string StructureCode { get; set; } = "";
+        public string StructureType { get; set; } = "";
+        public string GovernmentProfile { get; set; } = "";
+
+        // Classifications (set by DetermineSecondaryWorldTradeCodes)
+        public int TechLevel { get; set; }
+        public int LawLevel { get; set; }
+        public List<TradeCode> TradeCodes { get; set; } = new();
+        public string SizeCode { get; set; } = "0";  // Size character from world object (e.g. "7", "S", "0")
+        public string UWP { get; set; } = "";        // Full UWP: X{Size}{Atm}{Hyd}{Pop}{Gov}{Law}-{TL}
+
+        // Judicial System
+        public JudicialData Judicial { get; set; } = new();
+        public List<Faction> Factions { get; set; } = new();  // populated for Gov 7 secondary worlds
+        public LawLevelData LawLevels { get; set; } = new();
+        public TechLevelData TechLevels { get; set; } = new();
+        public int PCR { get; set; }  // Population Concentration Rating (for law level DMs)
+        public CulturalData Culture { get; set; } = new();
+
+        // Spaceport
+        public char SpaceportClass         { get; set; } = 'Y';  // H/G/F/Y
+        public char EquivalentStarportClass { get; set; } = 'X';  // X/E/D/C/B/A
+        public bool HasHighport            { get; set; }
+        public string BerthingFees         { get; set; } = "";
+        public int ExpectedWeeklyTraffic   { get; set; }
+        public int HighportTotalDocking    { get; set; }
+        public int DownportTotalDocking    { get; set; }
+        public int StarportBuildCapacity   { get; set; }
+        public int AnnualShipyardOutput    { get; set; }
+
+        // Bases
+        public bool HasNavalBase    { get; set; }
+        public bool HasScoutBase    { get; set; }
+        public bool HasMilitaryBase { get; set; }
+        public bool HasCorsairBase  { get; set; }
+
+        public EconomicsData Economics           { get; set; } = new();
+        public List<FactionRelationship> FactionRelationships { get; set; } = new();
+        public MilitaryData Military             { get; set; } = new();
+    }
+
+    internal class GovernmentData
+    {
+        public int Code { get; set; }
+        public string Type { get; set; } = "";
+        public string CentralisationCode { get; set; } = "";  // C/F/U or "n/a"
+        public string CentralisationType { get; set; } = "";
+        public string AuthorityCode { get; set; } = "";       // L/E/J/B or "n/a"
+        public string AuthorityType { get; set; } = "";
+        public string StructureCode { get; set; } = "";       // D/M/R/S or "n/a"
+        public string StructureType { get; set; } = "";
+        public string Profile { get; set; } = "";             // G-CAS
+    }
+
+    internal class Nation
+    {
+        public int Number { get; set; }          // Sequential within parent faction (1, 2, 3...)
+        public GovernmentData Government { get; set; } = new();
+        public List<Faction> SubFactions { get; set; } = new();
+        public List<FactionRelationship> SubFactionRelationships { get; set; } = new();
+        public int LawLevel { get; set; }
+        public JudicialData Judicial { get; set; } = new();
+        public LawLevelData LawLevels { get; set; } = new();
+        public TechLevelData TechLevels { get; set; } = new();
+        public CulturalData Culture { get; set; } = new();
+    }
+
+    internal class JudicialData
+    {
+        public string JudicialSystemCode { get; set; } = "";    // I/A/T/N
+        public string JudicialSystemType { get; set; } = "";
+        public string SecondarySystemCode { get; set; } = "";   // I/A/T/N (same as primary if no secondary)
+        public string SecondarySystemType { get; set; } = "";
+        public string UniformityCode { get; set; } = "";        // P/T/U
+        public string UniformityType { get; set; } = "";
+        public bool PresumptionOfInnocence { get; set; }
+        public bool DeathPenalty { get; set; }
+        public string Profile { get; set; } = "";               // PSU-I-D format
+    }
+
+    internal class LawLevelData
+    {
+        public int WeaponsLevel { get; set; }       // Weapons & Armour Law Level
+        public int EconomicLevel { get; set; }      // Economic Law Level
+        public int CriminalLevel { get; set; }      // Criminal Law Level
+        public int PrivateLevel { get; set; }       // Private Law Level
+        public int PersonalRightsLevel { get; set; } // Personal Rights Law Level
+        public string Profile { get; set; } = "";   // O-WECPR format
+    }
+
+    internal class TechLevelData
+    {
+        public int HighCommonTL { get; set; }
+        public int LowCommonTL { get; set; }
+        public int EnergyTL { get; set; }
+        public int ElectronicsTL { get; set; }
+        public int ManufacturingTL { get; set; }
+        public int MedicalTL { get; set; }
+        public int EnvironmentalTL { get; set; }
+        public int LandTransportTL { get; set; }
+        public int WaterTransportTL { get; set; }
+        public int AirTransportTL { get; set; }
+        public int SpaceTransportTL { get; set; }
+        public int PersonalMilitaryTL { get; set; }
+        public int HeavyMilitaryTL { get; set; }
+        public int NoveltyTL { get; set; } = -1;   // -1 = not yet defined; display as "X"
+        public string Profile { get; set; } = "";   // H-L-abcde-fghi-jk-l
+    }
+
+    internal class CulturalData
+    {
+        public int Diversity { get; set; }
+        public int Xenophilia { get; set; }
+        public int Uniqueness { get; set; }
+        public int Symbology { get; set; }
+        public int Cohesion { get; set; }
+        public int Progressiveness { get; set; }
+        public int Expansionism { get; set; }
+        public int Militancy { get; set; }
+        public string Profile { get; set; } = "";   // DXUS-CPEM
+    }
+
+    internal class EconomicsData
+    {
+        public int Importance            { get; set; }
+        public int ResourceFactor        { get; set; }
+        public int LabourFactor          { get; set; }
+        public int InfrastructureFactor  { get; set; }
+        public int EfficiencyFactor      { get; set; }
+        public int ResourceUnits         { get; set; }
+        public double GWPPerCapita       { get; set; }   // in Cr
+        public double TotalGWPMCr        { get; set; }   // in MCr
+        public int WorldTradeNumber      { get; set; }   // stored int, displayed in ehex
+        public int WTNStarportModifier   { get; set; }   // saved for tariff DM
+        public int InequalityRating      { get; set; }
+        public double DevelopmentScore   { get; set; }
+        public string Tariffs            { get; set; } = "";
+    }
+
+    internal class Faction
+    {
+        public int Number { get; set; }          // Sequential number (I, II, III...)
+        public string StrengthCode { get; set; } = "";   // O/F/M/N/S/P/G
+        public string StrengthType { get; set; } = "";
+        public GovernmentData Government { get; set; } = new();
+        public List<Nation> Nations { get; set; } = new();
+        public string Profile { get; set; } = "";        // I-G-S
+    }
+
+    internal class FactionRelationship
+    {
+        public int Faction1Number { get; set; }
+        public int Faction2Number { get; set; }
+        public string Code { get; set; } = "";   // 0-9
+        public string Type { get; set; } = "";
+    }
+
+    internal class MilitaryData
+    {
+        public int    EnforcementBranch    { get; set; }
+        public int    MilitiaBranch        { get; set; }
+        public int    ArmyBranch           { get; set; }
+        public int    WetNavyBranch        { get; set; }
+        public int    AirForceBranch       { get; set; }
+        public int    SystemDefenceBranch  { get; set; }
+        public int    NavyBranch           { get; set; }
+        public int    MarineBranch         { get; set; }
+        public double BasicMilitaryBudget  { get; set; }   // percentage (e.g. 2.15 = 2.15%)
+        public int    BudgetDM             { get; set; }   // stored so subordinate AIWs can inherit it
+    }
+
+    internal class StarSystem
+    {
+        private Random dice;
+        internal int Seed { get; private set; }
+        private bool uniqueHtmlFilename;
+        private bool saveJson;
+        private bool generateFiles;
+        internal MainworldData? mainworld;
+        internal string? systemName;
+        private string primaryDesignation = "";
+        private bool NoMainworld;
+        private List<MainworldData> sophontWorlds = new List<MainworldData>(); // List of worlds/moons with native sophonts
+        internal List<AdditionalInhabitedWorld> additionalInhabitedWorlds = new List<AdditionalInhabitedWorld>();
+        internal List<Faction> worldFactions = new List<Faction>();
+        internal List<FactionRelationship> factionRelationships = new List<FactionRelationship>();
+
+        // Accessible after generation when generateFiles = false (for GUI consumers)
+        internal List<StarDisplayData> StarData { get; private set; } = new();
+        internal List<WorldDisplayData> WorldData { get; private set; } = new();
+        internal List<SurveyData> SurveyDataList { get; private set; } = new();
+
+        internal StarSystem(int? seed = null, bool uniqueHtmlFilename = false, string? mainworldUWP = null, string? name = null, bool noMainworld = false, bool saveJson = true, bool generateFiles = true)
+        {
+            this.uniqueHtmlFilename = uniqueHtmlFilename;
+            this.saveJson = saveJson;
+            this.generateFiles = generateFiles;
+            this.NoMainworld = noMainworld;
+            DebugLogger.LogSection("STAR SYSTEM GENERATION");
+
+            // Parse mainworld UWP if provided (before seed generation)
+            if (!string.IsNullOrEmpty(mainworldUWP))
+            {
+                mainworld = ParseMainworldUWP(mainworldUWP);
+            }
+
+            // Store system name if provided
+            if (!string.IsNullOrEmpty(name))
+            {
+                systemName = name;
+            }
+
+            // Generate or use provided seed
+            int originalSeed;
+            if (seed.HasValue)
+            {
+                originalSeed = seed.Value;
+                Seed = originalSeed;
+            }
+            else
+            {
+                originalSeed = Environment.TickCount;
+                Seed = originalSeed;
+            }
+
+            // Load orbital values once (outside retry loop)
+            DebugLogger.Log("Loading orbital values...");
+            Starhelper.LoadOrbitalValues();
+
+            // Retry loop for atmosphere 4-9 mainworlds that need HZ
+            int attempts = 0;
+            const int maxAttempts = 1000;
+            bool needsHZ = mainworld != null && mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9;
+
+            while (attempts < maxAttempts)
+            {
+                attempts++;
+
+                if (attempts > 1)
+                {
+                    DebugLogger.Log("");
+                    DebugLogger.Log($"Regenerating system (attempt {attempts}) to find habitable zone...");
+                    Seed++;
+                }
+
+                DebugLogger.Log($"Using seed: {Seed}");
+                dice = new Random(Seed);
+                DebugLogger.Log("Random number generator initialized");
+
+                if (mainworld != null)
+                {
+                    DebugLogger.Log($"Mainworld UWP specified: {mainworld.UWP}");
+                    if (mainworld.GasGiantCount.HasValue)
+                        DebugLogger.Log($"  Gas Giants: {mainworld.GasGiantCount.Value}");
+                    if (mainworld.PlanetoidBeltCount.HasValue)
+                        DebugLogger.Log($"  Planetoid Belts: {mainworld.PlanetoidBeltCount.Value}");
+                    if (mainworld.OtherWorldCount.HasValue)
+                        DebugLogger.Log($"  Other Worlds: {mainworld.OtherWorldCount.Value}");
+                }
+
+                if (systemName != null)
+                {
+                    DebugLogger.Log($"System name specified: {systemName}");
+                }
+
+                DebugLogger.Log("");
+                DebugLogger.Log("Creating primary celestial object...");
+                primaryObject = new CelestrialObject();
+
+                DebugLogger.Log("Generating primary star...");
+                primaryObject.celestrialObject = new Star(dice);
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Checking for additional companion stars...");
+            GenerateAdditionalStars(primaryObject, dice);
+
+            // Assign star designations
+            AssignStarDesignations();
+            if (primaryObject.celestrialObject is Star pDesig)
+                primaryDesignation = pDesig.Designation;
+
+            // Calculate orbital periods for all companion stars
+            CalculateAllOrbitalPeriods();
+
+            // Calculate orbital availability (min/max allowable orbits and unavailable ranges)
+            CalculateOrbitalAvailability();
+
+            // Calculate habitable zone center orbits for all non-Companion stars
+            CalculateAllHZCO();
+
+            // Check if mainworld needs HZ and primary star has one
+            if (needsHZ && primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (primaryStar.HZCO <= 0)
+                {
+                    DebugLogger.Log($"WARNING: Mainworld requires HZ (atmosphere {mainworld!.Atmosphere}), but primary star has no HZ (HZCO={primaryStar.HZCO:F3})");
+                    if (attempts < maxAttempts)
+                    {
+                        continue; // Try next seed
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"ERROR: Could not find suitable system after {maxAttempts} attempts");
+                        throw new Exception($"Could not generate system with habitable zone for atmosphere {mainworld.Atmosphere} mainworld after {maxAttempts} attempts");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"Primary star has HZ (HZCO={primaryStar.HZCO:F3}), suitable for atmosphere {mainworld!.Atmosphere} mainworld");
+                }
+            }
+
+            // Determine non-stellar objects
+            // D primary systems must first check if they have a planetary system at all
+            bool hasPlanetarySystem = true;
+            if (primaryObject.celestrialObject is Star pStar && pStar.type == "D")
+            {
+                hasPlanetarySystem = DetermineDPlanetarySystem(dice);
+            }
+
+            if (hasPlanetarySystem)
+            {
+                // Use mainworld counts if provided, otherwise determine randomly
+                if (mainworld != null && mainworld.GasGiantCount.HasValue)
+                {
+                    GasGiantCount = mainworld.GasGiantCount.Value;
+                    DebugLogger.Log($"Using mainworld gas giant count: {GasGiantCount}");
+                }
+                else
+                {
+                    GasGiantCount = DetermineGasGiants(dice);
+                }
+
+                if (mainworld != null && mainworld.PlanetoidBeltCount.HasValue)
+                {
+                    PlanetoidBeltCount = mainworld.PlanetoidBeltCount.Value;
+                    DebugLogger.Log($"Using mainworld planetoid belt count: {PlanetoidBeltCount}");
+                }
+                else
+                {
+                    PlanetoidBeltCount = DeterminePlanetoidBelts(dice, GasGiantCount);
+                }
+
+                if (mainworld != null && mainworld.OtherWorldCount.HasValue)
+                {
+                    TerrestrialPlanetCount = mainworld.OtherWorldCount.Value;
+                    DebugLogger.Log($"Using mainworld other world count: {TerrestrialPlanetCount}");
+                }
+                else
+                {
+                    TerrestrialPlanetCount = DetermineTerrestrialPlanets(dice);
+                }
+
+                // Adjust terrestrial count for mainworld
+                if (mainworld != null)
+                {
+                    // If mainworld size is 0 and there are asteroid belts, mainworld is in a belt
+                    // Otherwise, add 1 for the mainworld itself
+                    if (mainworld.Size == 0 && PlanetoidBeltCount > 0)
+                    {
+                        DebugLogger.Log("Mainworld (size 0) will be placed in an asteroid belt");
+                    }
+                    else
+                    {
+                        TerrestrialPlanetCount += 1;
+                        DebugLogger.Log($"Added 1 to terrestrial count for mainworld. Total: {TerrestrialPlanetCount}");
+                    }
+                }
+            }
+            else
+            {
+                GasGiantCount = 0;
+                PlanetoidBeltCount = 0;
+                TerrestrialPlanetCount = 0;
+            }
+
+            // Calculate total available orbits and assign worlds to stars
+            CalculateOrbitsAndWorlds();
+
+            // Calculate System Baseline Numbers for primary star
+            CalculateAllSystemBaselineNumbers();
+
+            // Calculate Baseline Orbits for primary star
+            CalculateAllBaselineOrbits();
+
+            // Calculate empty orbits and distribute to stars
+            CalculateEmptyOrbits(dice);
+
+            // Calculate system spread for orbit placement
+            CalculateSystemSpread();
+
+            // Place orbits around primary star
+            PlacePrimaryStarOrbits(dice);
+
+            // Place orbits around companion stars
+            PlaceCompanionStarOrbits(dice);
+
+            // Generate anomalous orbits
+            GenerateAnomalousOrbits(dice);
+
+            // Place empty orbits first
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Starting world placement...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            PlaceEmptyOrbits(dice);
+
+            // Place Gas Giants
+            PlaceGasGiants(dice);
+
+            // Place Planetoid Belts
+            PlacePlanetoidBelts(dice);
+
+            // Check if HZ placement options are available for atmosphere 4-9 mainworlds
+            if (needsHZ)
+            {
+                // Count all possible HZ placement options (standalone orbits + gas giant moons)
+                int hzPlacementOptions = 0;
+
+                // Check for standalone HZ orbits (Filled bodies in HZ)
+                var emptyOrbitsForCheck = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+                foreach (var (orbitObj, star) in emptyOrbitsForCheck)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                    if (starHzMin > 0 && orbitObj.orbit >= starHzMin && orbitObj.orbit <= starHzMax)
+                    {
+                        hzPlacementOptions++;
+                    }
+                }
+
+                // Check for gas giants in HZ (can place mainworld as moon)
+                var allGasGiantsForCheck = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+                foreach (var (ggObj, ggStar) in allGasGiantsForCheck)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(ggStar);
+                    if (starHzMin > 0 && ggObj.orbit >= starHzMin && ggObj.orbit <= starHzMax)
+                    {
+                        // Check if gas giant can support moons
+                        if (ggObj.celestrialObject is GasGiant gg)
+                        {
+                            float worldMassEarth = gg.GasGiantMass;
+                            float orbitAU = ggObj.orbitAU;
+                            float eccentricity = ggObj.orbitEccentricity;
+                            float worldDiameterKm = gg.Diameter * 12742.0f; // Convert Earth diameters to km
+                            float totalStarMass = CalculateTotalOrbitedMassForPlanet(ggObj);
+
+                            // Calculate Hill Sphere Moon Limit
+                            float hillSphere = orbitAU * (1.0f - eccentricity) *
+                                               (float)Math.Sqrt((worldMassEarth * 0.000003) / (3.0 * totalStarMass));
+                            float hillSpherePD = hillSphere * (149597870.9f / worldDiameterKm);
+                            float hillSphereMoonLimit = hillSpherePD / 2.0f;
+                            float rocheLimit = 1.537f;
+
+                            // Only count if gas giant can support moons
+                            if (hillSphereMoonLimit > rocheLimit)
+                            {
+                                hzPlacementOptions++;
+                            }
+                        }
+                    }
+                }
+
+                if (hzPlacementOptions == 0)
+                {
+                    DebugLogger.Log($"WARNING: Mainworld requires HZ (atmosphere {mainworld!.Atmosphere}), but no HZ placement options available");
+                    DebugLogger.Log($"  No standalone HZ orbits AND no HZ gas giants available");
+                    if (attempts < maxAttempts)
+                    {
+                        continue; // Try next seed
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"ERROR: Could not find suitable system after {maxAttempts} attempts");
+                        throw new Exception($"Could not generate system with HZ placement options for atmosphere {mainworld.Atmosphere} mainworld after {maxAttempts} attempts");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log($"HZ placement options available for atmosphere {mainworld!.Atmosphere} mainworld:");
+                    DebugLogger.Log($"  Total options: {hzPlacementOptions}");
+                }
+            }
+
+            // Found suitable system, break out of retry loop
+            break;
+        } // End of retry while loop
+
+        if (Seed != originalSeed)
+        {
+            DebugLogger.Log($"");
+            DebugLogger.Log($"Final seed after regeneration: {Seed} (original: {originalSeed})");
+            Console.WriteLine($"Note: System regenerated with seed {Seed} to accommodate mainworld requirements (original seed: {originalSeed})");
+        }
+
+            // Continue with world placement: Trojans, Mainworld, Terrestrial Planets
+            HandleTrojanOrbits(dice);
+
+            if (mainworld != null)
+            {
+                PlaceMainworld(dice);
+            }
+
+            PlaceTerrestrialPlanets(dice);
+
+            DebugLogger.Log("");
+            DebugLogger.Log("World placement complete");
+
+            // Generate moons for worlds
+            GenerateMoons(dice);
+
+            // Assign world designations
+            AssignWorldDesignations();
+
+            // Calculate tidal forces (after designations are assigned)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating tidal forces...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAllTidalForces();
+            DebugLogger.Log("");
+            DebugLogger.Log("Tidal force calculation complete");
+
+            // Calculate seismology (after tidal forces)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating seismology...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAllSeismology();
+            DebugLogger.Log("");
+            DebugLogger.Log("Seismology calculation complete");
+
+            // Calculate atmospheric taints (after seismology, before lifeforms)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating atmospheric taints...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAtmosphericTaints();
+            DebugLogger.Log("");
+            DebugLogger.Log("Atmospheric taints calculation complete");
+
+            // Calculate native lifeforms (after atmospheric taints)
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating native lifeforms...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateNativeLifeforms();
+            DebugLogger.Log("");
+            DebugLogger.Log("Native lifeforms calculation complete");
+
+            // Select mainworld if not specified via command line and not disabled
+            if (mainworld == null && !NoMainworld)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                DebugLogger.Log("Selecting mainworld...");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                SelectMainworld(dice);
+                DebugLogger.Log("");
+                DebugLogger.Log("Mainworld selection complete");
+            }
+
+            // Generate Initial UWP for mainworld if not disabled
+            if (mainworld != null && !NoMainworld)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                DebugLogger.Log("Generating Initial UWP...");
+                DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                GenerateInitialUWP(dice);
+                DebugLogger.Log("");
+                DebugLogger.Log("Initial UWP generation complete");
+
+                // Generate population details for mainworld
+                if (mainworld.Population > 0)
+                {
+                    DebugLogger.Log("");
+                    DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                    DebugLogger.Log("Generating Population Details...");
+                    DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+                    DeterminePopulationDetails(dice);
+                    DebugLogger.Log("");
+                    DebugLogger.Log("Population details generation complete");
+                }
+            }
+
+            // Generate UWPs for sophont worlds that are not the mainworld
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Generating UWPs for sophont worlds...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+
+            // Iterate through all celestial bodies to find sophont worlds
+            foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.CurrentNativeSophont == "Yes")
+                {
+                    // Skip if this is the mainworld
+                    if (mainworld != null && tp == mainworld.PlacedWorld)
+                    {
+                        DebugLogger.Log($"Skipping {tp.Designation} - is mainworld");
+                        continue;
+                    }
+                    DebugLogger.Log($"Generating UWP for {tp.Designation} (sophont terrestrial planet)");
+                    GenerateSophontWorldUWP(tp, dice);
+                }
+                    else if (bodyObj.celestrialObject is GasGiant gg)
+                    {
+                        // Check moons of gas giants
+                        foreach (var moon in gg.Moons)
+                        {
+                            if (moon.CurrentNativeSophont == "Yes")
+                            {
+                                // Skip if this is the mainworld
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    DebugLogger.Log($"Skipping {gg.Designation} {moon.Designation} - is mainworld");
+                                    continue;
+                                }
+                                DebugLogger.Log($"Generating UWP for {gg.Designation} {moon.Designation} (sophont moon)");
+                                GenerateSophontWorldUWP(moon, dice);
+                            }
+                        }
+                    }
+                    else if (bodyObj.celestrialObject is TerrestrialPlanet tpMoons)
+                    {
+                        // Check moons of terrestrial planets
+                        foreach (var moon in tpMoons.Moons)
+                        {
+                            if (moon.CurrentNativeSophont == "Yes")
+                            {
+                                // Skip if this is the mainworld
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    DebugLogger.Log($"Skipping {tpMoons.Designation} {moon.Designation} - is mainworld");
+                                    continue;
+                                }
+                                DebugLogger.Log($"Generating UWP for {tpMoons.Designation} {moon.Designation} (sophont moon)");
+                                GenerateSophontWorldUWP(moon, dice);
+                            }
+                        }
+                    }
+                }
+
+                // Also check companion stars
+                var companionStarObjects = primaryObject.celestrialObjectOrbits
+                    .Where(obj => obj.celestrialObject is Star)
+                    .ToList();
+
+                foreach (var companionObj in companionStarObjects)
+                {
+                    if (companionObj.celestrialObject is Star companionStar)
+                    {
+                        foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.CurrentNativeSophont == "Yes")
+                        {
+                            // Skip if this is the mainworld
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                DebugLogger.Log($"Skipping {tp.Designation} - is mainworld");
+                                continue;
+                            }
+                            DebugLogger.Log($"Generating UWP for {tp.Designation} (sophont terrestrial planet)");
+                            GenerateSophontWorldUWP(tp, dice);
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            // Check moons of gas giants
+                            foreach (var moon in gg.Moons)
+                            {
+                                if (moon.CurrentNativeSophont == "Yes")
+                                {
+                                    // Skip if this is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        DebugLogger.Log($"Skipping {gg.Designation} {moon.Designation} - is mainworld");
+                                        continue;
+                                    }
+                                    DebugLogger.Log($"Generating UWP for {gg.Designation} {moon.Designation} (sophont moon)");
+                                    GenerateSophontWorldUWP(moon, dice);
+                                }
+                            }
+                        }
+                        else if (bodyObj.celestrialObject is TerrestrialPlanet tpMoons)
+                        {
+                            // Check moons of terrestrial planets
+                            foreach (var moon in tpMoons.Moons)
+                            {
+                                if (moon.CurrentNativeSophont == "Yes")
+                                {
+                                    // Skip if this is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        DebugLogger.Log($"Skipping {tpMoons.Designation} {moon.Designation} - is mainworld");
+                                        continue;
+                                    }
+                                    DebugLogger.Log($"Generating UWP for {tpMoons.Designation} {moon.Designation} (sophont moon)");
+                                    GenerateSophontWorldUWP(moon, dice);
+                                }
+                            }
+                        }
+                    }
+                    }
+                }
+
+            DebugLogger.Log("");
+            DebugLogger.Log($"Sophont world UWP generation complete ({sophontWorlds.Count} worlds)");
+
+            // Determine additional inhabited worlds (beyond mainworld and sophont worlds)
+            DetermineAdditionalInhabitedWorlds(dice);
+            DetermineSecondaryWorldGovernments(dice);
+            DetermineSecondaryWorldTradeCodes(dice);
+            DetermineSpaceports(dice);
+            DetermineJudicialSystems(dice);
+            DetermineLawLevelDetails(dice);
+            DetermineTechLevelDetails(dice);
+            DetermineCulturalAttributes(dice);
+            DetermineMainworldBases(dice);
+            DetermineEconomics(dice);
+            DetermineStarportCapacity(dice);
+            DetermineWorldMilitary(dice);
+
+            // Collect data for output (always — GUI consumers read these)
+            StarData = CollectAllStarData();
+            WorldData = CollectAllWorldData();
+
+            if (generateFiles)
+            {
+                // Print console output header
+                Console.WriteLine();
+                Console.WriteLine("═══════════════════════════════════════════════════════════════");
+                Console.WriteLine("              TRAVELLER GENESIS CLI");
+                Console.WriteLine($"                        Version {Version.VersionString}");
+                Console.WriteLine($"                          Seed: {Seed}");
+                Console.WriteLine("═══════════════════════════════════════════════════════════════");
+                Console.WriteLine();
+
+                DebugLogger.LogSection("SYSTEM SUMMARY");
+
+                // Print STELLAR summary
+                PrintStellarSummary();
+
+                // Print STARS table
+                PrintStarsTable(StarData);
+
+                // Print OBJECTS table
+                PrintObjectsTable(WorldData);
+
+                // Print console output footer
+                Console.WriteLine("═══════════════════════════════════════════════════════════════");
+
+                // Generate HTML output
+                GenerateHtmlOutput(StarData, WorldData);
+
+                // Generate IISS Class IV Survey forms
+                SurveyDataList = GenerateSurveyForms();
+
+                // Save JSON snapshot
+                if (saveJson)
+                    SystemSave.Save(this, StarData, WorldData, SurveyDataList, additionalInhabitedWorlds,
+                        worldFactions, factionRelationships, uniqueHtmlFilename);
+            }
+            else
+            {
+                // GUI mode: collect survey data without writing files
+                SurveyDataList = CollectSurveyData();
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.Log("NON-STELLAR OBJECTS SUMMARY:");
+            DebugLogger.LogFormat("  Gas Giants: {0}", GasGiantCount);
+            DebugLogger.LogFormat("  Planetoid Belts: {0}", PlanetoidBeltCount);
+            DebugLogger.LogFormat("  Terrestrial Planets: {0}", TerrestrialPlanetCount);
+            DebugLogger.LogFormat("  System Total Worlds: {0}", SystemTotalWorlds);
+            DebugLogger.LogFormat("  System Total Available Orbits: {0:F2}", SystemTotalAvailableOrbits);
+
+
+            //Console.WriteLine("Primary = " + GetProperty(primaryObject.celestrialObject, "type") + GetProperty(primaryObject.celestrialObject, "subType") + " " + GetProperty(primaryObject.celestrialObject, "starclass"));
+            //if (primary.type != "BD" && primary.type != "D")
+
+                //Console.WriteLine("Primary = " + primary.type + primary.subType + " " + primary.starclass);
+            //if (GetProperty(primaryObject.celestrialObject, "type") != "BD" && GetProperty(primaryObject.celestrialObject, "type") != "D")
+                //Console.WriteLine("Colour = " + GetProperty(primaryObject.celestrialObject, "colour"));
+            //Console.WriteLine("Mass = " + GetProperty(primaryObject.celestrialObject, "mass"));
+            //Console.WriteLine("Temperture = " + GetProperty(primaryObject.celestrialObject, "temperture"));
+            //Console.WriteLine("Diameter = " + GetProperty(primaryObject.celestrialObject, "diameter"));
+            //Console.WriteLine("Luminosity = " + GetProperty(primaryObject.celestrialObject, "luminosity"));
+            //Console.WriteLine("Age = " + GetProperty(primaryObject.celestrialObject, "age"));
+
+            //if(primaryObject.celestrialObjectOrbits.Count > 0)
+            //{
+            //    Console.WriteLine();
+
+            //    Type sec = primaryObject.celestrialObjectOrbits[0].celestrialObject.GetType();
+            //    Type secCO = primaryObject.celestrialObjectOrbits[0].GetType();
+            //    PropertyInfo secType = sec.GetProperty("type");
+            //    PropertyInfo secSubType = sec.GetProperty("subType");
+            //    PropertyInfo secStarClass = sec.GetProperty("starclass");
+            //    PropertyInfo secOrbit = secCO.GetProperty("orbit");
+            //    Console.WriteLine("Close orbit star = " + secType.GetValue(primaryObject.celestrialObjectOrbits[0].celestrialObject, null).ToString() +
+            //        secSubType.GetValue(primaryObject.celestrialObjectOrbits[0].celestrialObject, null).ToString() + " " +
+            //        secStarClass.GetValue(primaryObject.celestrialObjectOrbits[0].celestrialObject, null).ToString());
+            //    Console.WriteLine("Close orbit star orbit = " + secOrbit.GetValue(primaryObject.celestrialObjectOrbits[0], null).ToString());
+            //}
+
+
+        }
+
+        // Constructor for loading from a saved JSON snapshot — regenerates HTML without re-rolling
+        internal StarSystem(SystemSnapshot snapshot, bool uniqueHtmlFilename)
+        {
+            this.uniqueHtmlFilename = uniqueHtmlFilename;
+            this.Seed = snapshot.Seed;
+            this.systemName = snapshot.SystemName;
+            this.mainworld = snapshot.Mainworld;
+            this.primaryDesignation = snapshot.Stars.FirstOrDefault(s => !s.IsCombined)?.Component ?? "";
+            this.additionalInhabitedWorlds = snapshot.AdditionalInhabitedWorlds;
+            this.worldFactions = snapshot.WorldFactions;
+            this.factionRelationships = snapshot.FactionRelationships;
+            this.GasGiantCount = snapshot.GasGiantCount;
+            this.PlanetoidBeltCount = snapshot.PlanetoidBeltCount;
+            this.TerrestrialPlanetCount = snapshot.TerrestrialPlanetCount;
+
+            // Regenerate HTML overview
+            GenerateHtmlOutput(snapshot.Stars, snapshot.Worlds);
+
+            // Regenerate survey forms from stored data
+            string surveysFolder = "surveys";
+            if (System.IO.Directory.Exists(surveysFolder) && !uniqueHtmlFilename)
+            {
+                try { System.IO.Directory.Delete(surveysFolder, true); }
+                catch { }
+            }
+            WriteSurveyForms(snapshot.Surveys, surveysFolder);
+
+            Console.WriteLine($"\nSystem loaded from snapshot (seed {Seed}).");
+        }
+
+        private void GenerateAnomalousOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("GENERATING ANOMALOUS ORBITS");
+
+            // Roll 2d6 for number of anomalous orbits
+            int anomalousRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, anomalousRoll, "Number of anomalous orbits");
+
+            int anomalousCount = 0;
+            if (anomalousRoll <= 9)
+            {
+                anomalousCount = 0;
+            }
+            else if (anomalousRoll == 10)
+            {
+                anomalousCount = 1;
+            }
+            else if (anomalousRoll == 11)
+            {
+                anomalousCount = 2;
+            }
+            else // 12+
+            {
+                anomalousCount = 3;
+            }
+
+            DebugLogger.LogFormat("Anomalous orbits to generate: {0}", anomalousCount);
+
+            if (anomalousCount == 0)
+            {
+                DebugLogger.Log("No anomalous orbits for this system");
+                return;
+            }
+
+            // Get all non-Companion orbit stars for orbit placement
+            List<(Star star, CelestrialObject cobj)> availableStars = new List<(Star, CelestrialObject)>();
+
+            // Add primary
+            if (primaryObject.celestrialObject is Star primaryStar &&
+                primaryStar.starOrbitType != Starhelper.starOrbitType.Companion)
+            {
+                availableStars.Add((primaryStar, primaryObject));
+            }
+
+            // Add Close/Near/Far companions
+            foreach (var companionCobj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionCobj.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    availableStars.Add((companionStar, companionCobj));
+                }
+            }
+
+            if (availableStars.Count == 0)
+            {
+                DebugLogger.Log("No eligible stars for anomalous orbit placement");
+                return;
+            }
+
+            DebugLogger.LogFormat("Found {0} eligible star(s) for anomalous orbits", availableStars.Count);
+
+            // Generate each anomalous orbit
+            for (int i = 0; i < anomalousCount; i++)
+            {
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("--- Anomalous Orbit {0}/{1} ---", i + 1, anomalousCount);
+
+                // Roll for anomalous orbit type
+                int typeRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, typeRoll, "Anomalous orbit type");
+
+                CelestialBodyType anomalousType;
+                bool isTrojan = false;
+
+                if (typeRoll <= 7)
+                {
+                    anomalousType = CelestialBodyType.Random;
+                    DebugLogger.Log("Type: Random");
+                }
+                else if (typeRoll == 8)
+                {
+                    anomalousType = CelestialBodyType.Eccentric;
+                    DebugLogger.Log("Type: Eccentric");
+                }
+                else if (typeRoll == 9)
+                {
+                    anomalousType = CelestialBodyType.Inclined;
+                    DebugLogger.Log("Type: Inclined");
+                }
+                else if (typeRoll >= 10 && typeRoll <= 11)
+                {
+                    anomalousType = CelestialBodyType.Retrograde;
+                    DebugLogger.Log("Type: Retrograde");
+                }
+                else // 12
+                {
+                    anomalousType = CelestialBodyType.Trojan;
+                    isTrojan = true;
+                    DebugLogger.Log("Type: Trojan");
+                }
+
+                // Handle Trojan type
+                if (isTrojan)
+                {
+                    const int MAX_TROJAN_REROLLS = 5;
+                    int trojanRerollCount = 0;
+                    bool trojanPlaced = false;
+
+                    while (!trojanPlaced && trojanRerollCount <= MAX_TROJAN_REROLLS)
+                    {
+                        // Get all celestial body orbits from all eligible stars
+                        List<(CelestrialObject cobj, Star star)> allCelestialBodies = new List<(CelestrialObject, Star)>();
+
+                        foreach (var (star, starCobj) in availableStars)
+                        {
+                            var celestialBodies = starCobj.celestrialObjectOrbits
+                                .Where(o => o.celestrialObject is CelestialBody)
+                                .ToList();
+
+                            foreach (var body in celestialBodies)
+                            {
+                                allCelestialBodies.Add((body, star));
+                            }
+                        }
+
+                        DebugLogger.LogFormat("  Found {0} total celestial bodies for potential Trojan placement",
+                            allCelestialBodies.Count);
+
+                        // Check if we have gas giants or terrestrial planets
+                        if ((GasGiantCount + TerrestrialPlanetCount) > 0 && allCelestialBodies.Count > 0)
+                        {
+                            // Randomly select a celestial body
+                            int selectedIndex = dice.Next(allCelestialBodies.Count);
+                            var (selectedCobj, selectedStar) = allCelestialBodies[selectedIndex];
+
+                            // Change its type to Trojan
+                            if (selectedCobj.celestrialObject is CelestialBody celestialBody)
+                            {
+                                celestialBody.Type = CelestialBodyType.Trojan;
+                                DebugLogger.LogFormat("  ✓ Trojan placed at orbit {0:F4} around {1} star",
+                                    selectedCobj.orbit, selectedStar.starOrbitType);
+                                trojanPlaced = true;
+
+                                // Increment world counts for anomalous orbit
+                                if (TerrestrialPlanetCount < 13)
+                                {
+                                    TerrestrialPlanetCount++;
+                                    DebugLogger.LogFormat("  Terrestrial Planets increased to {0}", TerrestrialPlanetCount);
+                                }
+                                else
+                                {
+                                    PlanetoidBeltCount++;
+                                    DebugLogger.LogFormat("  Terrestrial Planets at cap (13), Planetoid Belts increased to {0}", PlanetoidBeltCount);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // No planets available - re-roll type
+                            trojanRerollCount++;
+
+                            if (trojanRerollCount > MAX_TROJAN_REROLLS)
+                            {
+                                DebugLogger.LogFormat("  ✗ No Gas Giants or Terrestrial Planets available for Trojan after {0} re-rolls",
+                                    MAX_TROJAN_REROLLS);
+                                DebugLogger.Log("  Skipping this anomalous orbit");
+                                break;
+                            }
+
+                            DebugLogger.LogFormat("  No Gas Giants or Terrestrial Planets available for Trojan (re-roll {0}/{1})",
+                                trojanRerollCount, MAX_TROJAN_REROLLS);
+
+                            // Re-roll type
+                            typeRoll = Starhelper.diceRoll(6, 2, dice);
+                            DebugLogger.LogDiceRoll(2, typeRoll, "Re-rolled anomalous orbit type");
+
+                            if (typeRoll <= 7)
+                            {
+                                anomalousType = CelestialBodyType.Random;
+                                DebugLogger.Log("  New type: Random");
+                                isTrojan = false;
+                            }
+                            else if (typeRoll == 8)
+                            {
+                                anomalousType = CelestialBodyType.Eccentric;
+                                DebugLogger.Log("  New type: Eccentric");
+                                isTrojan = false;
+                            }
+                            else if (typeRoll == 9)
+                            {
+                                anomalousType = CelestialBodyType.Inclined;
+                                DebugLogger.Log("  New type: Inclined");
+                                isTrojan = false;
+                            }
+                            else if (typeRoll >= 10 && typeRoll <= 11)
+                            {
+                                anomalousType = CelestialBodyType.Retrograde;
+                                DebugLogger.Log("  New type: Retrograde");
+                                isTrojan = false;
+                            }
+                            else // 12 - rolled Trojan again
+                            {
+                                DebugLogger.Log("  Rolled Trojan again");
+                                // Continue loop to re-roll again
+                            }
+                        }
+                    }
+
+                    // If we successfully placed Trojan, continue to next anomalous orbit
+                    if (trojanPlaced)
+                    {
+                        continue;
+                    }
+
+                    // If we exhausted re-rolls and still have Trojan, skip this anomalous orbit entirely
+                    if (isTrojan && trojanRerollCount > MAX_TROJAN_REROLLS)
+                    {
+                        continue;
+                    }
+                }
+
+                // Handle Random, Eccentric, Inclined, Retrograde types
+                // These all use the random allocation function
+
+                // Randomly select a star
+                int starIndex = dice.Next(availableStars.Count);
+                var (targetStar, targetStarCobj) = availableStars[starIndex];
+
+                DebugLogger.LogFormat("  Selected {0} star for placement", targetStar.starOrbitType);
+
+                // Select a random valid orbit
+                float selectedOrbit = SelectRandomAvailableOrbit(targetStar, targetStarCobj, dice);
+
+                if (selectedOrbit < 0)
+                {
+                    DebugLogger.LogFormat("  ✗ Could not find valid orbit for {0} anomalous orbit - skipping", anomalousType);
+                    continue;
+                }
+
+                // Add celestial body with anomalous type
+                targetStarCobj.AddCelestialBody(selectedOrbit, dice);
+
+                // Get the just-added celestial body and set its type
+                var lastAddedCobj = targetStarCobj.celestrialObjectOrbits[targetStarCobj.celestrialObjectOrbits.Count - 1];
+                if (lastAddedCobj.celestrialObject is CelestialBody newBody)
+                {
+                    newBody.Type = anomalousType;
+                    float orbitAU = lastAddedCobj.orbitAU;
+                    DebugLogger.LogFormat("  ✓ {0} anomalous orbit placed at {1:F4} ({2:F2} AU) around {3} star",
+                        anomalousType, selectedOrbit, orbitAU, targetStar.starOrbitType);
+
+                    // Increment world counts for anomalous orbit
+                    if (TerrestrialPlanetCount < 13)
+                    {
+                        TerrestrialPlanetCount++;
+                        DebugLogger.LogFormat("  Terrestrial Planets increased to {0}", TerrestrialPlanetCount);
+                    }
+                    else
+                    {
+                        PlanetoidBeltCount++;
+                        DebugLogger.LogFormat("  Terrestrial Planets at cap (13), Planetoid Belts increased to {0}", PlanetoidBeltCount);
+                    }
+                }
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Anomalous orbit generation complete");
+        }
+
+        private void PlaceWorlds(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Starting world placement...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+
+            // Step 1: Place Empty orbits
+            PlaceEmptyOrbits(dice);
+
+            // Step 2: Place Gas Giants
+            PlaceGasGiants(dice);
+
+            // Step 3: Place Planetoid Belts
+            PlacePlanetoidBelts(dice);
+
+            // Step 4: Handle Trojan orbits
+            HandleTrojanOrbits(dice);
+
+            // Step 4.5: Place Mainworld (if specified) before other terrestrial planets
+            if (mainworld != null)
+            {
+                PlaceMainworld(dice);
+            }
+
+            // Step 5: Place Terrestrial Planets
+            PlaceTerrestrialPlanets(dice);
+
+            DebugLogger.Log("");
+            DebugLogger.Log("World placement complete");
+        }
+
+        private void GenerateMoons(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Generating significant moons...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+
+            // Generate moons for primary star's worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is CelestialBody body)
+                    {
+                        if (body is TerrestrialPlanet || body is GasGiant)
+                        {
+                            GenerateWorldMoons(body, bodyObj, primaryStar, dice);
+                        }
+                    }
+                }
+            }
+
+            // Generate moons for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is CelestialBody body)
+                        {
+                            if (body is TerrestrialPlanet || body is GasGiant)
+                            {
+                                GenerateWorldMoons(body, bodyObj, companionStar, dice);
+                            }
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Moon generation complete");
+
+            // Calculate tidal locks after all worlds and moons are generated
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating tidal locks...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateTidalLocks(dice);
+            DebugLogger.Log("");
+            DebugLogger.Log("Tidal lock calculation complete");
+
+            DebugLogger.Log("");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            DebugLogger.Log("Calculating temperatures...");
+            DebugLogger.Log("═══════════════════════════════════════════════════════════════");
+            CalculateAllTemperatures();
+            DebugLogger.Log("");
+            DebugLogger.Log("Temperature calculation complete");
+        }
+
+        private void GenerateWorldMoons(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)
+        {
+            int moonCount = DetermineMoonCount(body, bodyObj, parentStar, dice);
+
+            if (moonCount <= 0)
+            {
+                DebugLogger.LogFormat("  {0} has no significant moons", body.Designation);
+                return;
+            }
+
+            DebugLogger.LogFormat("  {0} has {1} significant moon(s)", body.Designation, moonCount);
+
+            // Generate moons
+            for (int i = 0; i < moonCount; i++)
+            {
+                Moon moon = new Moon();
+                moon.Designation = ((char)('a' + i)).ToString();
+                moon.Size = DetermineMoonSize(body, dice);
+                moon.Diameter = CalculateDiameter(moon.Size, dice);
+
+                // Calculate physical properties (use parent world's orbit for composition)
+                CalculatePhysicalProperties(moon, bodyObj.orbit, parentStar, dice);
+
+                if (body is TerrestrialPlanet tp)
+                {
+                    tp.Moons.Add(moon);
+                }
+                else if (body is GasGiant gg)
+                {
+                    gg.Moons.Add(moon);
+                }
+
+                DebugLogger.LogFormat("    Moon {0}: Size {1}, Diameter {2}km", moon.Designation, moon.Size, moon.Diameter);
+            }
+
+            // Calculate Hill Sphere for the world
+            CalculateWorldHillSphere(body, bodyObj, parentStar, dice);
+
+            // Apply moon removal logic
+            bool moonsRemoved = ApplyMoonRemovalLogic(body);
+
+            if (!moonsRemoved)
+            {
+                // Get the world's moon list
+                List<Moon> moons = new List<Moon>();
+                if (body is TerrestrialPlanet tp2)
+                    moons = tp2.Moons;
+                else if (body is GasGiant gg2)
+                    moons = gg2.Moons;
+
+                if (moons.Count > 0)
+                {
+                    // Assign orbits to moons
+                    AssignMoonOrbits(body, dice);
+
+                    // Calculate orbital periods
+                    CalculateMoonOrbitalPeriods(body);
+
+                    // Generate atmospheres
+                    GenerateMoonAtmospheres(body, bodyObj.orbit, parentStar, bodyObj.OrbitalPeriodYears, dice);
+                }
+            }
+        }
+
+        private float GetWorldDiameterInKm(CelestialBody world)
+        {
+            if (world is TerrestrialPlanet tp)
+            {
+                return tp.Diameter; // Already in km
+            }
+            else if (world is GasGiant gg)
+            {
+                return gg.Diameter * 12742.0f; // Convert Earth diameters to km
+            }
+            return 0;
+        }
+
+        private float GetWorldMassInEarthMasses(CelestialBody world)
+        {
+            if (world is TerrestrialPlanet tp)
+            {
+                return tp.WorldMass; // Already in Earth masses
+            }
+            else if (world is GasGiant gg)
+            {
+                return gg.GasGiantMass; // Already in Earth masses
+            }
+            return 0;
+        }
+
+        private void CalculateWorldHillSphere(CelestialBody world, CelestrialObject worldObj, Star parentStar, Random dice)
+        {
+            // Get world properties
+            float worldMassEarth = GetWorldMassInEarthMasses(world);
+            float worldDiameterKm = GetWorldDiameterInKm(world);
+            float orbitAU = worldObj.orbitAU;
+            float eccentricity = worldObj.orbitEccentricity;
+
+            // Get total mass of stars the world orbits (in solar masses)
+            float totalStarMass = CalculateTotalOrbitedMassForPlanet(worldObj);
+
+            // Calculate Hill Sphere (in AU)
+            // Formula: Hill Sphere = Orbit AU * (1 - eccentricity) * sqrt((World Mass * 0.000003) / (3 * Total Star Mass))
+            float hillSphere = orbitAU * (1.0f - eccentricity) *
+                               (float)Math.Sqrt((worldMassEarth * 0.000003) / (3.0 * totalStarMass));
+
+            // Calculate Hill Sphere in Planetary Diameters
+            // Formula: Hill Sphere PD = Hill Sphere * (149597870.9 / World Diameter)
+            float hillSpherePD = hillSphere * (149597870.9f / worldDiameterKm);
+
+            // Calculate Hill Sphere Moon Limit
+            float hillSphereMoonLimit = hillSpherePD / 2.0f;
+
+            // Calculate Roche Limit (in planetary diameters)
+            float rocheLimit = 1.537f;
+
+            // Set properties on world
+            if (world is TerrestrialPlanet tp)
+            {
+                tp.HillSphere = hillSphere;
+                tp.HillSpherePD = hillSpherePD;
+                tp.HillSphereMoonLimit = hillSphereMoonLimit;
+                tp.RocheLimit = rocheLimit;
+            }
+            else if (world is GasGiant gg)
+            {
+                gg.HillSphere = hillSphere;
+                gg.HillSpherePD = hillSpherePD;
+                gg.HillSphereMoonLimit = hillSphereMoonLimit;
+                gg.RocheLimit = rocheLimit;
+            }
+
+            DebugLogger.LogFormat("  Hill Sphere: {0:F4} AU, {1:F2} PD, Moon Limit: {2:F2}, Roche: {3:F2}",
+                hillSphere, hillSpherePD, hillSphereMoonLimit, rocheLimit);
+        }
+
+        private bool ApplyMoonRemovalLogic(CelestialBody world)
+        {
+            float hillSphereMoonLimit = 0;
+            float rocheLimit = 0;
+
+            if (world is TerrestrialPlanet tp)
+            {
+                hillSphereMoonLimit = tp.HillSphereMoonLimit;
+                rocheLimit = tp.RocheLimit;
+            }
+            else if (world is GasGiant gg)
+            {
+                hillSphereMoonLimit = gg.HillSphereMoonLimit;
+                rocheLimit = gg.RocheLimit;
+            }
+
+            if (hillSphereMoonLimit < rocheLimit)
+            {
+                if (hillSphereMoonLimit < 0.5f) // Hill Sphere Moon Limit < (World Diameter * 0.5), where diameter = 1.0 in world units
+                {
+                    // Remove all moons and rings
+                    if (world is TerrestrialPlanet tpRemove)
+                    {
+                        tpRemove.Moons.Clear();
+                        tpRemove.RingCount = 0;
+                    }
+                    else if (world is GasGiant ggRemove)
+                    {
+                        ggRemove.Moons.Clear();
+                        ggRemove.RingCount = 0;
+                    }
+                    DebugLogger.Log("  Removed all moons and rings (Hill Sphere Moon Limit < 0.5)");
+                    return true;
+                }
+                else
+                {
+                    // Add one ring, remove all moons
+                    if (world is TerrestrialPlanet tpRing)
+                    {
+                        tpRing.Moons.Clear();
+                        tpRing.RingCount = 1;
+                    }
+                    else if (world is GasGiant ggRing)
+                    {
+                        ggRing.Moons.Clear();
+                        ggRing.RingCount = 1;
+                    }
+                    DebugLogger.Log("  Removed all moons, added 1 ring (Hill Sphere Moon Limit < Roche Limit)");
+                    return true;
+                }
+            }
+
+            return false; // Moons not removed
+        }
+
+        private float CalculateMOR(float hillSphereMoonLimit)
+        {
+            float mor = (float)Math.Floor(hillSphereMoonLimit) - 2.0f;
+            if (mor > 200.0f)
+                mor = 200.0f;
+            return mor;
+        }
+
+        private (float orbit, int tier) DetermineMoonOrbit(float mor, Random dice)
+        {
+            // Roll 1d6 (+1 if MOR < 60)
+            int roll = Starhelper.diceRoll(6, 1, dice);
+            if (mor < 60.0f)
+                roll += 1;
+
+            float orbit = 0;
+            int tier = 0; // Track which tier for eccentricity/retrograde modifiers
+
+            if (roll >= 1 && roll <= 3)
+            {
+                // (2d6 - 2) * MOR / 60 + 2
+                int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                orbit = diceRoll * mor / 60.0f + 2.0f;
+                tier = 1; // Close orbit
+            }
+            else if (roll >= 4 && roll <= 5)
+            {
+                // (2d6 - 2) * MOR / 30 + MOR / 6 + 3
+                int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                orbit = diceRoll * mor / 30.0f + mor / 6.0f + 3.0f;
+                tier = 2; // Medium orbit
+            }
+            else // roll >= 6
+            {
+                // (2d6 - 2) * MOR / 20 + MOR / 2 + 4
+                int diceRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                orbit = diceRoll * mor / 20.0f + mor / 2.0f + 4.0f;
+                tier = 3; // Far orbit
+            }
+
+            return (orbit, tier);
+        }
+
+        private void AssignMoonOrbits(CelestialBody world, Random dice)
+        {
+            List<Moon> moons = new List<Moon>();
+            if (world is TerrestrialPlanet tp)
+                moons = tp.Moons;
+            else if (world is GasGiant gg)
+                moons = gg.Moons;
+
+            if (moons.Count == 0)
+                return;
+
+            // Get Hill Sphere Moon Limit
+            float hillSphereMoonLimit = 0;
+            if (world is TerrestrialPlanet tpLimit)
+                hillSphereMoonLimit = tpLimit.HillSphereMoonLimit;
+            else if (world is GasGiant ggLimit)
+                hillSphereMoonLimit = ggLimit.HillSphereMoonLimit;
+
+            // Calculate MOR
+            float mor = CalculateMOR(hillSphereMoonLimit);
+
+            if (mor <= 0)
+            {
+                DebugLogger.Log("  MOR <= 0, cannot assign moon orbits");
+                return;
+            }
+
+            DebugLogger.LogFormat("  MOR = {0:F2}", mor);
+
+            // Track tier for each moon (for eccentricity/retrograde calculations)
+            Dictionary<Moon, int> moonTiers = new Dictionary<Moon, int>();
+
+            // Assign orbits to each moon
+            foreach (var moon in moons)
+            {
+                var (orbit, tier) = DetermineMoonOrbit(mor, dice);
+                if (orbit > hillSphereMoonLimit)
+                {
+                    DebugLogger.LogFormat("    Moon {0}: Orbit {1:F2} capped to Hill Sphere Moon Limit {2:F2}", moon.Designation, orbit, hillSphereMoonLimit);
+                    orbit = hillSphereMoonLimit;
+                }
+                moon.Orbit = orbit;
+                moonTiers[moon] = tier;
+                DebugLogger.LogFormat("    Moon {0}: Orbit {1:F2} diameters", moon.Designation, moon.Orbit);
+            }
+
+            // Resolve orbit conflicts
+            ResolveOrbitConflicts(moons, dice);
+
+            // Sort moons by orbit (closest to furthest)
+            moons.Sort((a, b) => a.Orbit.CompareTo(b.Orbit));
+
+            // Don't reassign designations - keep original designations from generation
+            // This ensures that moon 'a' always refers to the first generated moon,
+            // regardless of orbital position, and R-sized moons remain in their original designations
+
+            DebugLogger.Log("  Moons sorted by orbital distance");
+
+            // Get world diameter in km for orbital distance calculations
+            float worldDiameterKm = GetWorldDiameterInKm(world);
+
+            // Calculate eccentricity, retrograde, and orbital distance for each moon
+            foreach (var moon in moons)
+            {
+                int tier = moonTiers[moon];
+                CalculateMoonEccentricity(moon, tier, mor, dice);
+                CalculateMoonRetrograde(moon, tier, mor, dice);
+                moon.OrbitDistanceKm = moon.Orbit * worldDiameterKm;
+
+                DebugLogger.LogFormat("    Moon {0}: Ecc {1:F3}, Retrograde {2}, Distance {3:F0}km",
+                    moon.Designation, moon.Eccentricity, moon.IsRetrograde ? "Yes" : "No", moon.OrbitDistanceKm);
+            }
+        }
+
+        private void CalculateMoonEccentricity(Moon moon, int tier, float mor, Random dice)
+        {
+            // Eccentricity table (same as used for planets/stars)
+            float[,] eccValues = {
+                {5, 7, 9, 10, 11, 12 },
+                {-0.001F, 0, 0.03F, 0.05F, 0.05F, 0.3F },
+                {1, 1, 1, 1, 2, 1 },
+                {1000, 200, 100, 20, 20, 20 }
+            };
+
+            // Calculate modifier based on tier and if orbit exceeds MOR + 6
+            int modifier = 0;
+            if (tier == 1) // Close orbit (roll 1-3)
+                modifier = -1;
+            else if (tier == 2) // Medium orbit (roll 4-5)
+                modifier = 1;
+            else if (tier == 3) // Far orbit (roll >= 6)
+                modifier = 4;
+
+            // Additional modifier if orbit exceeds MOR + 6
+            if (moon.Orbit > mor + 6)
+                modifier += 4;
+
+            // Roll 2d6 + modifier
+            int roll1 = Starhelper.diceRoll(6, 2, dice) + modifier;
+            if (roll1 > 12)
+                roll1 = 12;
+            if (roll1 < 0)
+                roll1 = 0;
+
+            // Find the column in the eccentricity table
+            int x = 0;
+            while (x < 6 && (int)eccValues[0, x] < roll1)
+            {
+                x++;
+            }
+            if (x >= 6)
+                x = 5;
+
+            // Calculate eccentricity
+            float eccBase = eccValues[1, x];
+            int numDice = (int)eccValues[2, x];
+            float divisor = eccValues[3, x];
+
+            float eccentricity = eccBase;
+            if (numDice > 0)
+            {
+                eccentricity += Starhelper.diceRoll(6, numDice, dice) / divisor;
+            }
+
+            moon.Eccentricity = eccentricity;
+        }
+
+        private void CalculateMoonRetrograde(Moon moon, int tier, float mor, Random dice)
+        {
+            // Calculate modifier based on tier and if orbit exceeds MOR + 6
+            int modifier = 0;
+            if (tier == 1) // Close orbit (roll 1-3)
+                modifier = -1;
+            else if (tier == 2) // Medium orbit (roll 4-5)
+                modifier = 1;
+            else if (tier == 3) // Far orbit (roll >= 6)
+                modifier = 4;
+
+            // Additional modifier if orbit exceeds MOR + 6
+            if (moon.Orbit > mor + 6)
+                modifier += 4;
+
+            // Roll 2d6 + modifier
+            int roll = Starhelper.diceRoll(6, 2, dice) + modifier;
+
+            // If result >= 10, orbit is retrograde
+            moon.IsRetrograde = (roll >= 10);
+        }
+
+        private void ResolveOrbitConflicts(List<Moon> moons, Random dice)
+        {
+            if (moons.Count <= 1)
+                return;
+
+            bool hasConflicts = true;
+            int maxIterations = 100; // Prevent infinite loops
+            int iteration = 0;
+
+            while (hasConflicts && iteration < maxIterations)
+            {
+                hasConflicts = false;
+                iteration++;
+
+                for (int i = 0; i < moons.Count; i++)
+                {
+                    for (int j = i + 1; j < moons.Count; j++)
+                    {
+                        // Check if orbits are too close (within 0.1 diameter units)
+                        if (Math.Abs(moons[i].Orbit - moons[j].Orbit) < 0.1f)
+                        {
+                            // Randomly adjust one moon's orbit by +0.5 to +1.5
+                            float adjustment = 0.5f + (float)(dice.NextDouble() * 1.0);
+                            moons[j].Orbit += adjustment;
+                            hasConflicts = true;
+
+                            DebugLogger.LogFormat("    Resolved orbit conflict: Moon {0} adjusted to {1:F2}",
+                                moons[j].Designation, moons[j].Orbit);
+                        }
+                    }
+                }
+            }
+
+            if (iteration >= maxIterations)
+            {
+                DebugLogger.Log("  Warning: Max iterations reached in orbit conflict resolution");
+            }
+        }
+
+        private void GenerateMoonAtmospheres(CelestialBody world, float worldOrbitNumber, Star parentStar, float parentWorldOrbitalPeriodYears, Random dice)
+        {
+            List<Moon> moons = new List<Moon>();
+            if (world is TerrestrialPlanet tp)
+                moons = tp.Moons;
+            else if (world is GasGiant gg)
+                moons = gg.Moons;
+
+            if (moons.Count == 0)
+                return;
+
+            // Calculate habitable zone boundaries
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+
+            // Convert parent world's orbital period to hours for moon solar day calculations
+            float parentWorldOrbitalPeriodHours = parentWorldOrbitalPeriodYears * 365.25f * 24f;
+
+            // Generate atmosphere for each moon
+            foreach (var moon in moons)
+            {
+                GenerateAtmosphere(moon, worldOrbitNumber, hzMin, hzMax, parentStar, dice);
+
+                // Calculate atmospheric pressure, oxygen, and hydrographics
+                CalculateAtmosphericPressure(moon, dice);
+                CalculateOxygenFraction(moon, parentStar.age, dice);
+                CalculateHydrographics(moon, dice);
+
+                // Calculate surface distribution, albedo, and greenhouse
+                CalculateSurfaceDistribution(moon, dice);
+                CalculateAlbedo(moon, worldOrbitNumber, parentStar.HZCO, dice);
+                CalculateGreenhouse(moon, dice);
+
+                // Calculate rotation and day length
+                CalculateBasicRotationRate(moon, parentStar.age, dice);
+                CalculateSolarDays(moon, parentWorldOrbitalPeriodHours);
+
+                // Calculate axial tilt
+                CalculateAxialTilt(moon, dice);
+            }
+        }
+
+        private void CalculateMoonOrbitalPeriods(CelestialBody world)
+        {
+            List<Moon> moons = new List<Moon>();
+            float worldMass = GetWorldMassInEarthMasses(world);
+            float worldDiameterKm = GetWorldDiameterInKm(world);
+
+            if (world is TerrestrialPlanet tp)
+            {
+                moons = tp.Moons;
+                // Period (hours) = sqrt((orbit_in_diameters × planet_diameter_km)³ / planet_mass_earths) / 361730
+
+                foreach (var moon in moons)
+                {
+                    float orbitalPeriod = (float)Math.Sqrt(
+                        Math.Pow(moon.Orbit * worldDiameterKm, 3) / worldMass) / 361730f;
+                    moon.OrbitalPeriod = orbitalPeriod;
+
+                    DebugLogger.LogFormat("    Moon {0}: Orbital Period {1:F2} hours", moon.Designation, orbitalPeriod);
+                }
+            }
+            else if (world is GasGiant gg)
+            {
+                moons = gg.Moons;
+                // Period (hours) = sqrt((orbit_in_diameters × planet_diameter_km)³ / planet_mass_earths) / 361730
+
+                foreach (var moon in moons)
+                {
+                    float orbitalPeriod = (float)Math.Sqrt(
+                        Math.Pow(moon.Orbit * worldDiameterKm, 3) / worldMass) / 361730f;
+                    moon.OrbitalPeriod = orbitalPeriod;
+
+                    DebugLogger.LogFormat("    Moon {0}: Orbital Period {1:F2} hours", moon.Designation, orbitalPeriod);
+                }
+            }
+        }
+
+        private int DetermineMoonCount(CelestialBody body, CelestrialObject bodyObj, Star parentStar, Random dice)
+        {
+            // Get world size for calculation
+            string worldSize = "";
+            if (body is TerrestrialPlanet tp)
+                worldSize = tp.Size;
+            else if (body is GasGiant gg)
+                worldSize = gg.Size;
+
+            if (string.IsNullOrEmpty(worldSize))
+                return 0;
+
+            int numDice = 0;
+            int modifier = 0;
+
+            // Determine base dice and modifier based on world size
+            if (body is TerrestrialPlanet)
+            {
+                int size = FromEhex(worldSize);
+                if (size >= 1 && size <= 2)
+                {
+                    numDice = 1;
+                    modifier = -5;
+                }
+                else if (size >= 3 && size <= 9)
+                {
+                    numDice = 2;
+                    modifier = -8;
+                }
+                else if (size >= 10) // A-F
+                {
+                    numDice = 2;
+                    modifier = -6;
+                }
+                else // 0, S, R
+                {
+                    return 0;
+                }
+            }
+            else if (body is GasGiant gg)
+            {
+                if (gg.Size == "GS")
+                {
+                    numDice = 3;
+                    modifier = -7;
+                }
+                else // GM or GL
+                {
+                    numDice = 4;
+                    modifier = -6;
+                }
+            }
+
+            // Apply modifiers for special conditions
+            int perDieModifier = 0;
+
+            // -1 per die if orbit < 1.0
+            if (bodyObj.orbit < 1.0f)
+                perDieModifier -= 1;
+
+            // -1 per die if planet is next to a companion star
+            if (IsNextToCompanionStar(bodyObj, parentStar))
+                perDieModifier -= 1;
+
+            // -1 per die if orbit within spread of unavailable range
+            if (IsWithinUnavailableSpread(bodyObj, parentStar))
+                perDieModifier -= 1;
+
+            // -1 per die if orbiting Close/Near/Far star and within spread of MAO
+            if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
+            {
+                if (IsWithinMAOSpread(bodyObj, parentStar))
+                    perDieModifier -= 1;
+            }
+
+            // Apply per-die modifier to total modifier
+            modifier += perDieModifier * numDice;
+
+            int roll = Starhelper.diceRoll(6, numDice, dice);
+            int moonCount = Math.Max(0, roll + modifier);
+
+            DebugLogger.LogFormat("  {0} moon count: {1}d6{2:+#;-#;+0} = {3} + {4} = {5}",
+                body.Designation, numDice, modifier, numDice, roll, modifier, moonCount);
+
+            return moonCount;
+        }
+
+        private bool IsNextToCompanionStar(CelestrialObject bodyObj, Star parentStar)
+        {
+            // Check if the world's orbit is adjacent to a companion star's orbit
+            // Get all companion stars
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star && obj.celestrialObject != parentStar)
+                .ToList();
+
+            foreach (var companionObj in companionStars)
+            {
+                // Check if this world's orbit is the next occupied orbit above or below the companion
+                float orbitDiff = Math.Abs(bodyObj.orbit - companionObj.orbit);
+                if (orbitDiff <= 1.0f) // Within one orbit step
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsWithinUnavailableSpread(CelestrialObject bodyObj, Star parentStar)
+        {
+            float spread = parentStar.SystemSpread;
+
+            foreach (var unavailableRange in parentStar.UnavailableOrbitRanges)
+            {
+                float rangeStart = unavailableRange.min;
+                float rangeEnd = unavailableRange.max;
+
+                // Check if world orbit is within spread distance of the unavailable range
+                if (bodyObj.orbit >= rangeStart - spread && bodyObj.orbit <= rangeEnd + spread)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsWithinMAOSpread(CelestrialObject bodyObj, Star parentStar)
+        {
+            float spread = parentStar.SystemSpread;
+            float mao = parentStar.MaxAllowableOrbit;
+
+            // Check if world orbit is within spread of MAO
+            return bodyObj.orbit >= mao - spread && bodyObj.orbit <= mao + spread;
+        }
+
+        private string DetermineMoonSize(CelestialBody parentBody, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 1, dice);
+
+            if (roll >= 1 && roll <= 3)
+            {
+                return "S";
+            }
+            else if (roll >= 4 && roll <= 5)
+            {
+                int sizeRoll = Starhelper.diceRoll(3, 1, dice) - 1;
+                return sizeRoll == 0 ? "R" : ToEhex(sizeRoll);
+            }
+            else // roll == 6
+            {
+                if (parentBody is TerrestrialPlanet tp)
+                {
+                    return DetermineTerrestrialMoonSize(tp, dice);
+                }
+                else if (parentBody is GasGiant gg)
+                {
+                    return DetermineGasGiantMoonSize(gg, dice);
+                }
+            }
+
+            return "S";
+        }
+
+        private string DetermineTerrestrialMoonSize(TerrestrialPlanet parent, Random dice)
+        {
+            int parentSize = FromEhex(parent.Size);
+
+            if (parentSize == 1)
+                return "S";
+
+            int moonSize = parentSize - 1 - Starhelper.diceRoll(6, 1, dice);
+
+            if (moonSize <= 0)
+                return "R";
+
+            // Check for special case where moon size is >= parent size - 2
+            if (moonSize >= parentSize - 2)
+            {
+                int specialRoll = Starhelper.diceRoll(6, 2, dice);
+                if (specialRoll == 2)
+                    moonSize = parentSize - 1;
+                else if (specialRoll == 12)
+                    moonSize = parentSize;
+            }
+
+            return ToEhex(moonSize);
+        }
+
+        private string DetermineGasGiantMoonSize(GasGiant parent, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 1, dice);
+
+            if (roll >= 1 && roll <= 3)
+            {
+                return ToEhex(Starhelper.diceRoll(6, 1, dice));
+            }
+            else if (roll >= 4 && roll <= 5)
+            {
+                return ToEhex(Starhelper.diceRoll(6, 2, dice) - 2);
+            }
+            else // roll == 6
+            {
+                int size = Starhelper.diceRoll(6, 2, dice) + 4;
+
+                if (size == 16)
+                {
+                    return "GS";
+                }
+                else if (parent.Size == "GL" && size >= 16)
+                {
+                    int gmRoll = Starhelper.diceRoll(6, 2, dice);
+                    if (gmRoll == 12)
+                        return "GM";
+                }
+
+                return ToEhex(size);
+            }
+        }
+
+        private int FromEhex(string ehex)
+        {
+            if (string.IsNullOrEmpty(ehex))
+                return 0;
+
+            if (int.TryParse(ehex, out int number))
+                return number;
+
+            char c = ehex.ToUpper()[0];
+            if (c >= 'A' && c <= 'Z')
+                return 10 + (c - 'A');
+
+            return 0;
+        }
+
+        private int GetBaseDiameter(string size)
+        {
+            // Size to base diameter lookup table (in km)
+            switch (size)
+            {
+                case "0":
+                case "R":
+                    return 0;
+                case "S":
+                    return 400;
+                case "1":
+                    return 800;
+                case "2":
+                    return 2400;
+                case "3":
+                    return 4000;
+                case "4":
+                    return 5600;
+                case "5":
+                    return 7200;
+                case "6":
+                    return 8800;
+                case "7":
+                    return 10400;
+                case "8":
+                    return 12000;
+                case "9":
+                    return 13600;
+                case "A":
+                    return 15200;
+                case "B":
+                    return 16800;
+                case "C":
+                    return 18400;
+                case "D":
+                    return 20000;
+                case "E":
+                    return 21600;
+                case "F":
+                    return 23200;
+                default:
+                    return 0;
+            }
+        }
+
+        private int CalculateDiameter(string size, Random dice)
+        {
+            int baseDiameter = GetBaseDiameter(size);
+
+            // Size 0 or R has diameter 0
+            if (baseDiameter == 0)
+                return 0;
+
+            // Size S calculation
+            if (size == "S")
+            {
+                int d4Roll = Starhelper.diceRoll(4, 1, dice);
+                int modifier = 0;
+
+                switch (d4Roll)
+                {
+                    case 1:
+                        modifier = 0;
+                        break;
+                    case 2:
+                        modifier = 100;
+                        break;
+                    case 3:
+                        modifier = 200;
+                        break;
+                    case 4:
+                        modifier = 400;
+                        break;
+                }
+
+                int finalDiameter = baseDiameter + modifier + Starhelper.diceRoll(100, 1, dice);
+                DebugLogger.LogFormat("    Diameter calculation (Size S): Base={0}, 1d4 modifier={1}, 1d100={2}, Final={3}km",
+                    baseDiameter, modifier, finalDiameter - baseDiameter - modifier, finalDiameter);
+                return finalDiameter;
+            }
+
+            // Size > S (1-9, A-F)
+            int d3Modifier = 0;
+            int d6Modifier = 0;
+
+            // Roll 1d3
+            int d3Roll = Starhelper.diceRoll(3, 1, dice);
+            switch (d3Roll)
+            {
+                case 1:
+                    d3Modifier = 0;
+                    break;
+                case 2:
+                    d3Modifier = 600;
+                    break;
+                case 3:
+                    d3Modifier = 1200;
+                    break;
+            }
+
+            // Roll 1d6
+            bool reroll = false;
+            do
+            {
+                reroll = false;
+                int d6Roll = Starhelper.diceRoll(6, 1, dice);
+
+                switch (d6Roll)
+                {
+                    case 1:
+                        d6Modifier = 0;
+                        break;
+                    case 2:
+                        d6Modifier = 100;
+                        break;
+                    case 3:
+                        d6Modifier = 200;
+                        break;
+                    case 4:
+                        d6Modifier = 400;
+                        break;
+                    case 5:
+                        d6Modifier = 400;
+                        if (d3Roll == 3)
+                        {
+                            reroll = true;
+                            DebugLogger.LogFormat("    Diameter: 1d6 roll of 5 with 1d3=3, rerolling both");
+                            // Reroll 1d3
+                            d3Roll = Starhelper.diceRoll(3, 1, dice);
+                            switch (d3Roll)
+                            {
+                                case 1:
+                                    d3Modifier = 0;
+                                    break;
+                                case 2:
+                                    d3Modifier = 600;
+                                    break;
+                                case 3:
+                                    d3Modifier = 1200;
+                                    break;
+                            }
+                        }
+                        break;
+                    case 6:
+                        d6Modifier = 500;
+                        if (d3Roll == 3)
+                        {
+                            reroll = true;
+                            DebugLogger.LogFormat("    Diameter: 1d6 roll of 6 with 1d3=3, rerolling both");
+                            // Reroll 1d3
+                            d3Roll = Starhelper.diceRoll(3, 1, dice);
+                            switch (d3Roll)
+                            {
+                                case 1:
+                                    d3Modifier = 0;
+                                    break;
+                                case 2:
+                                    d3Modifier = 600;
+                                    break;
+                                case 3:
+                                    d3Modifier = 1200;
+                                    break;
+                            }
+                        }
+                        break;
+                }
+            } while (reroll);
+
+            int d100Roll = Starhelper.diceRoll(100, 1, dice);
+            int diameter = baseDiameter + d3Modifier + d6Modifier + d100Roll;
+
+            DebugLogger.LogFormat("    Diameter calculation (Size {0}): Base={1}, 1d3={2}, 1d6={3}, 1d100={4}, Final={5}km",
+                size, baseDiameter, d3Modifier, d6Modifier, d100Roll, diameter);
+
+            return diameter;
+        }
+
+        private int GetSizeValue(string size)
+        {
+            if (string.IsNullOrEmpty(size)) return 0;
+            if (size == "0" || size == "R") return 0;
+            if (size == "S") return 1;
+            if (char.IsDigit(size[0])) return int.Parse(size.Substring(0, 1));
+            // Extended hex: A=10, B=11, C=12, D=13, E=14, F=15
+            return size[0] - 'A' + 10;
+        }
+
+        private int EhexToInt(char c)
+        {
+            c = char.ToUpper(c);
+            if (char.IsDigit(c))
+                return c - '0';
+            else
+                return c - 'A' + 10;
+        }
+
+        private MainworldData ParseMainworldUWP(string uwp)
+        {
+            // Remove spaces
+            string cleanUWP = uwp.Replace(" ", "");
+
+            var data = new MainworldData();
+
+            // Parse starport (position 0)
+            data.Starport = char.ToUpper(cleanUWP[0]);
+
+            // Parse size (position 1)
+            data.Size = EhexToInt(cleanUWP[1]);
+
+            // Parse atmosphere (position 2)
+            data.Atmosphere = EhexToInt(cleanUWP[2]);
+
+            // Parse hydrographics (position 3)
+            data.Hydrographics = EhexToInt(cleanUWP[3]);
+
+            // Parse population (position 4)
+            data.Population = EhexToInt(cleanUWP[4]);
+
+            // Parse government (position 5)
+            data.Government = EhexToInt(cleanUWP[5]);
+
+            // Parse law level (position 6)
+            data.LawLevel = EhexToInt(cleanUWP[6]);
+
+            // Parse tech level - handle both A123456-7 and A1234567 formats
+            if (cleanUWP[7] == '-')
+            {
+                data.TechLevel = EhexToInt(cleanUWP[8]);
+
+                // Build UWP string (first 9 characters: A123456-7)
+                data.UWP = cleanUWP.Substring(0, 9);
+
+                // Optional: gas giants, belts, other worlds
+                if (cleanUWP.Length >= 10)
+                    data.GasGiantCount = cleanUWP[9] - '0';
+                if (cleanUWP.Length >= 11)
+                    data.PlanetoidBeltCount = cleanUWP[10] - '0';
+                if (cleanUWP.Length >= 12)
+                    data.OtherWorldCount = cleanUWP[11] - '0';
+            }
+            else
+            {
+                data.TechLevel = EhexToInt(cleanUWP[7]);
+
+                // Build UWP string with dash inserted (A1234567 -> A123456-7)
+                data.UWP = cleanUWP.Substring(0, 7) + "-" + cleanUWP[7];
+
+                // Optional: gas giants, belts, other worlds
+                if (cleanUWP.Length >= 9)
+                    data.GasGiantCount = cleanUWP[8] - '0';
+                if (cleanUWP.Length >= 10)
+                    data.PlanetoidBeltCount = cleanUWP[9] - '0';
+                if (cleanUWP.Length >= 11)
+                    data.OtherWorldCount = cleanUWP[10] - '0';
+            }
+
+            return data;
+        }
+
+        private string CalculateComposition(string size, float orbitNumber, float parentStarHZCO, float systemAge, Random dice)
+        {
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+            int modifiers = 0;
+
+            // Size modifier
+            int sizeValue = GetSizeValue(size);
+            if (sizeValue >= 0 && sizeValue <= 4) modifiers -= 1;
+            else if (sizeValue >= 6 && sizeValue <= 9) modifiers += 1;
+            else if (sizeValue >= 10 && sizeValue <= 15) modifiers += 3;  // A-F
+
+            // Orbital position modifier
+            if (orbitNumber <= parentStarHZCO)
+            {
+                modifiers += 1;  // At HZCO or closer
+            }
+            else
+            {
+                modifiers -= 1;  // Further than HZCO
+                int fullOrbitsFromHZCO = (int)(orbitNumber - parentStarHZCO);
+                modifiers -= fullOrbitsFromHZCO;  // -1 per full orbit
+            }
+
+            // System age modifier
+            if (systemAge > 10) modifiers -= 1;
+
+            int result = baseRoll + modifiers;
+
+            DebugLogger.Log($"    Composition roll: 2d6={baseRoll}, modifiers={modifiers}, result={result}");
+
+            // Determine composition
+            if (result <= -4) return "Exotic Ice";
+            if (result >= -3 && result <= 2) return "Mostly Ice";
+            if (result >= 3 && result <= 6) return "Mostly Rock";
+            if (result >= 7 && result <= 11) return "Rock and Metal";
+            if (result >= 12 && result <= 14) return "Mostly Metal";
+            return "Compressed Metal";  // >= 15
+        }
+
+        private float CalculateDensity(string composition, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+
+            float[,] densityTable = new float[,]
+            {
+                // Row 0: Roll 2, Columns: Exotic Ice, Mostly Ice, Mostly Rock, Rock and Metal, Mostly Metal, Compressed Metal
+                { 0.03f, 0.18f, 0.5f,  0.82f, 1.15f, 1.5f },
+                { 0.06f, 0.21f, 0.53f, 0.85f, 1.18f, 1.55f },
+                { 0.09f, 0.24f, 0.56f, 0.88f, 1.21f, 1.6f },
+                { 0.12f, 0.27f, 0.59f, 0.91f, 1.24f, 1.65f },
+                { 0.15f, 0.3f,  0.62f, 0.94f, 1.27f, 1.7f },
+                { 0.18f, 0.33f, 0.65f, 0.97f, 1.3f,  1.75f },
+                { 0.21f, 0.36f, 0.68f, 1.0f,  1.33f, 1.8f },
+                { 0.24f, 0.39f, 0.71f, 1.03f, 1.36f, 1.85f },
+                { 0.27f, 0.41f, 0.74f, 1.06f, 1.39f, 1.9f },
+                { 0.3f,  0.44f, 0.77f, 1.09f, 1.42f, 1.95f },
+                { 0.33f, 0.47f, 0.8f,  1.12f, 1.45f, 2.0f }
+            };
+
+            int compositionIndex = composition switch
+            {
+                "Exotic Ice" => 0,
+                "Mostly Ice" => 1,
+                "Mostly Rock" => 2,
+                "Rock and Metal" => 3,
+                "Mostly Metal" => 4,
+                "Compressed Metal" => 5,
+                _ => 2  // Default to Mostly Rock
+            };
+
+            int rollIndex = roll - 2;  // Map 2-12 to 0-10
+            float density = densityTable[rollIndex, compositionIndex];
+
+            DebugLogger.Log($"    Density roll: 2d6={roll}, composition={composition}, density={density:F2}");
+
+            return density;
+        }
+
+        private void CalculatePhysicalProperties(TerrestrialPlanet planet, float orbitNumber, Star parentStar, Random dice)
+        {
+            if (string.IsNullOrEmpty(planet.Size) || planet.Size == "R" || planet.Diameter == 0)
+                return;  // Skip rings and size 0
+
+            // Calculate composition
+            string composition = CalculateComposition(planet.Size, orbitNumber, parentStar.HZCO, parentStar.age, dice);
+
+            // Calculate density
+            float density = CalculateDensity(composition, dice);
+
+            // Calculate mass (in Earth masses)
+            float mass = density * (float)Math.Pow(planet.Diameter / 12742.0, 2);
+
+            // Calculate gravity (in Earth gravities)
+            float gravity = (density * planet.Diameter) / 12742.0f;
+
+            // Calculate escape velocity (in km/s)
+            float escapeVelocity = ((float)Math.Sqrt(mass / (planet.Diameter / 12742.0)) * 11186.0f) / 1000.0f;
+
+            // Set properties
+            planet.Composition = composition;
+            planet.Density = density;
+            planet.WorldMass = mass;
+            planet.Gravity = gravity;
+            planet.EscapeVelocity = escapeVelocity;
+
+            DebugLogger.Log($"  Terrestrial planet {planet.Designation}: Comp={composition}, Density={density:F2}, Mass={mass:F2}⊕, Gravity={gravity:F2}g, EscV={escapeVelocity:F2}km/s");
+        }
+
+        private void CalculatePhysicalProperties(Moon moon, float orbitNumber, Star parentStar, Random dice)
+        {
+            if (string.IsNullOrEmpty(moon.Size) || moon.Size == "R" || moon.Diameter == 0)
+                return;  // Skip rings and size 0
+
+            // Calculate composition
+            string composition = CalculateComposition(moon.Size, orbitNumber, parentStar.HZCO, parentStar.age, dice);
+
+            // Calculate density
+            float density = CalculateDensity(composition, dice);
+
+            // Calculate mass (in Earth masses)
+            float mass = density * (float)Math.Pow(moon.Diameter / 12742.0, 2);
+
+            // Calculate gravity (in Earth gravities)
+            float gravity = (density * moon.Diameter) / 12742.0f;
+
+            // Calculate escape velocity (in km/s)
+            float escapeVelocity = ((float)Math.Sqrt(mass / (moon.Diameter / 12742.0)) * 11186.0f) / 1000.0f;
+
+            // Set properties
+            moon.Composition = composition;
+            moon.Density = density;
+            moon.Mass = mass;
+            moon.Gravity = gravity;
+            moon.EscapeVelocity = escapeVelocity;
+
+            DebugLogger.Log($"    Moon {moon.Designation}: Comp={composition}, Density={density:F2}, Mass={mass:F2}⊕, Gravity={gravity:F2}g, EscV={escapeVelocity:F2}km/s");
+        }
+
+        private string GetAtmosphereComposition(string atmosphereCode)
+        {
+            return atmosphereCode switch
+            {
+                "0" => "None",
+                "1" => "Trace",
+                "2" => "Very Thin, Tainted",
+                "3" => "Very Thin",
+                "4" => "Thin, Tainted",
+                "5" => "Thin",
+                "6" => "Standard",
+                "7" => "Standard, Tainted",
+                "8" => "Dense",
+                "9" => "Dense, Tainted",
+                "A" => "Exotic",
+                "B" => "Corrosive",
+                "C" => "Insidious",
+                "D" => "Very Dense",
+                "E" => "Low",
+                "F" => "Unusual",
+                "G" => "Gas, Helium",
+                "H" => "Gas, Hydrogen",
+                _ => "Unknown"
+            };
+        }
+
+        private (float hzMin, float hzMax) CalculateHabitableZone(Star parentStar)
+        {
+            float hzMin, hzMax;
+
+            if (parentStar.HZCO <= 0)
+            {
+                // No habitable zone
+                return (0, 0);
+            }
+
+            // Calculate lower bound
+            if (parentStar.HZCO >= 2.0f)
+            {
+                // Range doesn't cross below 1.0
+                hzMin = parentStar.HZCO - 1.0f;
+            }
+            else if (parentStar.HZCO >= 1.0f)
+            {
+                // Range crosses below 1.0
+                hzMin = 1.0f - (2.0f - parentStar.HZCO) * 0.1f;
+            }
+            else
+            {
+                // HZCO is below 1.0
+                hzMin = Math.Max(0, parentStar.HZCO - 0.1f);
+            }
+
+            // Calculate upper bound
+            if (parentStar.HZCO >= 1.0f)
+            {
+                hzMax = parentStar.HZCO + 1.0f;
+            }
+            else
+            {
+                // HZCO is below 1.0
+                float effectiveDistToOne = (1.0f - parentStar.HZCO) * 10.0f;
+                if (effectiveDistToOne >= 1.0f)
+                {
+                    hzMax = 1.0f;
+                }
+                else
+                {
+                    float remaining = 1.0f - effectiveDistToOne;
+                    hzMax = 1.0f + remaining;
+                }
+            }
+
+            return (hzMin, hzMax);
+        }
+
+        private string DetermineWorldType(float orbitNumber, float hzco)
+        {
+            // Round HZCO to ensure we get a result
+            float roundedHzco = (float)Math.Round(hzco);
+            float deviation = orbitNumber - roundedHzco;
+
+            if (deviation >= 1.1f) return "Frozen";
+            if (deviation >= 0.5f) return "Cold";
+            if (deviation >= -0.49f) return "Temperate";
+            if (deviation >= -1.09f) return "Hot";
+            return "Boiling";
+        }
+
+        private string GenerateNonHZAtmosphere(float orbitNumber, float hzco, int sizeValue, float gravity, Random dice)
+        {
+            // For worlds outside the habitable zone, use special atmosphere table
+            // Roll 2d6-7 + Size
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + sizeValue;
+
+            // Modify for small worlds with low gravity
+            if (sizeValue >= 2 && sizeValue <= 4)
+            {
+                if (gravity < 0.4f)
+                    roll -= 2;
+                else if (gravity >= 0.4f && gravity <= 0.5f)
+                    roll -= 1;
+            }
+
+            // Calculate deviation from HZCO
+            float deviation = orbitNumber - hzco;
+
+            // Determine column thresholds based on HZCO value
+            float innerColdThreshold, outerColdThreshold, innerHotThreshold, outerHotThreshold;
+
+            if (hzco < 1.0f)
+            {
+                // For HZCO < 1.0, use smaller increments (divided by 10)
+                // Change back to normal once past orbit 1.0
+                if (orbitNumber < 1.0f)
+                {
+                    innerColdThreshold = -0.201f;
+                    outerColdThreshold = -0.101f;
+                    innerHotThreshold = 0.101f;
+                    outerHotThreshold = 0.301f;
+                }
+                else
+                {
+                    // Past orbit 1.0, use proportional scaling back to normal
+                    // Transition smoothly from small to normal increments
+                    float transitionFactor = (orbitNumber - 1.0f) / (2.0f - 1.0f); // 0 at orbit 1.0, 1 at orbit 2.0
+                    if (transitionFactor > 1.0f) transitionFactor = 1.0f;
+
+                    innerColdThreshold = -0.201f + transitionFactor * (-2.01f - (-0.201f));
+                    outerColdThreshold = -0.101f + transitionFactor * (-1.01f - (-0.101f));
+                    innerHotThreshold = 0.101f + transitionFactor * (1.01f - 0.101f);
+                    outerHotThreshold = 0.301f + transitionFactor * (3.0f - 0.301f);
+                }
+            }
+            else
+            {
+                // Normal thresholds
+                innerColdThreshold = -2.01f;
+                outerColdThreshold = -1.01f;
+                innerHotThreshold = 1.01f;
+                outerHotThreshold = 3.01f;
+            }
+
+            // Determine which column to use
+            int column;
+            if (deviation <= innerColdThreshold)
+                column = 0; // HZCO -2.01 or less
+            else if (deviation <= outerColdThreshold)
+                column = 1; // HZCO -1.01 to -2.0
+            else if (deviation <= innerHotThreshold)
+                column = 2; // HZCO +1.01 to +3.0
+            else
+                column = 3; // HZCO +3.01 or more
+
+            // Non-HZ Atmosphere Table
+            // [roll, column 0, column 1, column 2, column 3]
+            string[,] atmosphereTable = new string[,]
+            {
+                { "0", "0", "0", "0" },      // <=0
+                { "0", "1", "1", "1" },      // 1
+                { "1", "A", "1", "1" },      // 2
+                { "1", "A", "A", "A" },      // 3
+                { "A", "A", "A", "A" },      // 4
+                { "A", "A", "A", "A" },      // 5
+                { "A", "A", "A", "A" },      // 6
+                { "A", "A", "A", "A" },      // 7
+                { "A", "A", "A", "A" },      // 8
+                { "B", "A", "A", "A" },      // 9
+                { "B", "B", "B", "B" },      // 10
+                { "B", "B", "B", "B" },      // 11
+                { "C", "C", "C", "C" },      // 12
+                { "B", "B", "D", "G" },      // 13
+                { "C", "C", "B", "H" },      // 14
+                { "F", "F", "F", "F" },      // 15
+                { "G", "G", "G", "H" },      // 16
+                { "H", "H", "H", "H" }       // >=17
+            };
+
+            // Clamp roll to table range
+            int tableRow = roll;
+            if (tableRow < 0) tableRow = 0;
+            if (tableRow > 17) tableRow = 17;
+
+            string result = atmosphereTable[tableRow, column];
+
+            // Special rule for very cold worlds (< HZCO - 3)
+            if (deviation < -3.0f && roll >= 4 && roll <= 8)
+            {
+                int modRoll = Starhelper.diceRoll(6, 1, dice);
+                if (modRoll == 1)
+                    result = "1";
+                else if (modRoll >= 3 && modRoll <= 5)
+                    result = "B";
+                else if (modRoll >= 6)
+                    result = "C";
+                // modRoll == 2 means no change
+            }
+
+            return result;
+        }
+
+        private (float minBar, float span) GetAtmosphericPressureData(string atmosphereCode)
+        {
+            // Returns (Min Bar, Span) for each atmosphere code
+            return atmosphereCode switch
+            {
+                "0" => (0f, 0f),           // None
+                "1" => (0.001f, 0.009f),   // Trace
+                "2" => (0.1f, 0.4f),       // Very Thin, Tainted
+                "3" => (0.1f, 0.4f),       // Very Thin
+                "4" => (0.5f, 0.2f),       // Thin, Tainted
+                "5" => (0.5f, 0.2f),       // Thin
+                "6" => (0.7f, 0.5f),       // Standard
+                "7" => (0.7f, 0.5f),       // Standard, Tainted
+                "8" => (1.5f, 1.0f),       // Dense
+                "9" => (1.5f, 1.0f),       // Dense, Tainted
+                "A" => (0f, 0f),           // Exotic - Varies
+                "B" => (0f, 0f),           // Corrosive - Varies
+                "C" => (0f, 0f),           // Insidious - Varies
+                "D" => (1.5f, 1.0f),       // Very Dense
+                "E" => (0.5f, 0.2f),       // Low
+                "F" => (0f, 0f),           // Unusual - Varies
+                "G" => (0f, 0f),           // Gas Helium - Varies
+                "H" => (0f, 0f),           // Gas Hydrogen - Varies
+                _ => (0f, 0f)
+            };
+        }
+
+        private void CalculateAtmosphericPressure(TerrestrialPlanet planet, Random dice)
+        {
+            var (minBar, span) = GetAtmosphericPressureData(planet.Atmosphere);
+
+            if (minBar == 0f && span == 0f && planet.Atmosphere != "0")
+            {
+                // Varies - don't calculate
+                planet.AtmosphericPressure = 0f;
+                return;
+            }
+
+            planet.AtmosphericPressure = minBar + span * (Starhelper.diceRoll(100, 1, dice) / 100f);
+        }
+
+        private void CalculateAtmosphericPressure(Moon moon, Random dice)
+        {
+            var (minBar, span) = GetAtmosphericPressureData(moon.Atmosphere);
+
+            if (minBar == 0f && span == 0f && moon.Atmosphere != "0")
+            {
+                // Varies - don't calculate
+                moon.AtmosphericPressure = 0f;
+                return;
+            }
+
+            moon.AtmosphericPressure = minBar + span * (Starhelper.diceRoll(100, 1, dice) / 100f);
+        }
+
+        private void CalculateOxygenFraction(TerrestrialPlanet planet, float systemAge, Random dice)
+        {
+            // Only calculate for atmosphere codes 2-9, D, or E
+            string[] validCodes = { "2", "3", "4", "5", "6", "7", "8", "9", "D", "E" };
+            if (!validCodes.Contains(planet.Atmosphere))
+                return;
+
+            int dm = systemAge > 4f ? 1 : 0;
+            float oxygenFraction = ((Starhelper.diceRoll(6, 1, dice) + dm) / 20f)
+                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f);
+
+            // Clamp to 0-100%
+            if (oxygenFraction < 0) oxygenFraction = 0;
+            if (oxygenFraction > 1) oxygenFraction = 1;
+
+            int oxygenPercent = (int)Math.Round(oxygenFraction * 100);
+
+            // Set atmosphere composition with oxygen percentage
+            string baseComposition = GetAtmosphereComposition(planet.Atmosphere);
+            planet.AtmosphereComposition = $"{baseComposition}, Oxygen {oxygenPercent}%";
+        }
+
+        private void CalculateOxygenFraction(Moon moon, float systemAge, Random dice)
+        {
+            // Only calculate for atmosphere codes 2-9, D, or E
+            string[] validCodes = { "2", "3", "4", "5", "6", "7", "8", "9", "D", "E" };
+            if (!validCodes.Contains(moon.Atmosphere))
+                return;
+
+            int dm = systemAge > 4f ? 1 : 0;
+            float oxygenFraction = ((Starhelper.diceRoll(6, 1, dice) + dm) / 20f)
+                                 + ((Starhelper.diceRoll(6, 2, dice) - 7) / 100f);
+
+            // Clamp to 0-100%
+            if (oxygenFraction < 0) oxygenFraction = 0;
+            if (oxygenFraction > 1) oxygenFraction = 1;
+
+            int oxygenPercent = (int)Math.Round(oxygenFraction * 100);
+
+            // Set atmosphere composition with oxygen percentage
+            string baseComposition = GetAtmosphereComposition(moon.Atmosphere);
+            moon.AtmosphereComposition = $"{baseComposition}, Oxygen {oxygenPercent}%";
+        }
+
+        private void CalculateMeanTemperature(TerrestrialPlanet planet, float orbitNumber, float hzco, Random dice)
+        {
+            // Start with 2d6
+            int roll = Starhelper.diceRoll(6, 2, dice);
+
+            // Apply modifiers
+            if (planet.WorldType == "Frozen") roll -= 5;
+            else if (planet.WorldType == "Cold") roll -= 2;
+            else if (planet.WorldType == "Hot") roll += 2;
+            else if (planet.WorldType == "Boiling") roll += 5;
+
+            // Orbit-based modifiers
+            if (orbitNumber < hzco - 1f)
+            {
+                roll += 4;
+                float additionalOrbits = (hzco - 1f - orbitNumber) / 0.5f;
+                roll += (int)additionalOrbits;
+            }
+            else if (orbitNumber > hzco + 1f)
+            {
+                roll -= 4;
+                float additionalOrbits = (orbitNumber - (hzco + 1f)) / 0.5f;
+                roll -= (int)additionalOrbits;
+            }
+
+            // Atmosphere-based modifiers
+            if (planet.Atmosphere == "2" || planet.Atmosphere == "3") roll -= 2;
+            else if (planet.Atmosphere == "4" || planet.Atmosphere == "5" || planet.Atmosphere == "E") roll -= 1;
+            else if (planet.Atmosphere == "8" || planet.Atmosphere == "9") roll += 1;
+            else if (planet.Atmosphere == "A" || planet.Atmosphere == "D" || planet.Atmosphere == "F") roll += 2;
+            else if (planet.Atmosphere == "B" || planet.Atmosphere == "C") roll += 6;
+
+            // Calculate temperature in Kelvin
+            int temperatureK = roll switch
+            {
+                <= -1 => 188 + (roll * -5),
+                0 => 188,
+                1 => 198,
+                2 => 218,
+                3 => 238,
+                4 => 263,
+                5 => 278,
+                6 => 283,
+                7 => 288,
+                8 => 293,
+                9 => 298,
+                10 => 313,
+                11 => 338,
+                12 => 388,
+                >= 13 => 388 + ((roll - 12) * 50)
+            };
+
+            planet.MeanTemperatureK = temperatureK;
+            planet.MeanTemperatureC = temperatureK - 273; // Convert to Celsius
+        }
+
+        private void CalculateMeanTemperature(Moon moon, float worldOrbitNumber, float hzco, Random dice)
+        {
+            // Moons use same calculation but always start with roll of 7
+            int roll = 7;
+
+            // Apply modifiers
+            if (moon.WorldType == "Frozen") roll -= 5;
+            else if (moon.WorldType == "Cold") roll -= 2;
+            else if (moon.WorldType == "Hot") roll += 2;
+            else if (moon.WorldType == "Boiling") roll += 5;
+
+            // Orbit-based modifiers (using parent world's orbit)
+            if (worldOrbitNumber < hzco - 1f)
+            {
+                roll += 4;
+                float additionalOrbits = (hzco - 1f - worldOrbitNumber) / 0.5f;
+                roll += (int)additionalOrbits;
+            }
+            else if (worldOrbitNumber > hzco + 1f)
+            {
+                roll -= 4;
+                float additionalOrbits = (worldOrbitNumber - (hzco + 1f)) / 0.5f;
+                roll -= (int)additionalOrbits;
+            }
+
+            // Atmosphere-based modifiers
+            if (moon.Atmosphere == "2" || moon.Atmosphere == "3") roll -= 2;
+            else if (moon.Atmosphere == "4" || moon.Atmosphere == "5" || moon.Atmosphere == "E") roll -= 1;
+            else if (moon.Atmosphere == "8" || moon.Atmosphere == "9") roll += 1;
+            else if (moon.Atmosphere == "A" || moon.Atmosphere == "D" || moon.Atmosphere == "F") roll += 2;
+            else if (moon.Atmosphere == "B" || moon.Atmosphere == "C") roll += 6;
+
+            // Calculate temperature in Kelvin
+            int temperatureK = roll switch
+            {
+                <= -1 => 188 + (roll * -5),
+                0 => 188,
+                1 => 198,
+                2 => 218,
+                3 => 238,
+                4 => 263,
+                5 => 278,
+                6 => 283,
+                7 => 288,
+                8 => 293,
+                9 => 298,
+                10 => 313,
+                11 => 338,
+                12 => 388,
+                >= 13 => 388 + ((roll - 12) * 50)
+            };
+
+            moon.MeanTemperatureK = temperatureK;
+            moon.MeanTemperatureC = temperatureK - 273; // Convert to Celsius
+        }
+
+        private void CalculateHydrographics(TerrestrialPlanet planet, Random dice)
+        {
+            // Check size first
+            if (planet.Size == "S" || planet.Size == "0" || planet.Size == "1")
+            {
+                planet.HydrographicsCoverage = 0f;
+                planet.HydrographicsCode = "0";
+                return;
+            }
+
+            // Get atmosphere code value
+            int atmosValue = GetSizeValue(planet.Atmosphere);
+
+            // Roll 2d6-7 + Atmosphere Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + atmosValue;
+
+            // Apply modifiers
+            if (planet.Atmosphere == "0" || planet.Atmosphere == "1" ||
+                atmosValue >= 10) // A or higher
+                roll -= 4;
+
+            if ((planet.WorldType == "Hot") && (planet.Atmosphere != "D" && planet.Atmosphere != "F"))
+                roll -= 2;
+
+            if ((planet.WorldType == "Boiling") && (planet.Atmosphere != "D" && planet.Atmosphere != "F"))
+                roll -= 6;
+
+            // Determine percentage range
+            (int min, int max) = roll switch
+            {
+                <= 0 => (0, 5),
+                1 => (5, 15),
+                2 => (16, 25),
+                3 => (26, 35),
+                4 => (36, 45),
+                5 => (46, 55),
+                6 => (56, 65),
+                7 => (66, 75),
+                8 => (76, 85),
+                9 => (86, 95),
+                >= 10 => (96, 100)
+            };
+
+            // Randomly determine value within range
+            planet.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+
+            // Determine hydrographics code
+            if (roll < 0) roll = 0;
+            planet.HydrographicsCode = roll > 9 ? "A" : roll.ToString();
+        }
+
+        private void CalculateHydrographics(Moon moon, Random dice)
+        {
+            // Check size first
+            if (moon.Size == "S" || moon.Size == "0" || moon.Size == "1")
+            {
+                moon.HydrographicsCoverage = 0f;
+                moon.HydrographicsCode = "0";
+                return;
+            }
+
+            // Get atmosphere code value
+            int atmosValue = GetSizeValue(moon.Atmosphere);
+
+            // Roll 2d6-7 + Atmosphere Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + atmosValue;
+
+            // Apply modifiers
+            if (moon.Atmosphere == "0" || moon.Atmosphere == "1" ||
+                atmosValue >= 10) // A or higher
+                roll -= 4;
+
+            if ((moon.WorldType == "Hot") && (moon.Atmosphere != "D" && moon.Atmosphere != "F"))
+                roll -= 2;
+
+            if ((moon.WorldType == "Boiling") && (moon.Atmosphere != "D" && moon.Atmosphere != "F"))
+                roll -= 6;
+
+            // Determine percentage range
+            (int min, int max) = roll switch
+            {
+                <= 0 => (0, 5),
+                1 => (5, 15),
+                2 => (16, 25),
+                3 => (26, 35),
+                4 => (36, 45),
+                5 => (46, 55),
+                6 => (56, 65),
+                7 => (66, 75),
+                8 => (76, 85),
+                9 => (86, 95),
+                >= 10 => (96, 100)
+            };
+
+            // Randomly determine value within range
+            moon.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+
+            // Determine hydrographics code
+            if (roll < 0) roll = 0;
+            moon.HydrographicsCode = roll > 9 ? "A" : roll.ToString();
+        }
+
+        // Surface Distribution Calculations
+
+        private void CalculateSurfaceDistribution(TerrestrialPlanet planet, Random dice)
+        {
+            // Only calculate if there is hydrographics
+            if (planet.HydrographicsCode == "0" || planet.HydrographicsCoverage == 0)
+            {
+                planet.SurfaceDistribution = "N/A";
+                return;
+            }
+
+            // Roll 2d6 - 2
+            int roll = Starhelper.diceRoll(6, 2, dice) - 2;
+
+            planet.SurfaceDistribution = roll switch
+            {
+                0 => "Extremely Dispersed",
+                1 => "Very Dispersed",
+                2 => "Dispersed",
+                3 => "Scattered",
+                4 => "Slightly Scattered",
+                5 => "Mixed",
+                6 => "Slightly Skewed",
+                7 => "Skewed",
+                8 => "Concentrated",
+                9 => "Very Concentrated",
+                >= 10 => "Extremely Concentrated",
+                _ => "Mixed"
+            };
+        }
+
+        private void CalculateSurfaceDistribution(Moon moon, Random dice)
+        {
+            // Only calculate if there is hydrographics
+            if (moon.HydrographicsCode == "0" || moon.HydrographicsCoverage == 0)
+            {
+                moon.SurfaceDistribution = "N/A";
+                return;
+            }
+
+            // Roll 2d6 - 2
+            int roll = Starhelper.diceRoll(6, 2, dice) - 2;
+
+            moon.SurfaceDistribution = roll switch
+            {
+                0 => "Extremely Dispersed",
+                1 => "Very Dispersed",
+                2 => "Dispersed",
+                3 => "Scattered",
+                4 => "Slightly Scattered",
+                5 => "Mixed",
+                6 => "Slightly Skewed",
+                7 => "Skewed",
+                8 => "Concentrated",
+                9 => "Very Concentrated",
+                >= 10 => "Extremely Concentrated",
+                _ => "Mixed"
+            };
+        }
+
+        // Albedo Calculations
+
+        private void CalculateAlbedo(TerrestrialPlanet planet, float orbitNumber, float hzco, Random dice)
+        {
+            float albedo = 0;
+
+            // Base albedo calculation based on density
+            if (planet.Density > 0.4f)
+            {
+                // Albedo = 0.04 + (2d6-2) * 0.02
+                albedo = 0.04f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f);
+            }
+            else if (orbitNumber <= hzco + 2)
+            {
+                // Albedo = 0.2 + (2d6-3) * 0.05
+                albedo = 0.2f + ((Starhelper.diceRoll(6, 2, dice) - 3) * 0.05f);
+            }
+            else
+            {
+                // Albedo = 0.25 + (2d6-2) * 0.07
+                albedo = 0.25f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.07f);
+                if (albedo < 0.4f)
+                {
+                    albedo = albedo - ((Starhelper.diceRoll(6, 1, dice) - 1) * 0.05f);
+                }
+            }
+
+            // Apply atmosphere modifiers
+            if (planet.Atmosphere == "1" || planet.Atmosphere == "2" || planet.Atmosphere == "3" || planet.Atmosphere == "E")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 3) * 0.01f;
+            }
+            else if (planet.Atmosphere == "4" || planet.Atmosphere == "5" || planet.Atmosphere == "6" ||
+                     planet.Atmosphere == "7" || planet.Atmosphere == "8" || planet.Atmosphere == "9")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.01f;
+            }
+            else if (planet.Atmosphere == "A" || planet.Atmosphere == "B" || planet.Atmosphere == "C" ||
+                     planet.Atmosphere == "F" || planet.Atmosphere == "G" || planet.Atmosphere == "H")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.05f;
+            }
+            else if (planet.Atmosphere == "D")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.03f;
+            }
+
+            // Apply hydrographics modifiers
+            int hydroValue = GetSizeValue(planet.HydrographicsCode);
+            if (hydroValue >= 2 && hydroValue <= 5)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f;
+            }
+            else if (hydroValue >= 6)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 4) * 0.03f;
+            }
+
+            planet.Albedo = Math.Clamp(albedo, 0f, 1f);
+        }
+
+        private void CalculateAlbedo(Moon moon, float parentOrbitNumber, float hzco, Random dice)
+        {
+            float albedo = 0;
+
+            // Base albedo calculation based on density
+            if (moon.Density > 0.4f)
+            {
+                // Albedo = 0.04 + (2d6-2) * 0.02
+                albedo = 0.04f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f);
+            }
+            else if (parentOrbitNumber <= hzco + 2)
+            {
+                // Albedo = 0.2 + (2d6-3) * 0.05
+                albedo = 0.2f + ((Starhelper.diceRoll(6, 2, dice) - 3) * 0.05f);
+            }
+            else
+            {
+                // Albedo = 0.25 + (2d6-2) * 0.07
+                albedo = 0.25f + ((Starhelper.diceRoll(6, 2, dice) - 2) * 0.07f);
+                if (albedo < 0.4f)
+                {
+                    albedo = albedo - ((Starhelper.diceRoll(6, 1, dice) - 1) * 0.05f);
+                }
+            }
+
+            // Apply atmosphere modifiers
+            if (moon.Atmosphere == "1" || moon.Atmosphere == "2" || moon.Atmosphere == "3" || moon.Atmosphere == "E")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 3) * 0.01f;
+            }
+            else if (moon.Atmosphere == "4" || moon.Atmosphere == "5" || moon.Atmosphere == "6" ||
+                     moon.Atmosphere == "7" || moon.Atmosphere == "8" || moon.Atmosphere == "9")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.01f;
+            }
+            else if (moon.Atmosphere == "A" || moon.Atmosphere == "B" || moon.Atmosphere == "C" ||
+                     moon.Atmosphere == "F" || moon.Atmosphere == "G" || moon.Atmosphere == "H")
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.05f;
+            }
+            else if (moon.Atmosphere == "D")
+            {
+                albedo += Starhelper.diceRoll(6, 2, dice) * 0.03f;
+            }
+
+            // Apply hydrographics modifiers
+            int hydroValue = GetSizeValue(moon.HydrographicsCode);
+            if (hydroValue >= 2 && hydroValue <= 5)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 2) * 0.02f;
+            }
+            else if (hydroValue >= 6)
+            {
+                albedo += (Starhelper.diceRoll(6, 2, dice) - 4) * 0.03f;
+            }
+
+            moon.Albedo = Math.Clamp(albedo, 0f, 1f);
+        }
+
+        private void CalculateAlbedo(GasGiant gasGiant, Random dice)
+        {
+            // Gas Giant: Albedo = 0.05 + (2d6) * 0.05
+            float albedo = 0.05f + (Starhelper.diceRoll(6, 2, dice) * 0.05f);
+            gasGiant.Albedo = Math.Clamp(albedo, 0f, 1f);
+        }
+
+        // Greenhouse Calculations
+
+        private void CalculateGreenhouse(TerrestrialPlanet planet, Random dice)
+        {
+            // Greenhouse = 0.5 * sqrt(AtmosphericPressure)
+            float greenhouse = 0.5f * (float)Math.Sqrt(planet.AtmosphericPressure);
+
+            // Apply modifiers based on atmosphere type
+            if (planet.Atmosphere == "1" || planet.Atmosphere == "2" || planet.Atmosphere == "3" ||
+                planet.Atmosphere == "4" || planet.Atmosphere == "5" || planet.Atmosphere == "6" ||
+                planet.Atmosphere == "7" || planet.Atmosphere == "8" || planet.Atmosphere == "9" ||
+                planet.Atmosphere == "D" || planet.Atmosphere == "E")
+            {
+                greenhouse += Starhelper.diceRoll(6, 3, dice) * 0.01f;
+            }
+            else if (planet.Atmosphere == "A" || planet.Atmosphere == "F")
+            {
+                greenhouse = greenhouse * (Starhelper.diceRoll(6, 1, dice) - 1);
+                if (greenhouse < 0.5f)
+                    greenhouse = 0.5f;
+            }
+            else if (planet.Atmosphere == "B" || planet.Atmosphere == "C" || planet.Atmosphere == "G" || planet.Atmosphere == "H")
+            {
+                int roll = Starhelper.diceRoll(6, 1, dice);
+                if (roll >= 1 && roll <= 5)
+                {
+                    greenhouse = greenhouse * roll;
+                }
+                else if (roll == 6)
+                {
+                    greenhouse = greenhouse * (3 * roll);
+                }
+            }
+
+            planet.Greenhouse = greenhouse;
+        }
+
+        private void CalculateGreenhouse(Moon moon, Random dice)
+        {
+            // Greenhouse = 0.5 * sqrt(AtmosphericPressure)
+            float greenhouse = 0.5f * (float)Math.Sqrt(moon.AtmosphericPressure);
+
+            // Apply modifiers based on atmosphere type
+            if (moon.Atmosphere == "1" || moon.Atmosphere == "2" || moon.Atmosphere == "3" ||
+                moon.Atmosphere == "4" || moon.Atmosphere == "5" || moon.Atmosphere == "6" ||
+                moon.Atmosphere == "7" || moon.Atmosphere == "8" || moon.Atmosphere == "9" ||
+                moon.Atmosphere == "D" || moon.Atmosphere == "E")
+            {
+                greenhouse += Starhelper.diceRoll(6, 3, dice) * 0.01f;
+            }
+            else if (moon.Atmosphere == "A" || moon.Atmosphere == "F")
+            {
+                greenhouse = greenhouse * (Starhelper.diceRoll(6, 1, dice) - 1);
+                if (greenhouse < 0.5f)
+                    greenhouse = 0.5f;
+            }
+            else if (moon.Atmosphere == "B" || moon.Atmosphere == "C" || moon.Atmosphere == "G" || moon.Atmosphere == "H")
+            {
+                int roll = Starhelper.diceRoll(6, 1, dice);
+                if (roll >= 1 && roll <= 5)
+                {
+                    greenhouse = greenhouse * roll;
+                }
+                else if (roll == 6)
+                {
+                    greenhouse = greenhouse * (3 * roll);
+                }
+            }
+
+            moon.Greenhouse = greenhouse;
+        }
+
+        // Temperature Factor Calculations
+
+        private void CalculateTemperatureFactors(TerrestrialPlanet planet)
+        {
+            // 1. Axial Tilt Factor = sin(axial tilt in radians)
+            float axialTiltRadians = planet.AxialTilt * (float)(Math.PI / 180.0);
+            planet.AxialTiltFactor = (float)Math.Abs(Math.Sin(axialTiltRadians));
+
+            // 2. Rotation Factor
+            if (planet.SolarDayHours > 2500 || planet.TidalLockStatus.Contains("1:1"))
+            {
+                planet.RotationFactor = 1.0f;
+            }
+            else
+            {
+                planet.RotationFactor = (float)Math.Sqrt(Math.Abs(planet.SolarDayHours) / 50.0);
+            }
+
+            // 3. Geographic Factor
+            int hydroValue = GetSizeValue(planet.HydrographicsCode);
+            float geographicFactor = ((10 - hydroValue) / 20.0f);
+
+            // Apply surface concentration modifier
+            int concentrationRoll = planet.SurfaceDistribution switch
+            {
+                "Extremely Concentrated" => 10,
+                "Very Concentrated" => 9,
+                "Concentrated" => 8,
+                "Extremely Dispersed" => 0,
+                "Very Dispersed" => 1,
+                "Dispersed" => 2,
+                _ => 5 // Default for middle values
+            };
+
+            if (concentrationRoll >= 9)
+                geographicFactor += 0.1f;
+            else if (concentrationRoll <= 1)
+                geographicFactor -= 0.1f;
+
+            planet.GeographicFactor = geographicFactor;
+
+            // 4. Variance Factors (sum, clamped to 0-1)
+            float variance = planet.AxialTiltFactor + planet.RotationFactor + planet.GeographicFactor;
+            planet.VarianceFactors = Math.Clamp(variance, 0f, 1f);
+
+            // 5. Atmospheric Factor = 1 + AtmosphericPressure
+            planet.AtmosphericFactor = 1.0f + planet.AtmosphericPressure;
+
+            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-0.99 to prevent zero low luminosity)
+            if (planet.AtmosphericFactor > 0)
+            {
+                planet.LuminosityModifier = Math.Clamp(planet.VarianceFactors / planet.AtmosphericFactor, 0f, 0.99f);
+            }
+            else
+            {
+                planet.LuminosityModifier = 0f;
+            }
+        }
+
+        private void CalculateTemperatureFactors(Moon moon)
+        {
+            // 1. Axial Tilt Factor = sin(axial tilt in radians)
+            float axialTiltRadians = moon.AxialTilt * (float)(Math.PI / 180.0);
+            moon.AxialTiltFactor = (float)Math.Abs(Math.Sin(axialTiltRadians));
+
+            // 2. Rotation Factor
+            if (moon.SolarDayHours > 2500 || moon.TidalLockStatus.Contains("1:1"))
+            {
+                moon.RotationFactor = 1.0f;
+            }
+            else
+            {
+                moon.RotationFactor = (float)Math.Sqrt(Math.Abs(moon.SolarDayHours) / 50.0);
+            }
+
+            // 3. Geographic Factor
+            int hydroValue = GetSizeValue(moon.HydrographicsCode);
+            float geographicFactor = ((10 - hydroValue) / 20.0f);
+
+            // Apply surface concentration modifier
+            int concentrationRoll = moon.SurfaceDistribution switch
+            {
+                "Extremely Concentrated" => 10,
+                "Very Concentrated" => 9,
+                "Concentrated" => 8,
+                "Extremely Dispersed" => 0,
+                "Very Dispersed" => 1,
+                "Dispersed" => 2,
+                _ => 5 // Default for middle values
+            };
+
+            if (concentrationRoll >= 9)
+                geographicFactor += 0.1f;
+            else if (concentrationRoll <= 1)
+                geographicFactor -= 0.1f;
+
+            moon.GeographicFactor = geographicFactor;
+
+            // 4. Variance Factors (sum, clamped to 0-1)
+            float variance = moon.AxialTiltFactor + moon.RotationFactor + moon.GeographicFactor;
+            moon.VarianceFactors = Math.Clamp(variance, 0f, 1f);
+
+            // 5. Atmospheric Factor = 1 + AtmosphericPressure
+            moon.AtmosphericFactor = 1.0f + moon.AtmosphericPressure;
+
+            // 6. Luminosity Modifier = Variance / Atmospheric (clamped to 0-0.99 to prevent zero low luminosity)
+            if (moon.AtmosphericFactor > 0)
+            {
+                moon.LuminosityModifier = Math.Clamp(moon.VarianceFactors / moon.AtmosphericFactor, 0f, 0.99f);
+            }
+            else
+            {
+                moon.LuminosityModifier = 0f;
+            }
+        }
+
+        // Calculate all temperatures after tidal locks are complete
+
+        private void CalculateAllTemperatures()
+        {
+            // Process primary star's worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                ProcessStarTemperatures(primaryStar, primaryObject.celestrialObjectOrbits);
+            }
+
+            // Process companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    ProcessStarTemperatures(companionStar, companionObj.celestrialObjectOrbits);
+                }
+            }
+        }
+
+        private void ProcessStarTemperatures(Star parentStar, List<CelestrialObject> orbits)
+        {
+            foreach (var bodyObj in orbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    // Calculate total luminosity of all stars this planet orbits
+                    float totalLuminosity = CalculateTotalLuminosity(parentStar);
+
+                    // Calculate temperature factors and temperatures
+                    CalculateTemperatureFactors(planet);
+                    CalculateTemperatures(planet, bodyObj.orbitAU, bodyObj.orbitEccentricity, totalLuminosity);
+
+                    // Calculate Resource and Habitability for all terrestrial planets
+                    CalculateResourceAndHabitabilityForPlanet(planet);
+
+                    DebugLogger.LogFormat("  {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Albedo={4:F2}, Greenhouse={5:F2}, Resource={6}, Habitability={7}",
+                        planet.Designation, planet.MeanTemperatureK, planet.HighTemperatureK, planet.LowTemperatureK,
+                        planet.Albedo, planet.Greenhouse, planet.ResourceRating, planet.HabitabilityRating);
+
+                    // Process moons
+                    foreach (var moon in planet.Moons)
+                    {
+                        CalculateTemperatureFactors(moon);
+                        // For moons, convert moon orbit from planetary diameters to AU
+                        float moonOrbitKm = moon.Orbit * planet.Diameter; // Moon orbit in km
+                        float moonOrbitAU = moonOrbitKm / 149597870.7f; // Convert km to AU
+                        CalculateTemperatures(moon, bodyObj.orbitAU, moonOrbitAU, moon.Eccentricity, totalLuminosity);
+
+                        // Calculate Resource and Habitability for all moons
+                        CalculateResourceAndHabitabilityForMoon(moon);
+
+                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Resource={4}, Habitability={5}",
+                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK, moon.ResourceRating, moon.HabitabilityRating);
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gasGiant)
+                {
+                    // Calculate total luminosity for gas giant moons
+                    float totalLuminosity = CalculateTotalLuminosity(parentStar);
+
+                    // Process gas giant moons
+                    foreach (var moon in gasGiant.Moons)
+                    {
+                        CalculateTemperatureFactors(moon);
+                        // For moons, convert moon orbit from gas giant diameters to AU
+                        float gasGiantDiameterKm = gasGiant.Diameter * 12742f; // Convert Earth diameters to km
+                        float moonOrbitKm = moon.Orbit * gasGiantDiameterKm; // Moon orbit in km
+                        float moonOrbitAU = moonOrbitKm / 149597870.7f; // Convert km to AU
+                        CalculateTemperatures(moon, bodyObj.orbitAU, moonOrbitAU, moon.Eccentricity, totalLuminosity);
+
+                        // Calculate Resource and Habitability for all moons
+                        CalculateResourceAndHabitabilityForMoon(moon);
+
+                        DebugLogger.LogFormat("    Moon {0}: T(mean)={1}K, T(high)={2}K, T(low)={3}K, Resource={4}, Habitability={5}",
+                            moon.Designation, moon.MeanTemperatureK, moon.HighTemperatureK, moon.LowTemperatureK, moon.ResourceRating, moon.HabitabilityRating);
+                    }
+                }
+            }
+        }
+
+        private float CalculateTotalLuminosity(Star star)
+        {
+            float totalLuminosity = star.luminosity;
+
+            // If this star has companions in the same system, add their luminosity
+            // For now, just return the single star's luminosity
+            // TODO: Handle multiple stars in the same orbit properly
+
+            return totalLuminosity;
+        }
+
+        // Temperature Calculations
+
+        private void CalculateTemperatures(TerrestrialPlanet planet, float orbitAU, float eccentricity, float totalLuminosity)
+        {
+            // Calculate High and Low Luminosity
+            planet.HighLuminosity = totalLuminosity * (1.0f + planet.LuminosityModifier);
+            planet.LowLuminosity = totalLuminosity * (1.0f - planet.LuminosityModifier);
+
+            // Calculate Near and Far AU based on eccentricity
+            planet.NearAU = orbitAU * (1.0f - eccentricity);
+            planet.FarAU = orbitAU * (1.0f + eccentricity);
+
+            // Calculate Mean Temperature (K) = 279 * ((Luminosity * (1 - Albedo) * (1 + Greenhouse)) / (AU^2))^0.25
+            float meanTempCalc = totalLuminosity * (1.0f - planet.Albedo) * (1.0f + planet.Greenhouse) / (orbitAU * orbitAU);
+            planet.MeanTemperatureK = (int)(279.0f * (float)Math.Pow(meanTempCalc, 0.25));
+            planet.MeanTemperatureC = planet.MeanTemperatureK - 273;
+
+            // Calculate High Temperature (K)
+            float highTempCalc = planet.HighLuminosity * (1.0f - planet.Albedo) * (1.0f + planet.Greenhouse) / (planet.NearAU * planet.NearAU);
+            planet.HighTemperatureK = (int)(279.0f * (float)Math.Pow(highTempCalc, 0.25));
+            planet.HighTemperatureC = planet.HighTemperatureK - 273;
+
+            // Calculate Low Temperature (K)
+            float lowTempCalc = planet.LowLuminosity * (1.0f - planet.Albedo) * (1.0f + planet.Greenhouse) / (planet.FarAU * planet.FarAU);
+            planet.LowTemperatureK = (int)(279.0f * (float)Math.Pow(lowTempCalc, 0.25));
+            planet.LowTemperatureC = planet.LowTemperatureK - 273;
+        }
+
+        private void CalculateTemperatures(Moon moon, float parentOrbitAU, float moonOrbitAU, float eccentricity, float totalLuminosity)
+        {
+            // For moons, use the parent planet's orbit for all temperature calculations
+            // The moon's distance from the star is essentially the same as the parent's distance
+            float effectiveOrbitAU = parentOrbitAU;
+
+            // Calculate High and Low Luminosity
+            moon.HighLuminosity = totalLuminosity * (1.0f + moon.LuminosityModifier);
+            moon.LowLuminosity = totalLuminosity * (1.0f - moon.LuminosityModifier);
+
+            // Store moon's orbital data (around parent) for reference, but don't use for temperature
+            moon.NearAU = moonOrbitAU * (1.0f - eccentricity);
+            moon.FarAU = moonOrbitAU * (1.0f + eccentricity);
+
+            // Calculate Mean Temperature using parent's orbit
+            float meanTempCalc = totalLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (effectiveOrbitAU * effectiveOrbitAU);
+            moon.MeanTemperatureK = (int)(279.0f * (float)Math.Pow(meanTempCalc, 0.25));
+            moon.MeanTemperatureC = moon.MeanTemperatureK - 273;
+
+            // Calculate High Temperature using parent's orbit and luminosity variation
+            float highTempCalc = moon.HighLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (effectiveOrbitAU * effectiveOrbitAU);
+            moon.HighTemperatureK = (int)(279.0f * (float)Math.Pow(highTempCalc, 0.25));
+            moon.HighTemperatureC = moon.HighTemperatureK - 273;
+
+            // Calculate Low Temperature using parent's orbit and luminosity variation
+            float lowTempCalc = moon.LowLuminosity * (1.0f - moon.Albedo) * (1.0f + moon.Greenhouse) / (effectiveOrbitAU * effectiveOrbitAU);
+            moon.LowTemperatureK = (int)(279.0f * (float)Math.Pow(lowTempCalc, 0.25));
+            moon.LowTemperatureC = moon.LowTemperatureK - 273;
+        }
+
+        // Rotation and Day Length Calculations
+
+        private void CalculateBasicRotationRate(TerrestrialPlanet planet, float systemAge, Random dice)
+        {
+            int dm = (int)(systemAge / 2); // +1 per two Gyrs, round down
+
+            // Basic Rotation Rate = ((2d6) * 2) + 2 + (1d6) + DM
+            int basicRate = (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // If result > 40, roll 1d6 and if 5-6, repeat and add
+            while (basicRate > 40 && Starhelper.diceRoll(6, 1, dice) >= 5)
+            {
+                basicRate += (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+            }
+
+            // Add random minutes (0-59)
+            float randomMinutes = Starhelper.diceRoll(60, 1, dice) - 1;
+            planet.BasicRotationRateHours = basicRate + (randomMinutes / 60f);
+        }
+
+        private void CalculateBasicRotationRate(GasGiant gasGiant, float systemAge, Random dice)
+        {
+            int dm = (int)(systemAge / 2); // +1 per two Gyrs, round down
+
+            // Gas giants use same formula: ((2d6) * 2) + 2 + (1d6) + DM
+            int basicRate = (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // If result > 40, roll 1d6 and if 5-6, repeat and add
+            while (basicRate > 40 && Starhelper.diceRoll(6, 1, dice) >= 5)
+            {
+                basicRate += (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+            }
+
+            // Add random minutes (0-59)
+            float randomMinutes = Starhelper.diceRoll(60, 1, dice) - 1;
+            gasGiant.BasicRotationRateHours = basicRate + (randomMinutes / 60f);
+        }
+
+        private void CalculateBasicRotationRate(Moon moon, float systemAge, Random dice)
+        {
+            int dm = (int)(systemAge / 2); // +1 per two Gyrs, round down
+
+            // Moons use same formula: ((2d6) * 2) + 2 + (1d6) + DM
+            int basicRate = (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // If result > 40, roll 1d6 and if 5-6, repeat and add
+            while (basicRate > 40 && Starhelper.diceRoll(6, 1, dice) >= 5)
+            {
+                basicRate += (Starhelper.diceRoll(6, 2, dice) * 2) + 2 + Starhelper.diceRoll(6, 1, dice) + dm;
+            }
+
+            // Add random minutes (0-59)
+            float randomMinutes = Starhelper.diceRoll(60, 1, dice) - 1;
+            moon.BasicRotationRateHours = basicRate + (randomMinutes / 60f);
+        }
+
+        private void CalculateSolarDays(TerrestrialPlanet planet, float orbitalPeriodYears)
+        {
+            // Convert orbital period from years to hours
+            float orbitalPeriodHours = orbitalPeriodYears * 365.25f * 24f;
+
+            if (planet.BasicRotationRateHours <= 0)
+            {
+                planet.SolarDaysInLocalYear = 0;
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            planet.SolarDaysInLocalYear = (orbitalPeriodHours / planet.BasicRotationRateHours) - 1;
+
+            if (planet.SolarDaysInLocalYear <= 0)
+            {
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            planet.SolarDayHours = orbitalPeriodHours / planet.SolarDaysInLocalYear;
+        }
+
+        private void CalculateSolarDays(GasGiant gasGiant, float orbitalPeriodYears)
+        {
+            // Convert orbital period from years to hours
+            float orbitalPeriodHours = orbitalPeriodYears * 365.25f * 24f;
+
+            if (gasGiant.BasicRotationRateHours <= 0)
+            {
+                gasGiant.SolarDaysInLocalYear = 0;
+                gasGiant.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            gasGiant.SolarDaysInLocalYear = (orbitalPeriodHours / gasGiant.BasicRotationRateHours) - 1;
+
+            if (gasGiant.SolarDaysInLocalYear <= 0)
+            {
+                gasGiant.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            gasGiant.SolarDayHours = orbitalPeriodHours / gasGiant.SolarDaysInLocalYear;
+        }
+
+        private void CalculateSolarDays(Moon moon, float parentOrbitalPeriodHours)
+        {
+            // For moons, use the parent world's orbital period (already in hours)
+            if (moon.BasicRotationRateHours <= 0)
+            {
+                moon.SolarDaysInLocalYear = 0;
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            moon.SolarDaysInLocalYear = (parentOrbitalPeriodHours / moon.BasicRotationRateHours) - 1;
+
+            if (moon.SolarDaysInLocalYear <= 0)
+            {
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            moon.SolarDayHours = parentOrbitalPeriodHours / moon.SolarDaysInLocalYear;
+        }
+
+        // Axial Tilt Calculations
+
+        private void CalculateAxialTilt(TerrestrialPlanet planet, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float axialTilt = 0;
+
+            if (roll >= 2 && roll <= 4)
+            {
+                // Axial Tilt = ((1d6)-1)/50
+                axialTilt = ((Starhelper.diceRoll(6, 1, dice) - 1) / 50f);
+            }
+            else if (roll == 5)
+            {
+                // Axial Tilt = (1d6)/5
+                axialTilt = (Starhelper.diceRoll(6, 1, dice) / 5f);
+            }
+            else if (roll == 6)
+            {
+                // Axial Tilt = 1d6
+                axialTilt = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (roll == 7)
+            {
+                // Axial Tilt = (1d6) + 6
+                axialTilt = Starhelper.diceRoll(6, 1, dice) + 6;
+            }
+            else if (roll >= 8 && roll <= 9)
+            {
+                // Axial Tilt = 5 + (1d6) * 5
+                axialTilt = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (roll >= 10)
+            {
+                // Roll 1d6 for sub-table
+                int subRoll = Starhelper.diceRoll(6, 1, dice);
+
+                if (subRoll >= 1 && subRoll <= 2)
+                {
+                    // Axial Tilt = 10 + (1d6) * 10
+                    axialTilt = 10 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 3)
+                {
+                    // Axial Tilt = 30 + (1d6) * 10
+                    axialTilt = 30 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 4)
+                {
+                    // Axial Tilt = 90 + (1d6) * (1d6)
+                    axialTilt = 90 + (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 5)
+                {
+                    // Axial Tilt = 180 - (1d6) * (1d6)
+                    axialTilt = 180 - (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 6)
+                {
+                    // Axial Tilt = 120 + (1d6) * 10
+                    axialTilt = 120 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+            }
+
+            planet.AxialTilt = axialTilt;
+        }
+
+        private void CalculateAxialTilt(Moon moon, Random dice)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float axialTilt = 0;
+
+            if (roll >= 2 && roll <= 4)
+            {
+                // Axial Tilt = ((1d6)-1)/50
+                axialTilt = ((Starhelper.diceRoll(6, 1, dice) - 1) / 50f);
+            }
+            else if (roll == 5)
+            {
+                // Axial Tilt = (1d6)/5
+                axialTilt = (Starhelper.diceRoll(6, 1, dice) / 5f);
+            }
+            else if (roll == 6)
+            {
+                // Axial Tilt = 1d6
+                axialTilt = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (roll == 7)
+            {
+                // Axial Tilt = (1d6) + 6
+                axialTilt = Starhelper.diceRoll(6, 1, dice) + 6;
+            }
+            else if (roll >= 8 && roll <= 9)
+            {
+                // Axial Tilt = 5 + (1d6) * 5
+                axialTilt = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (roll >= 10)
+            {
+                // Roll 1d6 for sub-table
+                int subRoll = Starhelper.diceRoll(6, 1, dice);
+
+                if (subRoll >= 1 && subRoll <= 2)
+                {
+                    // Axial Tilt = 10 + (1d6) * 10
+                    axialTilt = 10 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 3)
+                {
+                    // Axial Tilt = 30 + (1d6) * 10
+                    axialTilt = 30 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+                else if (subRoll == 4)
+                {
+                    // Axial Tilt = 90 + (1d6) * (1d6)
+                    axialTilt = 90 + (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 5)
+                {
+                    // Axial Tilt = 180 - (1d6) * (1d6)
+                    axialTilt = 180 - (Starhelper.diceRoll(6, 1, dice) * Starhelper.diceRoll(6, 1, dice));
+                }
+                else if (subRoll == 6)
+                {
+                    // Axial Tilt = 120 + (1d6) * 10
+                    axialTilt = 120 + (Starhelper.diceRoll(6, 1, dice) * 10);
+                }
+            }
+
+            moon.AxialTilt = axialTilt;
+        }
+
+        // Tidal Force Calculations
+
+        private void CalculateAllTidalForces()
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Calculating Tidal Forces...");
+
+            // Calculate tidal forces for all terrestrial planets
+            var allTerrestrialPlanets = GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet);
+            foreach (var (planetObj, parentStar) in allTerrestrialPlanets)
+            {
+                if (planetObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    CalculateTidalForcesForPlanet(planet, planetObj, parentStar);
+                }
+            }
+
+            // Calculate tidal forces for all moons on terrestrial planets
+            foreach (var (worldObj, parentStar) in allTerrestrialPlanets)
+            {
+                if (worldObj.celestrialObject is TerrestrialPlanet tp && tp.Moons.Count > 0)
+                {
+                    foreach (var moon in tp.Moons)
+                    {
+                        CalculateTidalForcesForMoon(moon, tp, worldObj, parentStar);
+                    }
+                }
+            }
+
+            // Calculate tidal forces for moons on gas giants
+            var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            foreach (var (worldObj, parentStar) in allGasGiants)
+            {
+                if (worldObj.celestrialObject is GasGiant gg && gg.Moons.Count > 0)
+                {
+                    foreach (var moon in gg.Moons)
+                    {
+                        CalculateTidalForcesForMoon(moon, gg, worldObj, parentStar);
+                    }
+                }
+            }
+        }
+
+        private void CalculateTidalForcesForPlanet(TerrestrialPlanet planet, CelestrialObject planetObj, Star parentStar)
+        {
+            planet.TidalForceContributions.Clear();
+            planet.TotalTidalForce = 0;
+
+            // Measure against all stars in the system
+            CalculateTidalForceFromStars(planet, planetObj, parentStar);
+
+            // Measure against all gas giants
+            CalculateTidalForceFromGasGiants(planet, planetObj);
+
+            // Measure against all moons orbiting this planet
+            if (planet.Moons.Count > 0)
+            {
+                foreach (var moon in planet.Moons)
+                {
+                    // Convert distance from PD to km
+                    float distanceKm = moon.Orbit * planet.Diameter;
+
+                    float tidalForce = CalculateTidalForce(
+                        moon.Mass,                // Earth masses
+                        planet.Diameter,          // Diameter in km
+                        distanceKm                // Distance in km
+                    );
+
+                    if (tidalForce > 0)
+                    {
+                        planet.TidalForceContributions.Add(new TidalForceContribution
+                        {
+                            SourceName = $"{planet.Designation} {moon.Designation}",
+                            SourceType = "Moon",
+                            TidalForce = tidalForce
+                        });
+                        planet.TotalTidalForce += tidalForce;
+                    }
+                }
+            }
+
+            DebugLogger.Log($"  {planet.Designation}: Total tidal force = {planet.TotalTidalForce:F2}m");
+        }
+
+        private void CalculateTidalForcesForMoon(Moon moon, CelestialBody parentWorld, CelestrialObject worldObj, Star parentStar)
+        {
+            moon.TidalForceContributions.Clear();
+            moon.TotalTidalForce = 0;
+
+            // Measure against all stars in the system
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                float distanceAU = worldObj.orbitAU;
+                if (primaryStar != parentStar)
+                {
+                    // Moon orbits a companion star, use companion star's orbit as distance
+                    var starObj = FindCelestrialObjectForStar(parentStar);
+                    if (starObj != null)
+                    {
+                        distanceAU = starObj.orbitAU;
+                    }
+                }
+
+                // Convert star mass from solar masses to Earth masses, distance from AU to km
+                float starMassEarth = primaryStar.mass * 332946f;
+                float distanceKm = distanceAU * 149597871f;
+                float tidalForce = CalculateTidalForce(starMassEarth, moon.Diameter, distanceKm);
+
+                if (tidalForce > 0)
+                {
+                    moon.TidalForceContributions.Add(new TidalForceContribution
+                    {
+                        SourceName = primaryStar.Designation,
+                        SourceType = "Star",
+                        TidalForce = tidalForce
+                    });
+                    moon.TotalTidalForce += tidalForce;
+                }
+            }
+
+            // Companion stars
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .ToList();
+
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    float distanceAU = companionObj.orbitAU;
+                    // Convert star mass from solar masses to Earth masses, distance from AU to km
+                    float starMassEarth = companionStar.mass * 332946f;
+                    float distanceKm = distanceAU * 149597871f;
+                    float tidalForce = CalculateTidalForce(starMassEarth, moon.Diameter, distanceKm);
+
+                    if (tidalForce > 0)
+                    {
+                        moon.TidalForceContributions.Add(new TidalForceContribution
+                        {
+                            SourceName = companionStar.Designation,
+                            SourceType = "Star",
+                            TidalForce = tidalForce
+                        });
+                        moon.TotalTidalForce += tidalForce;
+                    }
+                }
+            }
+
+            // Measure against all gas giants
+            var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            foreach (var (ggObj, _) in allGasGiants)
+            {
+                if (ggObj.celestrialObject is GasGiant gg && ggObj != worldObj)
+                {
+                    float distanceAU = Math.Abs(worldObj.orbitAU - ggObj.orbitAU);
+                    if (distanceAU > 0)
+                    {
+                        // Gas giant mass is already in Earth masses, just convert distance to km
+                        float distanceKm = distanceAU * 149597871f;
+
+                        float tidalForce = CalculateTidalForce(
+                            gg.GasGiantMass,  // Already in Earth masses
+                            moon.Diameter,
+                            distanceKm
+                        );
+
+                        if (tidalForce > 0)
+                        {
+                            moon.TidalForceContributions.Add(new TidalForceContribution
+                            {
+                                SourceName = gg.Designation,
+                                SourceType = "Gas Giant",
+                                TidalForce = tidalForce
+                            });
+                            moon.TotalTidalForce += tidalForce;
+                        }
+                    }
+                }
+            }
+
+            // Measure against the world being orbited
+            float parentMassEarth = 0;
+            float parentDiameterKm = 0;
+            string parentType = "";
+
+            if (parentWorld is TerrestrialPlanet tp)
+            {
+                parentMassEarth = tp.WorldMass;
+                parentDiameterKm = tp.Diameter;
+                parentType = "Planet";
+            }
+            else if (parentWorld is GasGiant gg)
+            {
+                parentMassEarth = gg.GasGiantMass;
+                parentDiameterKm = gg.Diameter * 12742f; // Convert Earth diameters to km
+                parentType = "Gas Giant";
+            }
+
+            if (parentMassEarth > 0 && parentDiameterKm > 0)
+            {
+                // Convert distance from PD to km
+                float distanceKm = moon.Orbit * parentDiameterKm;
+
+                float tidalForce = CalculateTidalForce(
+                    parentMassEarth,          // Earth masses
+                    moon.Diameter,            // Diameter in km
+                    distanceKm                // Distance in km
+                );
+
+                if (tidalForce > 0)
+                {
+                    moon.TidalForceContributions.Add(new TidalForceContribution
+                    {
+                        SourceName = parentWorld.Designation,
+                        SourceType = parentType,
+                        TidalForce = tidalForce
+                    });
+                    moon.TotalTidalForce += tidalForce;
+                }
+            }
+
+            // Measure against other moons of the same parent
+            List<Moon> siblingMoons = new List<Moon>();
+            if (parentWorld is TerrestrialPlanet tpMoons)
+                siblingMoons = tpMoons.Moons;
+            else if (parentWorld is GasGiant ggMoons)
+                siblingMoons = ggMoons.Moons;
+
+            foreach (var otherMoon in siblingMoons)
+            {
+                if (otherMoon != moon && parentDiameterKm > 0)
+                {
+                    // Calculate distance between moons in planetary diameters
+                    float distancePD = Math.Abs(moon.Orbit - otherMoon.Orbit);
+
+                    if (distancePD > 0)
+                    {
+                        // Convert distance from PD to km
+                        float distanceKm = distancePD * parentDiameterKm;
+
+                        float tidalForce = CalculateTidalForce(
+                            otherMoon.Mass,       // Earth masses
+                            moon.Diameter,        // Diameter in km
+                            distanceKm            // Distance in km
+                        );
+
+                        if (tidalForce > 0)
+                        {
+                            moon.TidalForceContributions.Add(new TidalForceContribution
+                            {
+                                SourceName = $"{parentWorld.Designation} {otherMoon.Designation}",
+                                SourceType = "Moon",
+                                TidalForce = tidalForce
+                            });
+                            moon.TotalTidalForce += tidalForce;
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.Log($"  {parentWorld.Designation} {moon.Designation}: Total tidal force = {moon.TotalTidalForce:F2}m");
+        }
+
+        private void CalculateTidalForceFromStars(TerrestrialPlanet planet, CelestrialObject planetObj, Star parentStar)
+        {
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                float distanceAU = planetObj.orbitAU;
+                if (primaryStar != parentStar)
+                {
+                    // Planet orbits a companion star, use companion star's orbit as distance
+                    var starObj = FindCelestrialObjectForStar(parentStar);
+                    if (starObj != null)
+                    {
+                        distanceAU = starObj.orbitAU;
+                    }
+                }
+
+                // Convert star mass from solar masses to Earth masses, distance from AU to km
+                float starMassEarth = primaryStar.mass * 332946f;
+                float distanceKm = distanceAU * 149597871f;
+                float tidalForce = CalculateTidalForce(starMassEarth, planet.Diameter, distanceKm);
+
+                if (tidalForce > 0)
+                {
+                    planet.TidalForceContributions.Add(new TidalForceContribution
+                    {
+                        SourceName = primaryStar.Designation,
+                        SourceType = "Star",
+                        TidalForce = tidalForce
+                    });
+                    planet.TotalTidalForce += tidalForce;
+                }
+            }
+
+            // Companion stars
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .ToList();
+
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    float distanceAU = companionObj.orbitAU;
+                    // Convert star mass from solar masses to Earth masses, distance from AU to km
+                    float starMassEarth = companionStar.mass * 332946f;
+                    float distanceKm = distanceAU * 149597871f;
+                    float tidalForce = CalculateTidalForce(starMassEarth, planet.Diameter, distanceKm);
+
+                    if (tidalForce > 0)
+                    {
+                        planet.TidalForceContributions.Add(new TidalForceContribution
+                        {
+                            SourceName = companionStar.Designation,
+                            SourceType = "Star",
+                            TidalForce = tidalForce
+                        });
+                        planet.TotalTidalForce += tidalForce;
+                    }
+                }
+            }
+        }
+
+        private void CalculateTidalForceFromGasGiants(TerrestrialPlanet planet, CelestrialObject planetObj)
+        {
+            var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            foreach (var (ggObj, _) in allGasGiants)
+            {
+                if (ggObj.celestrialObject is GasGiant gg)
+                {
+                    // Calculate distance between planet and gas giant
+                    float distanceAU = Math.Abs(planetObj.orbitAU - ggObj.orbitAU);
+
+                    if (distanceAU > 0)
+                    {
+                        // Gas giant mass is already in Earth masses, just convert distance to km
+                        float distanceKm = distanceAU * 149597871f;
+
+                        float tidalForce = CalculateTidalForce(
+                            gg.GasGiantMass,  // Already in Earth masses
+                            planet.Diameter,
+                            distanceKm
+                        );
+
+                        if (tidalForce > 0)
+                        {
+                            planet.TidalForceContributions.Add(new TidalForceContribution
+                            {
+                                SourceName = gg.Designation,
+                                SourceType = "Gas Giant",
+                                TidalForce = tidalForce
+                            });
+                            planet.TotalTidalForce += tidalForce;
+                        }
+                    }
+                }
+            }
+        }
+
+        // UNIFIED tidal force formula per World Builder's Handbook
+        // ALL inputs must be: mass in Earth masses, diameter in km, distance in km
+        private float CalculateTidalForce(float sourceMassEarth, float affectedDiameterKm, float distanceKm)
+        {
+            if (distanceKm == 0 || affectedDiameterKm == 0)
+                return 0;
+
+            // Tidal Force = (mass × diameter) / distance³ × scaling
+            // Where:
+            //   mass: Earth masses (convert solar masses by ×332,946)
+            //   diameter: kilometers
+            //   distance: kilometers (convert AU by ×149,597,871, PD by ×parent diameter)
+            //   scaling: 2×10^14
+            //
+            // Verified against World Builder's Handbook examples:
+            //   Luna → Terra: (0.0123 × 12,742) / (389,399)³ × 2×10¹⁴ = 0.54m ✓
+            //   Sol → Terra: (332,946 × 12,742) / (149,597,871)³ × 2×10¹⁴ = 0.25m ✓
+            //   Zed Prime moon → gas giant: (1,200 × 8,163) / (3,942,400)³ × 2×10¹⁴ = 30.6m ✓
+
+            float tidalForce = (sourceMassEarth * affectedDiameterKm) / (float)Math.Pow(distanceKm, 3);
+            tidalForce *= 2e14f;  // Scaling factor: 2×10^14
+
+            return tidalForce;
+        }
+
+        // Seismology Calculations
+
+        private void CalculateAllSeismology()
+        {
+            DebugLogger.Log("Calculating seismology...");
+
+            // Process all terrestrial planets
+            var allPlanets = GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet);
+            foreach (var (planetObj, parentStar) in allPlanets)
+            {
+                if (planetObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    CalculateSeismologyForPlanet(planet, planetObj, parentStar);
+                }
+            }
+
+            // Process all moons
+            foreach (var (bodyObj, parentStar) in GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet))
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    foreach (var moon in tp.Moons)
+                    {
+                        CalculateSeismologyForMoon(moon, tp, bodyObj, parentStar);
+                    }
+                }
+            }
+
+            foreach (var (bodyObj, parentStar) in GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant))
+            {
+                if (bodyObj.celestrialObject is GasGiant gg)
+                {
+                    foreach (var moon in gg.Moons)
+                    {
+                        CalculateSeismologyForMoon(moon, gg, bodyObj, parentStar);
+                    }
+                }
+            }
+
+            DebugLogger.Log("Seismology calculation complete");
+        }
+
+        private void CalculateSeismologyForPlanet(TerrestrialPlanet planet, CelestrialObject planetObj, Star parentStar)
+        {
+            // 1. Calculate Residual Seismic Stress
+            planet.ResidualSeismicStress = CalculateResidualSeismicStress(planet.Size, planet.Density, false, null, parentStar.age);
+
+            // 2. Calculate Tidal Stress Factor
+            planet.TidalStressFactor = CalculateTidalStressFactor(planet.TotalTidalForce);
+
+            // 3. Calculate Tidal Heating Effects (planets orbit stars, so parent is star)
+            planet.TidalHeatingEffects = CalculateTidalHeatingEffects(
+                planet.Size,
+                planetObj.orbitEccentricity,  // Get eccentricity from CelestrialObject
+                parentStar.mass,  // Parent is the star (in solar masses)
+                planetObj.orbitAU * 149597871f / 1000f,  // Convert AU to Mkm (millions of km)
+                planetObj.OrbitalPeriodYears * 365.25f,  // Convert years to days
+                planet.WorldMass,
+                planet.TidalLockStatus
+            );
+
+            // 4. Calculate Total Seismic Stress
+            planet.TotalSeismicStress = planet.ResidualSeismicStress + planet.TidalStressFactor + planet.TidalHeatingEffects;
+
+            // 5. Apply seismic stress to temperatures
+            ApplySeismicStressToTemperatures(planet);
+
+            // 6. Calculate Tectonic Plates
+            planet.NumberOfMajorTectonicPlates = CalculateTectonicPlates(
+                planet.Size,
+                planet.HydrographicsCode,
+                planet.TotalSeismicStress
+            );
+
+            DebugLogger.LogFormat("  {0}: RSS={1:F1}, TSF={2:F1}, THE={3:F1}, TSS={4:F1}, Plates={5}",
+                planet.Designation, planet.ResidualSeismicStress, planet.TidalStressFactor,
+                planet.TidalHeatingEffects, planet.TotalSeismicStress, planet.NumberOfMajorTectonicPlates);
+        }
+
+        private void CalculateSeismologyForMoon(Moon moon, CelestialBody parentWorld, CelestrialObject worldObj, Star parentStar)
+        {
+            // Get sibling moons
+            List<Moon>? siblingMoons = null;
+            if (parentWorld is TerrestrialPlanet tPlanet)
+                siblingMoons = tPlanet.Moons;
+            else if (parentWorld is GasGiant gGiant)
+                siblingMoons = gGiant.Moons;
+
+            // 1. Calculate Residual Seismic Stress
+            moon.ResidualSeismicStress = CalculateResidualSeismicStress(
+                moon.Size,
+                moon.Density,
+                true,  // Is a moon
+                siblingMoons,
+                parentStar.age
+            );
+
+            // 2. Calculate Tidal Stress Factor
+            moon.TidalStressFactor = CalculateTidalStressFactor(moon.TotalTidalForce);
+
+            // 3. Calculate Tidal Heating Effects (moons orbit planets/gas giants)
+            float parentMassEarth = 0;
+            if (parentWorld is TerrestrialPlanet tpMass)
+                parentMassEarth = tpMass.WorldMass;
+            else if (parentWorld is GasGiant ggMass)
+                parentMassEarth = ggMass.GasGiantMass;
+
+            moon.TidalHeatingEffects = CalculateTidalHeatingEffects(
+                moon.Size,
+                moon.Eccentricity,
+                parentMassEarth,  // Parent world mass in Earth masses
+                moon.OrbitDistanceKm / 1000000f,  // Convert km to Mkm (millions of km)
+                moon.OrbitalPeriod / 24f,  // Convert hours to days
+                moon.Mass,
+                moon.TidalLockStatus
+            );
+
+            // 4. Calculate Total Seismic Stress
+            moon.TotalSeismicStress = moon.ResidualSeismicStress + moon.TidalStressFactor + moon.TidalHeatingEffects;
+
+            // 5. Apply seismic stress to temperatures
+            ApplySeismicStressToTemperatures(moon);
+
+            // 6. Calculate Tectonic Plates
+            moon.NumberOfMajorTectonicPlates = CalculateTectonicPlates(
+                moon.Size,
+                moon.HydrographicsCode,
+                moon.TotalSeismicStress
+            );
+
+            DebugLogger.LogFormat("    Moon {0}: RSS={1:F1}, TSF={2:F1}, THE={3:F1}, TSS={4:F1}, Plates={5}",
+                moon.Designation, moon.ResidualSeismicStress, moon.TidalStressFactor,
+                moon.TidalHeatingEffects, moon.TotalSeismicStress, moon.NumberOfMajorTectonicPlates);
+        }
+
+        private float CalculateResidualSeismicStress(string sizeCode, float density, bool isMoon, List<Moon>? siblingMoons, float systemAge)
+        {
+            int sizeValue = GetSizeValue(sizeCode);
+
+            // DM modifiers
+            int dm = 0;
+
+            // World is a moon: +1
+            if (isMoon)
+                dm += 1;
+
+            // World has a size 1+ larger moon: +1 for each size difference
+            if (siblingMoons != null)
+            {
+                foreach (var otherMoon in siblingMoons)
+                {
+                    int otherSize = GetSizeValue(otherMoon.Size);
+                    if (otherSize > sizeValue)
+                    {
+                        dm += (otherSize - sizeValue);
+                    }
+                }
+            }
+
+            // Density > 1.0: +2
+            if (density > 1.0f)
+                dm += 2;
+
+            // Density < 0.5: +1
+            if (density < 0.5f)
+                dm += 1;
+
+            // Calculate: squared(round down(Size Code - System Age + DM))
+            float value = sizeValue - systemAge + dm;
+
+            // If total < 1, RSS = 0
+            if (value < 1)
+                return 0;
+
+            // Otherwise, square it
+            return value * value;
+        }
+
+        private float CalculateTidalStressFactor(float totalTidalForce)
+        {
+            // Tidal Stress Factor = TotalTidalForce / 10, round down
+            return (float)Math.Floor(totalTidalForce / 10f);
+        }
+
+        private float CalculateTidalHeatingEffects(string sizeCode, float eccentricity, float parentMassEarth,
+            float distanceMkm, float orbitalPeriodDays, float massEarth, string tidalLockStatus)
+        {
+            // If tidally locked (3:2 or 1:1), THE = 0
+            if (tidalLockStatus.Contains("1:1") || tidalLockStatus.Contains("3:2"))
+                return 0;
+
+            int sizeValue = GetSizeValue(sizeCode);
+
+            // Formula: ((Mass_parent)² × (Size_Code)^5 × Eccentricity²) /
+            //          (3000 × (Distance_Mkm)^5 × Orbital_period_days × Mass_Earth)
+
+            float numerator = (parentMassEarth * parentMassEarth) *
+                             (float)Math.Pow(sizeValue, 5) *
+                             (eccentricity * eccentricity);
+
+            float denominator = 3000f *
+                               (float)Math.Pow(distanceMkm, 5) *
+                               orbitalPeriodDays *
+                               massEarth;
+
+            if (denominator == 0)
+                return 0;
+
+            float result = numerator / denominator;
+
+            // Ignore numbers < 1
+            if (result < 1)
+                return 0;
+
+            return result;
+        }
+
+        private void ApplySeismicStressToTemperatures(TerrestrialPlanet planet)
+        {
+            // New temperature = Quad root(Old_Temperature⁴ + Total_Seismic_Stress)
+            planet.MeanTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(planet.MeanTemperatureK, 4) + planet.TotalSeismicStress, 0.25));
+            planet.MeanTemperatureC = planet.MeanTemperatureK - 273;
+
+            planet.HighTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(planet.HighTemperatureK, 4) + planet.TotalSeismicStress, 0.25));
+            planet.HighTemperatureC = planet.HighTemperatureK - 273;
+
+            planet.LowTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(planet.LowTemperatureK, 4) + planet.TotalSeismicStress, 0.25));
+            planet.LowTemperatureC = planet.LowTemperatureK - 273;
+        }
+
+        private void ApplySeismicStressToTemperatures(Moon moon)
+        {
+            // New temperature = Quad root(Old_Temperature⁴ + Total_Seismic_Stress)
+            moon.MeanTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(moon.MeanTemperatureK, 4) + moon.TotalSeismicStress, 0.25));
+            moon.MeanTemperatureC = moon.MeanTemperatureK - 273;
+
+            moon.HighTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(moon.HighTemperatureK, 4) + moon.TotalSeismicStress, 0.25));
+            moon.HighTemperatureC = moon.HighTemperatureK - 273;
+
+            moon.LowTemperatureK = (int)Math.Round(Math.Pow(
+                Math.Pow(moon.LowTemperatureK, 4) + moon.TotalSeismicStress, 0.25));
+            moon.LowTemperatureC = moon.LowTemperatureK - 273;
+        }
+
+        private int CalculateTectonicPlates(string sizeCode, string hydrographicsCode, float totalSeismicStress)
+        {
+            int sizeValue = GetSizeValue(sizeCode);
+            int hydroValue = GetSizeValue(hydrographicsCode);
+
+            // If TSS = 0 or Hydro = 0, plates = 0
+            if (totalSeismicStress == 0 || hydroValue == 0)
+                return 0;
+
+            // Number = Size + Hydro - 2d6 + DM
+            int dm = 0;
+
+            // TSS >= 10 and < 100: +1
+            if (totalSeismicStress >= 10 && totalSeismicStress < 100)
+                dm += 1;
+
+            // TSS >= 100: +2
+            if (totalSeismicStress >= 100)
+                dm += 2;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int plates = sizeValue + hydroValue - roll + dm;
+
+            // Can't have negative plates
+            if (plates < 0)
+                plates = 0;
+
+            return plates;
+        }
+
+        // Native Lifeforms Calculations
+
+        private void CalculateNativeLifeforms()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING NATIVE LIFEFORMS");
+
+            // 1. Check for life outside the HZ
+            int unlikelyLifeRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, unlikelyLifeRoll, "Life outside HZ check");
+            UnlikelyLife = (unlikelyLifeRoll == 12);
+            DebugLogger.LogFormat("  Unlikely life outside HZ: {0}", UnlikelyLife);
+
+            // Get system age from primary star
+            float systemAge = 0;
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                systemAge = primaryStar.age;
+            }
+
+            DebugLogger.LogFormat("  System age: {0} Gyrs", systemAge);
+
+            // Calculate for primary star's worlds
+            if (primaryObject.celestrialObject is Star)
+            {
+                CalculateLifeformsForStar(primaryObject, systemAge);
+            }
+
+            // Calculate for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star)
+                {
+                    CalculateLifeformsForStar(companionObj, systemAge);
+                }
+            }
+        }
+
+        private void CalculateLifeformsForStar(CelestrialObject starObj, float systemAge)
+        {
+            if (!(starObj.celestrialObject is Star parentStar))
+                return;
+
+            foreach (var bodyObj in starObj.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    CalculateLifeformsForPlanet(planet, bodyObj, parentStar, systemAge);
+
+                    // Calculate for moons
+                    foreach (var moon in planet.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            CalculateLifeformsForMoon(moon, bodyObj, parentStar, systemAge);
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gasGiant)
+                {
+                    // Calculate for gas giant moons
+                    foreach (var moon in gasGiant.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            CalculateLifeformsForMoon(moon, bodyObj, parentStar, systemAge);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CalculateResourceAndHabitabilityForPlanet(TerrestrialPlanet planet)
+        {
+            // Calculate Resource and Habitability for ALL terrestrial planets (not just HZ)
+            planet.ResourceRating = CalculateResourceRating(planet.Size, planet.Density, planet.BiomassRating, planet.BiodiversityRating, planet.CompatibilityRating);
+            planet.HabitabilityRating = CalculateHabitabilityRating(planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.TidalLockStatus, planet.HighTemperatureK, planet.MeanTemperatureK, planet.LowTemperatureK, planet.Gravity, planet.AtmosphericTaint);
+        }
+
+        private void CalculateLifeformsForPlanet(TerrestrialPlanet planet, CelestrialObject bodyObj, Star parentStar, float systemAge)
+        {
+            // Check if in HZ
+            bool inHZ = IsInHabitableZone(bodyObj.orbit, parentStar);
+            if (!inHZ && !UnlikelyLife)
+                return;
+
+            DebugLogger.LogFormat("  Calculating lifeforms for planet {0} (HZ: {1})", planet.Designation, inHZ);
+
+            // Calculate life-related ratings
+            planet.BiomassRating = CalculateBiomassRating(planet.Atmosphere, planet.HydrographicsCode, systemAge, planet.HighTemperatureK, planet.MeanTemperatureK, planet.AtmosphericTaint, planet.AtmosphericIrritant);
+            planet.BiocomplexityRating = CalculateBiocomplexityRating(planet.BiomassRating, planet.Atmosphere, systemAge, planet.AtmosphericTaint);
+            planet.BiocomplexityDescription = GetBiocomplexityDescription(planet.BiocomplexityRating);
+
+            var sophontResult = CalculateNativeSophonts(planet.BiocomplexityRating, systemAge);
+            planet.CurrentNativeSophont = sophontResult.current;
+            planet.ExtinctNativeSophont = sophontResult.extinct;
+
+            planet.BiodiversityRating = CalculateBiodiversityRating(planet.BiomassRating, planet.BiocomplexityRating);
+            planet.CompatibilityRating = CalculateCompatibilityRating(planet.BiomassRating, planet.BiocomplexityRating, planet.Atmosphere, systemAge);
+
+            // Recalculate Resource and Habitability now that we have life ratings
+            CalculateResourceAndHabitabilityForPlanet(planet);
+
+            DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
+                planet.BiomassRating, planet.BiocomplexityRating, planet.BiodiversityRating, planet.CompatibilityRating, planet.ResourceRating, planet.HabitabilityRating);
+        }
+
+        private void CalculateResourceAndHabitabilityForMoon(Moon moon)
+        {
+            // Calculate Resource and Habitability for ALL moons (not just HZ)
+            moon.ResourceRating = CalculateResourceRating(moon.Size, moon.Density, moon.BiomassRating, moon.BiodiversityRating, moon.CompatibilityRating);
+            moon.HabitabilityRating = CalculateHabitabilityRating(moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.TidalLockStatus, moon.HighTemperatureK, moon.MeanTemperatureK, moon.LowTemperatureK, moon.Gravity, moon.AtmosphericTaint);
+        }
+
+        private void CalculateLifeformsForMoon(Moon moon, CelestrialObject bodyObj, Star parentStar, float systemAge)
+        {
+            // Check if in HZ (use parent world's orbit)
+            bool inHZ = IsInHabitableZone(bodyObj.orbit, parentStar);
+            if (!inHZ && !UnlikelyLife)
+                return;
+
+            DebugLogger.LogFormat("  Calculating lifeforms for moon {0} (HZ: {1})", moon.Designation, inHZ);
+
+            // Calculate life-related ratings
+            moon.BiomassRating = CalculateBiomassRating(moon.Atmosphere, moon.HydrographicsCode, systemAge, moon.HighTemperatureK, moon.MeanTemperatureK, moon.AtmosphericTaint, moon.AtmosphericIrritant);
+            moon.BiocomplexityRating = CalculateBiocomplexityRating(moon.BiomassRating, moon.Atmosphere, systemAge, moon.AtmosphericTaint);
+            moon.BiocomplexityDescription = GetBiocomplexityDescription(moon.BiocomplexityRating);
+
+            var sophontResult = CalculateNativeSophonts(moon.BiocomplexityRating, systemAge);
+            moon.CurrentNativeSophont = sophontResult.current;
+            moon.ExtinctNativeSophont = sophontResult.extinct;
+
+            moon.BiodiversityRating = CalculateBiodiversityRating(moon.BiomassRating, moon.BiocomplexityRating);
+            moon.CompatibilityRating = CalculateCompatibilityRating(moon.BiomassRating, moon.BiocomplexityRating, moon.Atmosphere, systemAge);
+
+            // Recalculate Resource and Habitability now that we have life ratings
+            CalculateResourceAndHabitabilityForMoon(moon);
+
+            DebugLogger.LogFormat("    Biomass: {0}, Biocomplexity: {1}, Biodiversity: {2}, Compatibility: {3}, Resource: {4}, Habitability: {5}",
+                moon.BiomassRating, moon.BiocomplexityRating, moon.BiodiversityRating, moon.CompatibilityRating, moon.ResourceRating, moon.HabitabilityRating);
+        }
+
+        private int CalculateBiomassRating(string atmosphereCode, string hydrographicsCode, float systemAge, int highTempK, int meanTempK, string atmosphericTaint, string atmosphericIrritant)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            // Atmosphere modifiers
+            int atmoValue = GetSizeValue(atmosphereCode);
+            if (atmoValue == 0) dm -= 6;
+            else if (atmoValue == 1) dm -= 4;
+            else if (atmoValue == 2 || atmoValue == 3 || atmoValue == 14) dm -= 3;
+            else if (atmoValue == 4 || atmoValue == 5) dm -= 2;
+            else if (atmoValue == 8 || atmoValue == 9 || atmoValue == 13) dm += 2;
+            else if (atmoValue == 10) dm -= 3;
+            else if (atmoValue == 11) dm -= 5;
+            else if (atmoValue == 12) dm -= 7;
+            else if (atmoValue >= 15) dm -= 5;
+
+            // Hydrographics modifiers
+            int hydroValue = GetSizeValue(hydrographicsCode);
+            if (hydroValue == 0) dm -= 4;
+            else if (hydroValue >= 1 && hydroValue <= 3) dm -= 2;
+            else if (hydroValue >= 6 && hydroValue <= 8) dm += 1;
+            else if (hydroValue >= 9) dm += 2;
+
+            // System age modifiers
+            if (systemAge < 0.2f) dm -= 6;
+            else if (systemAge < 1.0f) dm -= 2;
+            else if (systemAge > 4.0f) dm += 2;
+
+            // Temperature modifiers
+            if (highTempK < 353) dm -= 2;
+            if (highTempK < 273) dm -= 4;
+            if (meanTempK > 353) dm -= 4;
+            if (meanTempK < 273) dm -= 2;
+            if (meanTempK >= 279 && meanTempK <= 303) dm += 2;
+
+            // Clamp DM
+            if (dm < -12) dm = -12;
+            if (dm > 4) dm = 4;
+
+            int biomass = roll + dm;
+            if (biomass < 0) biomass = 0;
+
+            // Check for Biologic taint/irritant adjustment (includes "Biologic")
+            if ((atmosphericTaint.Contains("Biologic") || atmosphericIrritant.Contains("Biologic")) && biomass == 0)
+            {
+                biomass = 1;
+            }
+
+            // Atmosphere adjustment for non-standard atmospheres with biomass
+            if (biomass >= 1)
+            {
+                if (atmoValue == 0) biomass += 5;
+                else if (atmoValue == 1) biomass += 3;
+                else if (atmoValue == 10) biomass += 2;
+                else if (atmoValue == 11) biomass += 4;
+                else if (atmoValue == 12) biomass += 6;
+                else if (atmoValue >= 15) biomass += 4;
+            }
+
+            return biomass;
+        }
+
+        private int CalculateBiocomplexityRating(int biomassRating, string atmosphereCode, float systemAge, string atmosphericTaint)
+        {
+            if (biomassRating == 0)
+                return 0;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            // Atmosphere modifier
+            int atmoValue = GetSizeValue(atmosphereCode);
+            if (atmoValue < 4 || atmoValue > 9)
+                dm -= 2;
+
+            // Low Oxygen taint modifier
+            if (atmosphericTaint.Contains("Low Oxygen"))
+                dm -= 2;
+
+            // System age modifiers
+            if (systemAge >= 3.0f && systemAge <= 4.0f) dm -= 2;
+            else if (systemAge >= 2.0f && systemAge < 3.0f) dm -= 4;
+            else if (systemAge >= 1.0f && systemAge < 2.0f) dm -= 8;
+            else if (systemAge < 1.0f) dm -= 10;
+
+            int biocomplexity = roll - 7 + biomassRating + dm;
+            if (biocomplexity < 0) biocomplexity = 0;
+
+            return biocomplexity;
+        }
+
+        private string GetBiocomplexityDescription(int biocomplexityRating)
+        {
+            return biocomplexityRating switch
+            {
+                0 => "",
+                1 => "Primitive single-cell organisms",
+                2 => "Advanced cellular organisms",
+                3 => "Primitive multicellular organisms",
+                4 => "Differentiated multicellular organisms",
+                5 => "Complex multicellular organisms",
+                6 => "Advanced multicellular organisms",
+                7 => "Socially advanced organisms",
+                8 => "Mentally advanced organisms",
+                9 => "Extant or extinct sophonts",
+                _ => "Ecosystem-wide superorganisms" // 10+
+            };
+        }
+
+        private (string current, bool extinct) CalculateNativeSophonts(int biocomplexityRating, float systemAge)
+        {
+            string current = "No";
+            bool extinct = false;
+
+            if (biocomplexityRating < 8)
+                return (current, extinct);
+
+            // Current sophonts
+            int bioForRoll = Math.Min(biocomplexityRating, 9);
+            int currentRoll = Starhelper.diceRoll(6, 2, dice) + bioForRoll - 7;
+            if (currentRoll >= 13)
+                current = "Yes";
+
+            // Extinct sophonts
+            int dm = 0;
+            if (systemAge > 5.0f) dm += 1;
+
+            int extinctRoll = Starhelper.diceRoll(6, 2, dice) + bioForRoll - 7 + dm;
+            if (extinctRoll >= 13)
+                extinct = true;
+
+            return (current, extinct);
+        }
+
+        private int CalculateBiodiversityRating(int biomassRating, int biocomplexityRating)
+        {
+            if (biomassRating == 0)
+                return 0;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float average = (biomassRating + biocomplexityRating) / 2.0f;
+            int biodiversity = (int)Math.Ceiling(roll - 7 + average);
+
+            if (biodiversity < 1)
+                biodiversity = 1;
+
+            return biodiversity;
+        }
+
+        private int CalculateCompatibilityRating(int biomassRating, int biocomplexityRating, string atmosphereCode, float systemAge)
+        {
+            if (biomassRating == 0)
+                return 0;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            int atmoValue = GetSizeValue(atmosphereCode);
+
+            // Atmosphere modifiers
+            if (atmoValue == 0 || atmoValue == 1 || atmoValue == 11 || atmoValue == 16 || atmoValue == 17)
+                dm -= 8;
+            else if (atmoValue == 2 || atmoValue == 4 || atmoValue == 7 || atmoValue == 9)
+                dm -= 2;
+            else if (atmoValue == 3 || atmoValue == 5 || atmoValue == 8)
+                dm += 1;
+            else if (atmoValue == 6)
+                dm += 2;
+            else if (atmoValue == 10 || atmoValue == 15)
+                dm -= 6;
+            else if (atmoValue == 12)
+                dm -= 10;
+            else if (atmoValue == 13 || atmoValue == 14)
+                dm -= 1;
+
+            // System age modifier
+            if (systemAge > 8.0f)
+                dm -= 2;
+
+            float bioComplexityHalf = biocomplexityRating / 2.0f;
+            int compatibility = (int)Math.Floor(roll - bioComplexityHalf + dm);
+
+            if (compatibility < 0)
+                compatibility = 0;
+
+            return compatibility;
+        }
+
+        private int CalculateResourceRating(string sizeCode, float density, int biomassRating, int biodiversityRating, int compatibilityRating)
+        {
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int sizeValue = GetSizeValue(sizeCode);
+            int dm = 0;
+
+            // Density modifiers
+            if (density > 1.12f) dm += 2;
+            if (density < 0.5f) dm -= 2;
+
+            // Biomass modifier
+            if (biomassRating >= 3) dm += 2;
+
+            // Biodiversity modifiers
+            if (biodiversityRating >= 8 && biodiversityRating <= 10) dm += 1;
+            if (biodiversityRating >= 11) dm += 2;
+
+            // Compatibility modifier (only if biomass >= 1)
+            if (biomassRating >= 1)
+            {
+                if (compatibilityRating >= 0 && compatibilityRating <= 3) dm -= 1;
+            }
+            if (compatibilityRating >= 8) dm += 2;
+
+            int resource = roll - 7 + sizeValue + dm;
+
+            // Clamp to minimum of 2 and maximum of C (12)
+            if (resource < 2) resource = 2;
+            if (resource > 12) resource = 12;
+
+            return resource;
+        }
+
+        private int CalculateHabitabilityRating(string sizeCode, string atmosphereCode, string hydrographicsCode, string tidalLockStatus, int highTempK, int meanTempK, int lowTempK, float gravity, string atmosphericTaint)
+        {
+            int dm = 0;
+
+            int sizeValue = GetSizeValue(sizeCode);
+            int atmoValue = GetSizeValue(atmosphereCode);
+            int hydroValue = GetSizeValue(hydrographicsCode);
+
+            // Size modifiers
+            if (sizeValue >= 0 && sizeValue <= 4) dm -= 1;
+            if (sizeValue >= 9) dm += 1;
+
+            // Atmosphere modifiers
+            if (atmoValue == 0 || atmoValue == 1 || atmoValue == 10) dm -= 8;
+            else if (atmoValue == 2 || atmoValue == 14) dm -= 4;
+            else if (atmoValue == 3 || atmoValue == 13) dm -= 3;
+            else if (atmoValue == 4 || atmoValue == 9) dm -= 2;
+            else if (atmoValue == 5 || atmoValue == 7 || atmoValue == 8) dm -= 1;
+            else if (atmoValue == 11) dm -= 10;
+            else if (atmoValue == 12 || atmoValue >= 15) dm -= 12;
+
+            // Low Oxygen taint modifier
+            if (atmosphericTaint.Contains("Low Oxygen"))
+                dm -= 2;
+
+            // Hydrographics modifiers
+            if (hydroValue == 0) dm -= 4;
+            else if (hydroValue >= 1 && hydroValue <= 3) dm -= 2;
+            else if (hydroValue == 9) dm -= 1;
+            else if (hydroValue == 10) dm -= 2;
+
+            // Tidal lock modifier (1:1 solar lock)
+            if (tidalLockStatus.Contains("1:1"))
+                dm -= 2;
+
+            // Temperature modifiers
+            if (highTempK > 323) dm -= 2;
+            if (highTempK < 279) dm -= 2;
+            if (meanTempK > 323) dm -= 4;
+            if (meanTempK >= 304 && meanTempK <= 323) dm -= 2;
+            if (meanTempK < 273) dm -= 2;
+            if (lowTempK < 200) dm -= 2;
+
+            // Gravity modifiers
+            if (gravity < 0.2f) dm -= 4;
+            else if (gravity >= 0.2f && gravity < 0.4f) dm -= 2;
+            else if (gravity >= 0.4f && gravity < 0.7f) dm -= 1;
+            else if (gravity >= 0.7f && gravity <= 0.9f) dm += 1;
+            else if (gravity > 1.1f && gravity < 1.4f) dm -= 1;
+            else if (gravity >= 1.4f && gravity < 2.0f) dm -= 3;
+            else if (gravity >= 2.0f) dm -= 6;
+
+            int habitability = 10 + dm;
+            if (habitability < 0)
+                habitability = 0;
+
+            return habitability;
+        }
+
+        // Atmospheric Taint Calculations
+
+        private void CalculateAtmosphericTaints()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING ATMOSPHERIC TAINTS");
+
+            // Calculate for primary star's worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateTaintsForStar(primaryObject);
+            }
+
+            // Calculate for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star)
+                {
+                    CalculateTaintsForStar(companionObj);
+                }
+            }
+        }
+
+        private void CalculateTaintsForStar(CelestrialObject starObj)
+        {
+            foreach (var bodyObj in starObj.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet planet)
+                {
+                    planet.AtmosphericTaint = CalculateTaintForWorld(planet.Atmosphere, planet.Designation);
+
+                    // Calculate for moons
+                    foreach (var moon in planet.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            moon.AtmosphericTaint = CalculateTaintForWorld(moon.Atmosphere, $"{planet.Designation} {moon.Designation}");
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gasGiant)
+                {
+                    // Calculate for gas giant moons
+                    foreach (var moon in gasGiant.Moons)
+                    {
+                        if (moon.Size != "R") // Skip ring moons
+                        {
+                            moon.AtmosphericTaint = CalculateTaintForWorld(moon.Atmosphere, $"{gasGiant.Designation} {moon.Designation}");
+                        }
+                    }
+                }
+            }
+        }
+
+        private string CalculateTaintForWorld(string atmosphereCode, string worldDesignation)
+        {
+            int atmoValue = GetSizeValue(atmosphereCode);
+
+            // Only calculate for atmosphere codes 2, 4, 7, or 9
+            if (atmoValue != 2 && atmoValue != 4 && atmoValue != 7 && atmoValue != 9)
+            {
+                return "None";
+            }
+
+            DebugLogger.LogFormat("  Calculating atmospheric taint for {0} (Atmosphere: {1})", worldDesignation, atmosphereCode);
+
+            List<string> taints = new List<string>();
+            int taintsGenerated = 0;
+            int maxTaints = 3;
+
+            // Initial roll
+            RollForTaint(atmoValue, taints, ref taintsGenerated, maxTaints, worldDesignation);
+
+            if (taints.Count == 0)
+            {
+                DebugLogger.LogFormat("    No taints generated");
+                return "None";
+            }
+
+            string result = string.Join(" and ", taints);
+            DebugLogger.LogFormat("    Atmospheric Taint: {0}", result);
+            return result;
+        }
+
+        private void RollForTaint(int atmoValue, List<string> taints, ref int taintsGenerated, int maxTaints, string worldDesignation)
+        {
+            if (taintsGenerated >= maxTaints)
+                return;
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            int dm = 0;
+
+            if (atmoValue == 4) dm -= 2;
+            if (atmoValue == 9) dm += 2;
+
+            int result = roll + dm;
+
+            DebugLogger.LogDiceRoll(2, roll, $"Atmospheric taint (DM: {dm})");
+            DebugLogger.LogFormat("    Result: {0}", result);
+
+            string taint = GetTaintSubtype(result);
+
+            // If Particulates, roll again
+            if (result == 10)
+            {
+                taintsGenerated++;
+                if (!taints.Contains("Particulates"))
+                {
+                    taints.Add("Particulates");
+                }
+
+                // Roll again for additional taint
+                if (taintsGenerated < maxTaints)
+                {
+                    RollForTaint(atmoValue, taints, ref taintsGenerated, maxTaints, worldDesignation);
+                }
+            }
+            else
+            {
+                taintsGenerated++;
+
+                // Check for duplicate
+                if (taints.Contains(taint))
+                {
+                    DebugLogger.LogFormat("    Duplicate taint '{0}', rerolling...", taint);
+                    // Reroll to replace duplicate
+                    RollForTaint(atmoValue, taints, ref taintsGenerated, maxTaints, worldDesignation);
+                }
+                else
+                {
+                    taints.Add(taint);
+                }
+            }
+        }
+
+        private string GetTaintSubtype(int result)
+        {
+            return result switch
+            {
+                <= 2 => "Low Oxygen",
+                3 => "Radioactivity",
+                4 => "Biologic",
+                5 => "Gas Mix",
+                6 => "Particulates",
+                7 => "Gas Mix",
+                8 => "Sulphur Compounds",
+                9 => "Biologic",
+                10 => "Particulates",
+                11 => "Radioactivity",
+                _ => "High Oxygen" // >= 12
+            };
+        }
+
+        private bool IsInHabitableZone(float orbit, Star parentStar)
+        {
+            if (parentStar.HZCO <= 0)
+                return false;
+
+            float hzMin, hzMax;
+
+            // Calculate lower bound (same logic as BuildNotesString)
+            if (parentStar.HZCO >= 2.0f)
+            {
+                hzMin = parentStar.HZCO - 1.0f;
+            }
+            else if (parentStar.HZCO >= 1.0f)
+            {
+                hzMin = 1.0f - (2.0f - parentStar.HZCO) * 0.1f;
+            }
+            else
+            {
+                hzMin = Math.Max(0, parentStar.HZCO - 0.1f);
+            }
+
+            // Calculate upper bound
+            if (parentStar.HZCO >= 1.0f)
+            {
+                hzMax = parentStar.HZCO + 1.0f;
+            }
+            else
+            {
+                float effectiveDistToOne = (1.0f - parentStar.HZCO) * 10.0f;
+                if (effectiveDistToOne >= 1.0f)
+                {
+                    hzMax = 1.0f;
+                }
+                else
+                {
+                    float remaining = 1.0f - effectiveDistToOne;
+                    hzMax = 1.0f + remaining;
+                }
+            }
+
+            return orbit >= hzMin && orbit <= hzMax;
+        }
+
+        private CelestrialObject? FindCelestrialObjectForStar(Star star)
+        {
+            // Find the CelestrialObject that contains this star
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star s && s == star)
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        // Tidal Lock Calculations
+
+        private class TidalLockCandidate
+        {
+            public object Body { get; set; } = null!; // TerrestrialPlanet or Moon
+            public string LockType { get; set; } = ""; // "ToStar", "ToWorld", "ToMoon"
+            public object? LockTarget { get; set; } // Star, CelestialBody (world), or Moon
+            public int TotalDM { get; set; }
+            public float OrbitNumber { get; set; } // For worlds orbiting stars
+            public float Eccentricity { get; set; } // Orbital eccentricity
+            public float OrbitalPeriodYears { get; set; } // For recalculating solar days
+            public Moon? TargetMoon { get; set; } // For world-to-moon locks
+            public int Priority { get; set; } // For tie-breaking (0=highest priority)
+            public CelestrialObject? OrbitalObject { get; set; } // For planet eccentricity re-roll
+        }
+
+        private void CalculateTidalLocks(Random dice)
+        {
+            var candidates = new List<TidalLockCandidate>();
+
+            // Process primary star's bodies
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CollectTidalLockCandidates(primaryObject.celestrialObjectOrbits, primaryStar, candidates);
+            }
+
+            // Process companion stars' bodies
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    CollectTidalLockCandidates(companionObj.celestrialObjectOrbits, companionStar, candidates);
+                }
+            }
+
+            // Sort by DM (highest first), then by priority (lowest first)
+            candidates = candidates.OrderByDescending(c => c.TotalDM)
+                                 .ThenBy(c => c.Priority)
+                                 .ToList();
+
+            // Process each candidate
+            foreach (var candidate in candidates)
+            {
+                // Skip world-to-moon locks if the moon isn't locked to the world
+                if (candidate.LockType == "ToMoon" && candidate.TargetMoon != null)
+                {
+                    if (string.IsNullOrEmpty(candidate.TargetMoon.TidalLockStatus))
+                        continue; // Moon not locked, skip this candidate
+                }
+
+                // Check if body is already locked
+                if (candidate.Body is TerrestrialPlanet planet)
+                {
+                    if (!string.IsNullOrEmpty(planet.TidalLockStatus))
+                        continue; // Already locked
+                }
+                else if (candidate.Body is Moon moon)
+                {
+                    if (!string.IsNullOrEmpty(moon.TidalLockStatus))
+                        continue; // Already locked
+                }
+
+                // Apply tidal lock effect
+                ApplyTidalLockEffect(candidate, dice);
+            }
+        }
+
+        private void CollectTidalLockCandidates(List<CelestrialObject> orbits, Star parentStar, List<TidalLockCandidate> candidates)
+        {
+            foreach (var cobj in orbits)
+            {
+                if (cobj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    // World to star lock
+                    int dm = CalculateWorldToStarDM(tp, cobj.orbit, cobj.orbitEccentricity, parentStar);
+                    if (dm > -10) // Can only lock if DM > -10
+                    {
+                        candidates.Add(new TidalLockCandidate
+                        {
+                            Body = tp,
+                            LockType = "ToStar",
+                            LockTarget = parentStar,
+                            TotalDM = dm,
+                            OrbitNumber = cobj.orbit,
+                            Eccentricity = cobj.orbitEccentricity,
+                            OrbitalPeriodYears = cobj.OrbitalPeriodYears,
+                            Priority = 1, // Lower priority than moon-to-world
+                            OrbitalObject = cobj
+                        });
+                    }
+
+                    // Moon to world locks
+                    for (int i = 0; i < tp.Moons.Count; i++)
+                    {
+                        var moon = tp.Moons[i];
+                        int moonDM = CalculateMoonToWorldDM(moon, tp, parentStar.age);
+                        if (moonDM > -10)
+                        {
+                            candidates.Add(new TidalLockCandidate
+                            {
+                                Body = moon,
+                                LockType = "ToWorld",
+                                LockTarget = tp,
+                                TotalDM = moonDM,
+                                Eccentricity = moon.Eccentricity,
+                                OrbitalPeriodYears = cobj.OrbitalPeriodYears, // Parent world's period for solar days
+                                Priority = 0 // Highest priority (moon-to-world checked first)
+                            });
+                        }
+                    }
+
+                    // World to moon locks (only check after moon-to-world is resolved)
+                    for (int i = 0; i < tp.Moons.Count; i++)
+                    {
+                        var moon = tp.Moons[i];
+                        int worldToMoonDM = CalculateWorldToMoonDM(tp, moon, cobj.orbitEccentricity, parentStar.age);
+                        if (worldToMoonDM > -10)
+                        {
+                            candidates.Add(new TidalLockCandidate
+                            {
+                                Body = tp,
+                                LockType = "ToMoon",
+                                LockTarget = tp,
+                                TotalDM = worldToMoonDM,
+                                TargetMoon = moon,
+                                Eccentricity = cobj.orbitEccentricity,
+                                OrbitalPeriodYears = cobj.OrbitalPeriodYears,
+                                Priority = 2 // Lowest priority (checked last)
+                            });
+                        }
+                    }
+                }
+                else if (cobj.celestrialObject is GasGiant gg)
+                {
+                    // Moon to gas giant locks
+                    for (int i = 0; i < gg.Moons.Count; i++)
+                    {
+                        var moon = gg.Moons[i];
+                        int moonDM = CalculateMoonToWorldDM(moon, gg, parentStar.age);
+                        if (moonDM > -10)
+                        {
+                            candidates.Add(new TidalLockCandidate
+                            {
+                                Body = moon,
+                                LockType = "ToWorld",
+                                LockTarget = gg,
+                                TotalDM = moonDM,
+                                Eccentricity = moon.Eccentricity,
+                                OrbitalPeriodYears = cobj.OrbitalPeriodYears,
+                                Priority = 0
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        private int CalculateWorldToStarDM(TerrestrialPlanet planet, float orbitNumber, float eccentricity, Star parentStar)
+        {
+            int dm = -4; // Base DM
+
+            // Common DMs
+            dm += GetCommonDMs(planet.Size, eccentricity, planet.AxialTilt, planet.AtmosphericPressure, parentStar.age);
+
+            // Orbit-based DMs
+            if (orbitNumber < 1.0f)
+            {
+                dm += 4 + (10 * (int)(1.0f - orbitNumber));
+            }
+            else if (orbitNumber >= 1.0f && orbitNumber < 2.0f)
+            {
+                dm += 4;
+            }
+            else if (orbitNumber >= 2.0f && orbitNumber < 3.0f)
+            {
+                dm += 1;
+            }
+            else if (orbitNumber > 3.0f)
+            {
+                dm -= (int)orbitNumber * 2;
+            }
+
+            // Star mass DMs
+            float starMass = parentStar.mass;
+            if (starMass < 0.5f)
+                dm -= 2;
+            else if (starMass > 0.5f && starMass <= 1.0f)
+                dm += 1;
+            else if (starMass > 5.0f)
+                dm += 2;
+
+            // Moon DMs
+            int totalMoonSize = 0;
+            foreach (var moon in planet.Moons)
+            {
+                int moonSizeValue = GetSizeValue(moon.Size);
+                if (moonSizeValue >= 1)
+                    totalMoonSize += moonSizeValue;
+            }
+            if (totalMoonSize > 0)
+                dm -= totalMoonSize;
+
+            return dm;
+        }
+
+        private int CalculateMoonToWorldDM(Moon moon, CelestialBody world, float systemAge)
+        {
+            int dm = 6; // Base DM
+
+            // Common DMs
+            dm += GetCommonDMs(moon.Size, moon.Eccentricity, moon.AxialTilt, moon.AtmosphericPressure, systemAge);
+
+            // Orbit distance DM
+            if (moon.Orbit > 20.0f)
+            {
+                dm -= (int)(moon.Orbit / 20.0f);
+            }
+
+            // Retrograde DM
+            if (moon.IsRetrograde)
+                dm -= 2;
+
+            // World mass DMs
+            float worldMass = GetWorldMassInEarthMasses(world);
+            if (worldMass >= 1.0f && worldMass < 10.0f)
+                dm += 2;
+            else if (worldMass >= 10.0f && worldMass < 100.0f)
+                dm += 4;
+            else if (worldMass >= 100.0f && worldMass < 1000.0f)
+                dm += 6;
+            else if (worldMass > 1000.0f)
+                dm += 8;
+
+            return dm;
+        }
+
+        private int CalculateWorldToMoonDM(TerrestrialPlanet planet, Moon targetMoon, float planetEccentricity, float systemAge)
+        {
+            int dm = -10; // Base DM
+
+            // Common DMs
+            dm += GetCommonDMs(planet.Size, planetEccentricity, planet.AxialTilt, planet.AtmosphericPressure, systemAge);
+
+            // Moon size DM
+            int moonSizeValue = GetSizeValue(targetMoon.Size);
+            if (moonSizeValue >= 1)
+                dm += moonSizeValue;
+
+            // Moon orbit DMs
+            if (targetMoon.Orbit < 5.0f)
+            {
+                dm += 5 + (int)Math.Ceiling((5.0f - targetMoon.Orbit) * 5.0f);
+            }
+            else if (targetMoon.Orbit >= 5.0f && targetMoon.Orbit < 10.0f)
+            {
+                dm += 4;
+            }
+            else if (targetMoon.Orbit >= 10.0f && targetMoon.Orbit < 20.0f)
+            {
+                dm += 2;
+            }
+            else if (targetMoon.Orbit >= 20.0f && targetMoon.Orbit < 40.0f)
+            {
+                dm += 1;
+            }
+            else if (targetMoon.Orbit > 60.0f)
+            {
+                dm -= 6;
+            }
+
+            // Count moons size >= 1
+            int moonCount = 0;
+            foreach (var moon in planet.Moons)
+            {
+                int sizeValue = GetSizeValue(moon.Size);
+                if (sizeValue >= 1)
+                    moonCount++;
+            }
+            if (moonCount > 0)
+                dm -= 2 * moonCount;
+
+            return dm;
+        }
+
+        private int GetCommonDMs(string size, float eccentricity, float axialTilt, float atmosphericPressure, float systemAge)
+        {
+            int dm = 0;
+
+            // Size DM
+            int sizeValue = GetSizeValue(size);
+            if (sizeValue > 1)
+            {
+                dm += (int)Math.Ceiling(sizeValue / 3.0f);
+            }
+
+            // Eccentricity DM
+            if (eccentricity > 0.1f)
+            {
+                dm -= (int)(eccentricity * 10.0f);
+            }
+
+            // Axial tilt DMs
+            bool oldSystem = systemAge > 10.0f;
+            int tiltModifier = oldSystem ? 1 : -1; // Positive for old systems, negative otherwise
+
+            if (axialTilt > 30.0f)
+                dm += tiltModifier * 2;
+
+            if (axialTilt >= 60.0f && axialTilt <= 120.0f)
+                dm += tiltModifier * 4;
+
+            if (axialTilt >= 80.0f && axialTilt <= 100.0f)
+                dm += tiltModifier * 4; // Additional modifier
+
+            // Atmospheric pressure DM
+            if (atmosphericPressure > 2.5f)
+                dm -= 2;
+
+            // System age DMs
+            if (systemAge < 1.0f)
+                dm -= 2;
+            else if (systemAge >= 5.0f && systemAge <= 10.0f)
+                dm += 2;
+            else if (systemAge > 10.0f)
+                dm += 4;
+
+            return dm;
+        }
+
+        private void ApplyTidalLockEffect(TidalLockCandidate candidate, Random dice)
+        {
+            int totalDM = candidate.TotalDM;
+
+            // Auto-lock if DM >= 10
+            int roll = 0;
+            if (totalDM >= 10)
+            {
+                roll = 12;
+            }
+            else
+            {
+                roll = Starhelper.diceRoll(6, 2, dice) + totalDM;
+            }
+
+            // Apply effect based on roll
+            if (roll <= 2)
+            {
+                // No effect
+                return;
+            }
+
+            if (candidate.Body is TerrestrialPlanet planet)
+            {
+                ApplyTidalEffectToPlanet(planet, roll, candidate.LockType, candidate.TargetMoon, candidate.OrbitalPeriodYears, candidate.OrbitalObject, dice);
+            }
+            else if (candidate.Body is Moon moon)
+            {
+                float parentWorldOrbitalPeriodHours = candidate.OrbitalPeriodYears * 365.25f * 24f;
+                ApplyTidalEffectToMoon(moon, roll, candidate.LockType, parentWorldOrbitalPeriodHours, dice);
+            }
+        }
+
+        private void ApplyTidalEffectToPlanet(TerrestrialPlanet planet, int roll, string lockType, Moon? targetMoon, float orbitalPeriodYears, CelestrialObject? orbitalObject, Random dice)
+        {
+            if (roll == 3)
+            {
+                planet.BasicRotationRateHours *= 1.5f;
+                planet.TidalLockStatus = "Slowed (1.5x)";
+            }
+            else if (roll == 4)
+            {
+                planet.BasicRotationRateHours *= 2.0f;
+                planet.TidalLockStatus = "Slowed (2x)";
+            }
+            else if (roll == 5)
+            {
+                planet.BasicRotationRateHours *= 3.0f;
+                planet.TidalLockStatus = "Slowed (3x)";
+            }
+            else if (roll == 6)
+            {
+                planet.BasicRotationRateHours *= 5.0f;
+                planet.TidalLockStatus = "Slowed (5x)";
+            }
+            else if (roll == 7)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 5.0f * 24.0f;
+                planet.TidalLockStatus = "Slow rotation";
+            }
+            else if (roll == 8)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 20.0f * 24.0f;
+                planet.TidalLockStatus = "Very slow rotation";
+            }
+            else if (roll == 9)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 10.0f * 24.0f;
+                planet.IsRetrogradeSpin = true;
+                planet.TidalLockStatus = "Retrograde rotation";
+            }
+            else if (roll == 10)
+            {
+                planet.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 50.0f * 24.0f;
+                planet.IsRetrogradeSpin = true;
+                planet.TidalLockStatus = "Very slow retrograde";
+            }
+            else if (roll == 11)
+            {
+                // 3:2 resonance lock
+                planet.TidalLockStatus = lockType == "ToMoon" && targetMoon != null
+                    ? $"3:2 lock to moon {targetMoon.Designation}"
+                    : "3:2 lock to star";
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (planet.AxialTilt > 3f)
+                    planet.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
+            }
+            else if (roll >= 12)
+            {
+                // 1:1 tidal lock
+                if (roll == 12)
+                {
+                    // Roll again without DMs
+                    int secondRoll = Starhelper.diceRoll(6, 2, dice);
+                    if (secondRoll != 12)
+                    {
+                        ApplyTidalEffectToPlanet(planet, secondRoll, lockType, targetMoon, orbitalPeriodYears, orbitalObject, dice);
+                        return;
+                    }
+                }
+
+                // Full 1:1 lock
+                planet.TidalLockStatus = lockType == "ToMoon" && targetMoon != null
+                    ? $"1:1 lock to moon {targetMoon.Designation}"
+                    : "1:1 lock to star";
+
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (planet.AxialTilt > 3f)
+                    planet.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
+
+                // Eccentricity: if > 0.1, re-roll with -2 modifier and keep the lower value
+                if (orbitalObject != null && orbitalObject.orbitEccentricity > 0.1f)
+                {
+                    float oldEcc = orbitalObject.orbitEccentricity;
+                    orbitalObject.OrbitEccentricity(starsOrbited: 1, dice, modifier: -2);
+                    if (oldEcc < orbitalObject.orbitEccentricity)
+                        orbitalObject.orbitEccentricity = oldEcc;
+                }
+            }
+
+            // Recalculate solar days if rotation changed
+            RecalculateSolarDays(planet, orbitalPeriodYears);
+        }
+
+        private void ApplyTidalEffectToMoon(Moon moon, int roll, string lockType, float parentWorldOrbitalPeriodHours, Random dice)
+        {
+            if (roll == 3)
+            {
+                moon.BasicRotationRateHours *= 1.5f;
+                moon.TidalLockStatus = "Slowed (1.5x)";
+            }
+            else if (roll == 4)
+            {
+                moon.BasicRotationRateHours *= 2.0f;
+                moon.TidalLockStatus = "Slowed (2x)";
+            }
+            else if (roll == 5)
+            {
+                moon.BasicRotationRateHours *= 3.0f;
+                moon.TidalLockStatus = "Slowed (3x)";
+            }
+            else if (roll == 6)
+            {
+                moon.BasicRotationRateHours *= 5.0f;
+                moon.TidalLockStatus = "Slowed (5x)";
+            }
+            else if (roll == 7)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 5.0f * 24.0f;
+                moon.TidalLockStatus = "Slow rotation";
+            }
+            else if (roll == 8)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 20.0f * 24.0f;
+                moon.TidalLockStatus = "Very slow rotation";
+            }
+            else if (roll == 9)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 10.0f * 24.0f;
+                moon.IsRetrogradeSpin = true;
+                moon.TidalLockStatus = "Retrograde rotation";
+            }
+            else if (roll == 10)
+            {
+                moon.BasicRotationRateHours = Starhelper.diceRoll(6, 1, dice) * 50.0f * 24.0f;
+                moon.IsRetrogradeSpin = true;
+                moon.TidalLockStatus = "Very slow retrograde";
+            }
+            else if (roll == 11)
+            {
+                // 3:2 resonance lock
+                moon.TidalLockStatus = "3:2 lock to world";
+                // The moon rotates 3 times for every 2 orbits around its parent
+                moon.BasicRotationRateHours = (moon.OrbitalPeriod * 2.0f) / 3.0f;
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (moon.AxialTilt > 3f)
+                    moon.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
+            }
+            else if (roll >= 12)
+            {
+                // 1:1 tidal lock
+                if (roll == 12)
+                {
+                    // Roll again without DMs
+                    int secondRoll = Starhelper.diceRoll(6, 2, dice);
+                    if (secondRoll != 12)
+                    {
+                        ApplyTidalEffectToMoon(moon, secondRoll, lockType, parentWorldOrbitalPeriodHours, dice);
+                        return;
+                    }
+                }
+
+                // Full 1:1 lock
+                moon.TidalLockStatus = "1:1 lock to world";
+                moon.BasicRotationRateHours = moon.OrbitalPeriod;
+
+                // Axial tilt: if > 3°, re-roll as ((2d6)-2)/10 degrees
+                if (moon.AxialTilt > 3f)
+                    moon.AxialTilt = (Starhelper.diceRoll(6, 2, dice) - 2) / 10f;
+
+                // Eccentricity: if > 0.1, re-roll with -2 modifier and keep the lower value
+                if (moon.Eccentricity > 0.1f)
+                {
+                    float newEcc = RollMoonEccentricity(-2, dice);
+                    if (newEcc < moon.Eccentricity)
+                        moon.Eccentricity = newEcc;
+                }
+            }
+
+            // Recalculate solar days if rotation changed
+            RecalculateSolarDays(moon, parentWorldOrbitalPeriodHours);
+        }
+
+        private static float RollMoonEccentricity(int modifier, Random dice)
+        {
+            float[,] eccValues = {
+                {5, 7, 9, 10, 11, 12 },
+                {-0.001F, 0, 0.03F, 0.05F, 0.05F, 0.3F },
+                {1, 1, 1, 1, 2, 1 },
+                {1000, 200, 100, 20, 20, 20 }
+            };
+            int roll = Starhelper.diceRoll(6, 2, dice) + modifier;
+            if (roll > 12) roll = 12;
+            if (roll < 0) roll = 0;
+            int x = 0;
+            while (x < 5 && (int)eccValues[0, x] < roll) x++;
+            float eccBase = eccValues[1, x];
+            int numDice = (int)eccValues[2, x];
+            float divisor = eccValues[3, x];
+            return numDice > 0 ? eccBase + Starhelper.diceRoll(6, numDice, dice) / divisor : eccBase;
+        }
+
+        private void RecalculateSolarDays(TerrestrialPlanet planet, float orbitalPeriodYears)
+        {
+            if (planet.BasicRotationRateHours <= 0)
+            {
+                planet.SolarDaysInLocalYear = 0;
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Convert orbital period from years to hours
+            float orbitalPeriodHours = orbitalPeriodYears * 365.25f * 24f;
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            planet.SolarDaysInLocalYear = (orbitalPeriodHours / planet.BasicRotationRateHours) - 1;
+
+            if (planet.SolarDaysInLocalYear <= 0)
+            {
+                planet.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            planet.SolarDayHours = orbitalPeriodHours / planet.SolarDaysInLocalYear;
+        }
+
+        private void RecalculateSolarDays(Moon moon, float parentWorldOrbitalPeriodHours)
+        {
+            if (moon.BasicRotationRateHours <= 0)
+            {
+                moon.SolarDaysInLocalYear = 0;
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar Days in Local Year = (Orbit period in hours / Decimal Day Length) - 1
+            moon.SolarDaysInLocalYear = (parentWorldOrbitalPeriodHours / moon.BasicRotationRateHours) - 1;
+
+            if (moon.SolarDaysInLocalYear <= 0)
+            {
+                moon.SolarDayHours = 0;
+                return;
+            }
+
+            // Solar day (hours) = Orbit period (in hours) / Solar Days in Local Year
+            moon.SolarDayHours = parentWorldOrbitalPeriodHours / moon.SolarDaysInLocalYear;
+        }
+
+        private void GenerateAtmosphere(TerrestrialPlanet planet, float orbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
+        {
+            // Determine world type
+            planet.WorldType = DetermineWorldType(orbitNumber, parentStar.HZCO);
+
+            // Check if in habitable zone
+            bool inHZ = orbitNumber >= hzMin && orbitNumber <= hzMax;
+
+            // Get size value for atmosphere generation
+            int sizeValue = GetSizeValue(planet.Size);
+
+            if (!inHZ)
+            {
+                // Outside HZ - use non-HZ atmosphere generation
+                // If size is S, 0 or 1, atmosphere is 0
+                if (planet.Size == "S" || sizeValue == 0 || sizeValue == 1)
+                {
+                    planet.Atmosphere = "0";
+                    DebugLogger.Log($"  {planet.Designation}: Outside HZ, Size {planet.Size}, Atmosphere = 0, WorldType = {planet.WorldType}");
+                    return;
+                }
+
+                planet.Atmosphere = GenerateNonHZAtmosphere(orbitNumber, parentStar.HZCO, sizeValue, planet.Gravity, dice);
+                DebugLogger.Log($"  {planet.Designation}: Outside HZ, Atmosphere = {planet.Atmosphere}, WorldType = {planet.WorldType}");
+                return;
+            }
+
+            // Inside HZ - generate atmosphere
+
+            // If size is S, 0 or 1, atmosphere is 0
+            if (planet.Size == "S" || sizeValue == 0 || sizeValue == 1)
+            {
+                planet.Atmosphere = "0";
+                DebugLogger.Log($"  {planet.Designation}: Size {planet.Size}, Atmosphere = 0, WorldType = {planet.WorldType}");
+                return;
+            }
+
+            // Roll 2d6-7 + Size Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + sizeValue;
+
+            // Modify for small worlds with low gravity
+            if (sizeValue >= 2 && sizeValue <= 4)
+            {
+                if (planet.Gravity < 0.4f)
+                    roll -= 2;
+                else if (planet.Gravity >= 0.4f && planet.Gravity <= 0.5f)
+                    roll -= 1;
+            }
+
+            // Clamp to valid range
+            if (roll < 0) roll = 0;
+            if (roll > 17) roll = 17; // 0-9, A-H (0-17)
+
+            // Convert to atmosphere code
+            string atmosphereCode = roll <= 9 ? roll.ToString() : ((char)('A' + (roll - 10))).ToString();
+            planet.Atmosphere = atmosphereCode;
+
+            DebugLogger.Log($"  {planet.Designation}: Initial Atmosphere = {atmosphereCode}, WorldType = {planet.WorldType}");
+
+            // Check for hot/boiling world atmosphere changes
+            if ((planet.WorldType == "Hot" || planet.WorldType == "Boiling") &&
+                (roll >= 2 && roll <= 15))  // Codes 2-F
+            {
+                int changeRoll = Starhelper.diceRoll(6, 2, dice);
+
+                // Add modifiers
+                int systemAgeYears = (int)Math.Ceiling(parentStar.age);
+                changeRoll += systemAgeYears;  // +1 for each billion years
+
+                if (planet.WorldType == "Boiling")
+                    changeRoll += 4;
+
+                if (changeRoll >= 12)
+                {
+                    // Check if already A, B, C, or F+
+                    int atmosphereValue = roll;
+                    if (atmosphereValue >= 10 && (atmosphereValue == 10 || atmosphereValue == 11 || atmosphereValue == 12 || atmosphereValue >= 15))
+                    {
+                        // Change world type to Hot if not already
+                        if (planet.WorldType != "Hot")
+                        {
+                            planet.WorldType = "Hot";
+                            DebugLogger.Log($"  {planet.Designation}: Atmosphere change - WorldType now Hot");
+                        }
+                    }
+                    else
+                    {
+                        // Roll for new atmosphere
+                        int newAtmRoll = Starhelper.diceRoll(6, 1, dice);
+
+                        // Adjust roll
+                        if (sizeValue >= 2 && sizeValue <= 5)
+                            newAtmRoll -= 2;
+
+                        bool wasTainted = atmosphereCode == "2" || atmosphereCode == "4" || atmosphereCode == "7" || atmosphereCode == "9";
+                        if (wasTainted)
+                            newAtmRoll += 1;
+
+                        // Determine new atmosphere
+                        if (newAtmRoll <= 1)
+                            planet.Atmosphere = "A";
+                        else if (newAtmRoll >= 2 && newAtmRoll <= 4)
+                            planet.Atmosphere = "B";
+                        else
+                            planet.Atmosphere = "C";
+
+                        DebugLogger.Log($"  {planet.Designation}: Hot/Boiling change - New Atmosphere = {planet.Atmosphere}");
+                    }
+                }
+            }
+        }
+
+        private void GenerateAtmosphere(Moon moon, float worldOrbitNumber, float hzMin, float hzMax, Star parentStar, Random dice)
+        {
+            // Determine world type based on the parent world's orbit
+            moon.WorldType = DetermineWorldType(worldOrbitNumber, parentStar.HZCO);
+
+            // Check if in habitable zone (based on parent world's orbit)
+            bool inHZ = worldOrbitNumber >= hzMin && worldOrbitNumber <= hzMax;
+
+            // Get size value for atmosphere generation
+            int sizeValue = GetSizeValue(moon.Size);
+
+            if (!inHZ)
+            {
+                // Outside HZ - use non-HZ atmosphere generation
+                // If size is S, 0 or 1, atmosphere is 0
+                if (moon.Size == "S" || sizeValue == 0 || sizeValue == 1)
+                {
+                    moon.Atmosphere = "0";
+                    DebugLogger.Log($"    Moon {moon.Designation}: Outside HZ, Size {moon.Size}, Atmosphere = 0, WorldType = {moon.WorldType}");
+                    return;
+                }
+
+                moon.Atmosphere = GenerateNonHZAtmosphere(worldOrbitNumber, parentStar.HZCO, sizeValue, moon.Gravity, dice);
+                DebugLogger.Log($"    Moon {moon.Designation}: Outside HZ, Atmosphere = {moon.Atmosphere}, WorldType = {moon.WorldType}");
+                return;
+            }
+
+            // Inside HZ - generate atmosphere
+
+            // If size is S, 0 or 1, atmosphere is 0
+            if (moon.Size == "S" || sizeValue == 0 || sizeValue == 1)
+            {
+                moon.Atmosphere = "0";
+                DebugLogger.Log($"    Moon {moon.Designation}: Size {moon.Size}, Atmosphere = 0, WorldType = {moon.WorldType}");
+                return;
+            }
+
+            // Roll 2d6-7 + Size Code
+            int roll = Starhelper.diceRoll(6, 2, dice) - 7 + sizeValue;
+
+            // Modify for small worlds with low gravity
+            if (sizeValue >= 2 && sizeValue <= 4)
+            {
+                if (moon.Gravity < 0.4f)
+                    roll -= 2;
+                else if (moon.Gravity >= 0.4f && moon.Gravity <= 0.5f)
+                    roll -= 1;
+            }
+
+            // Clamp to valid range
+            if (roll < 0) roll = 0;
+            if (roll > 17) roll = 17; // 0-9, A-H (0-17)
+
+            // Convert to atmosphere code
+            string atmosphereCode = roll <= 9 ? roll.ToString() : ((char)('A' + (roll - 10))).ToString();
+            moon.Atmosphere = atmosphereCode;
+
+            DebugLogger.Log($"    Moon {moon.Designation}: Initial Atmosphere = {atmosphereCode}, WorldType = {moon.WorldType}");
+
+            // Check for hot/boiling world atmosphere changes
+            if ((moon.WorldType == "Hot" || moon.WorldType == "Boiling") &&
+                (roll >= 2 && roll <= 15))  // Codes 2-F
+            {
+                int changeRoll = Starhelper.diceRoll(6, 2, dice);
+
+                // Add modifiers
+                int systemAgeYears = (int)Math.Ceiling(parentStar.age);
+                changeRoll += systemAgeYears;  // +1 for each billion years
+
+                if (moon.WorldType == "Boiling")
+                    changeRoll += 4;
+
+                if (changeRoll >= 12)
+                {
+                    // Check if already A, B, C, or F+
+                    int atmosphereValue = roll;
+                    if (atmosphereValue >= 10 && (atmosphereValue == 10 || atmosphereValue == 11 || atmosphereValue == 12 || atmosphereValue >= 15))
+                    {
+                        // Change world type to Hot if not already
+                        if (moon.WorldType != "Hot")
+                        {
+                            moon.WorldType = "Hot";
+                            DebugLogger.Log($"    Moon {moon.Designation}: Atmosphere change - WorldType now Hot");
+                        }
+                    }
+                    else
+                    {
+                        // Roll for new atmosphere
+                        int newAtmRoll = Starhelper.diceRoll(6, 1, dice);
+
+                        // Adjust roll
+                        if (sizeValue >= 2 && sizeValue <= 5)
+                            newAtmRoll -= 2;
+
+                        bool wasTainted = atmosphereCode == "2" || atmosphereCode == "4" || atmosphereCode == "7" || atmosphereCode == "9";
+                        if (wasTainted)
+                            newAtmRoll += 1;
+
+                        // Determine new atmosphere
+                        if (newAtmRoll <= 1)
+                            moon.Atmosphere = "A";
+                        else if (newAtmRoll >= 2 && newAtmRoll <= 4)
+                            moon.Atmosphere = "B";
+                        else
+                            moon.Atmosphere = "C";
+
+                        DebugLogger.Log($"    Moon {moon.Designation}: Hot/Boiling change - New Atmosphere = {moon.Atmosphere}");
+                    }
+                }
+            }
+        }
+
+        private void PlaceEmptyOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Empty orbits...");
+
+            // Get all stars with EmptyOrbits > 0
+            List<Star> starsNeedingEmpty = new List<Star>();
+
+            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.EmptyOrbits > 0)
+            {
+                starsNeedingEmpty.Add(primaryStar);
+            }
+
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar && companionStar.EmptyOrbits > 0)
+                {
+                    starsNeedingEmpty.Add(companionStar);
+
+                    // Check sub-companions
+                    foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subCompanionObj.celestrialObject is Star subStar && subStar.EmptyOrbits > 0)
+                        {
+                            starsNeedingEmpty.Add(subStar);
+                        }
+                    }
+                }
+            }
+
+            // For each star, select one orbit and make it Empty
+            foreach (var star in starsNeedingEmpty)
+            {
+                DebugLogger.LogFormat("  Processing star with {0} Empty orbits needed", star.EmptyOrbits);
+
+                // Get all Filled celestial bodies for this star
+                List<CelestrialObject> filledOrbits = new List<CelestrialObject>();
+
+                CelestrialObject? starCobj = FindCelestrialObjectForStar(star);
+                if (starCobj != null)
+                {
+                    foreach (var cobj in starCobj.celestrialObjectOrbits)
+                    {
+                        if (cobj.celestrialObject is CelestialBody cb && cb.Type == CelestialBodyType.Filled)
+                        {
+                            filledOrbits.Add(cobj);
+                        }
+                    }
+                }
+
+                if (filledOrbits.Count == 0)
+                {
+                    DebugLogger.Log("    WARNING: No Filled orbits available for Empty orbit placement");
+                    continue;
+                }
+
+                // Filter out anomalous orbits if possible
+                List<CelestrialObject> candidateOrbits = filledOrbits.Where(c =>
+                {
+                    if (c.celestrialObject is CelestialBody cb)
+                    {
+                        return cb.Type == CelestialBodyType.Filled; // Only non-anomalous
+                    }
+                    return false;
+                }).ToList();
+
+                // If filtering removed all candidates, use all filled orbits
+                if (candidateOrbits.Count == 0)
+                {
+                    candidateOrbits = filledOrbits;
+                }
+
+                // Filter out innermost and outermost if at least 3 orbits exist
+                if (candidateOrbits.Count >= 3)
+                {
+                    float minOrbit = candidateOrbits.Min(c => c.orbit);
+                    float maxOrbit = candidateOrbits.Max(c => c.orbit);
+                    candidateOrbits = candidateOrbits.Where(c => c.orbit != minOrbit && c.orbit != maxOrbit).ToList();
+                }
+
+                // If we still have no candidates, use all filled orbits
+                if (candidateOrbits.Count == 0)
+                {
+                    candidateOrbits = filledOrbits;
+                }
+
+                // Randomly select one orbit
+                int selectedIndex = Starhelper.diceRoll(candidateOrbits.Count, 1, dice) - 1;
+                CelestrialObject selectedOrbit = candidateOrbits[selectedIndex];
+
+                // Replace with EmptyOrbit
+                selectedOrbit.celestrialObject = new EmptyOrbit();
+                DebugLogger.LogFormat("    Placed Empty orbit at {0:F3}", selectedOrbit.orbit);
+            }
+
+            DebugLogger.Log("  Empty orbit placement complete");
+        }
+
+        private void PlaceGasGiants(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Placing {0} Gas Giants...", GasGiantCount);
+
+            // Get all Filled bodies (available for placement)
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            if (emptyOrbits.Count < GasGiantCount)
+            {
+                DebugLogger.LogFormat("  WARNING: Not enough Empty orbits ({0}) for Gas Giants ({1})", emptyOrbits.Count, GasGiantCount);
+            }
+
+            // Randomly select GasGiantCount orbits
+            int planetsToPlace = Math.Min(GasGiantCount, emptyOrbits.Count);
+            for (int i = 0; i < planetsToPlace; i++)
+            {
+                int selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
+                var (cobj, parentStar) = emptyOrbits[selectedIndex];
+                emptyOrbits.RemoveAt(selectedIndex);
+
+                // Create Gas Giant
+                GasGiant gasGiant = new GasGiant();
+
+                // Check for anomalous orbit type
+                if (cobj.celestrialObject is CelestialBody cb)
+                {
+                    if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                        cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde ||
+                        cb.Type == CelestialBodyType.Trojan)
+                    {
+                        gasGiant.Type = cb.Type; // Preserve anomalous type
+                    }
+                }
+
+                cobj.celestrialObject = gasGiant;
+
+                // Calculate eccentricity with modifiers
+                int modifier = 0;
+                if (gasGiant.Type == CelestialBodyType.Random || gasGiant.Type == CelestialBodyType.Eccentric)
+                {
+                    modifier = 2;
+                }
+
+                // Calculate inclination for Eccentric orbits
+                if (gasGiant.Type == CelestialBodyType.Eccentric)
+                {
+                    int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                    gasGiant.Inclination = ((inclinationRoll + 2) * 10) + 10;
+                    DebugLogger.LogFormat("    Eccentric orbit inclination: {0:F0}°", gasGiant.Inclination);
+                }
+
+                int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+                // Calculate orbital period
+                CalculateOrbitalPeriod(cobj);
+
+                // Determine gas giant size
+                DetermineGasGiantSize(gasGiant, dice);
+
+                // Calculate albedo
+                CalculateAlbedo(gasGiant, dice);
+
+                // Calculate rotation and day length
+                CalculateBasicRotationRate(gasGiant, parentStar.age, dice);
+                CalculateSolarDays(gasGiant, cobj.OrbitalPeriodYears);
+
+                DebugLogger.LogFormat("  Placed Gas Giant at orbit {0:F3} (Size:{1}-{2}, Mass:{3}, e:{4:F3}, P:{5})",
+                    cobj.orbit, gasGiant.Size, ToEhex(gasGiant.Diameter), gasGiant.GasGiantMass,
+                    cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+            }
+
+            DebugLogger.Log("  Gas Giant placement complete");
+        }
+
+        private void DetermineGasGiantSize(GasGiant gasGiant, Random dice)
+        {
+            // Get primary star for modifiers
+            Star? primaryStar = primaryObject.celestrialObject as Star;
+            if (primaryStar == null) return;
+
+            // Roll 1d6
+            int roll = Starhelper.diceRoll(6, 1, dice);
+            int modifier = 0;
+
+            DebugLogger.LogFormat("    Gas Giant size roll: {0}", roll);
+
+            // Modifier: -1 if primary is BD, M-Type Class V, or any Class VI
+            if (primaryStar.type == "BD" ||
+                (primaryStar.type == "M" && primaryStar.starclass == "V") ||
+                primaryStar.starclass == "VI")
+            {
+                modifier -= 1;
+                DebugLogger.LogFormat("    Primary is {0}{1} {2} - applying -1 modifier",
+                    primaryStar.type, primaryStar.subType, primaryStar.starclass);
+            }
+
+            // Modifier: -1 if Spread < 0.1
+            if (primaryStar.SystemSpread < 0.1f)
+            {
+                modifier -= 1;
+                DebugLogger.LogFormat("    System Spread {0:F4} < 0.1 - applying -1 modifier", primaryStar.SystemSpread);
+            }
+
+            int finalRoll = roll + modifier;
+            DebugLogger.LogFormat("    Final roll: {0} + {1} = {2}", roll, modifier, finalRoll);
+
+            // Determine size based on final roll
+            if (finalRoll <= 2)
+            {
+                // Small: GS
+                gasGiant.Size = "GS";
+                int diam1 = Starhelper.diceRoll(3, 1, dice);
+                int diam2 = Starhelper.diceRoll(3, 1, dice);
+                gasGiant.Diameter = diam1 + diam2; // 2-6
+                int massRoll = Starhelper.diceRoll(6, 1, dice);
+                gasGiant.GasGiantMass = 5 * (massRoll + 1); // 10-35
+                DebugLogger.LogFormat("    Size: GS (Small), Diameter: {0}, Mass: {1}", gasGiant.Diameter, gasGiant.GasGiantMass);
+            }
+            else if (finalRoll >= 3 && finalRoll <= 4)
+            {
+                // Medium: GM
+                gasGiant.Size = "GM";
+                int diamRoll = Starhelper.diceRoll(6, 1, dice);
+                gasGiant.Diameter = diamRoll + 6; // 7-12
+                int massRoll = Starhelper.diceRoll(6, 3, dice);
+                gasGiant.GasGiantMass = 10 * (massRoll - 1); // 20-170
+                DebugLogger.LogFormat("    Size: GM (Medium), Diameter: {0}, Mass: {1}", gasGiant.Diameter, gasGiant.GasGiantMass);
+            }
+            else // >= 5
+            {
+                // Large: GL
+                gasGiant.Size = "GL";
+                int diamRoll = Starhelper.diceRoll(6, 2, dice);
+                gasGiant.Diameter = diamRoll + 6; // 8-18
+                int massMultiplier = Starhelper.diceRoll(3, 1, dice);
+                int massRoll = Starhelper.diceRoll(6, 3, dice);
+                gasGiant.GasGiantMass = massMultiplier * 50 * (massRoll + 4); // 350-1650
+
+                // Check if mass >= 3000, then recalculate
+                if (gasGiant.GasGiantMass >= 3000)
+                {
+                    int rerollDice = Starhelper.diceRoll(6, 2, dice);
+                    gasGiant.GasGiantMass = 4000 - ((rerollDice - 2) * 200); // 2000-3800
+                    DebugLogger.LogFormat("    Mass >= 3000, recalculated to: {0}", gasGiant.GasGiantMass);
+                }
+                DebugLogger.LogFormat("    Size: GL (Large), Diameter: {0}, Mass: {1}", gasGiant.Diameter, gasGiant.GasGiantMass);
+            }
+        }
+
+        private void PlacePlanetoidBelts(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Placing {0} Planetoid Belts...", PlanetoidBeltCount);
+
+            // Get all remaining Filled bodies, filter out Retrograde and Trojan
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled)
+                .Where(item =>
+                {
+                    if (item.cobj.celestrialObject is CelestialBody cb)
+                    {
+                        return cb.Type != CelestialBodyType.Retrograde && cb.Type != CelestialBodyType.Trojan;
+                    }
+                    return true;
+                }).ToList();
+
+            if (emptyOrbits.Count < PlanetoidBeltCount)
+            {
+                DebugLogger.LogFormat("  WARNING: Not enough Empty orbits ({0}) for Planetoid Belts ({1})", emptyOrbits.Count, PlanetoidBeltCount);
+            }
+
+            // Randomly select PlanetoidBeltCount orbits
+            int beltsToPlace = Math.Min(PlanetoidBeltCount, emptyOrbits.Count);
+            for (int i = 0; i < beltsToPlace; i++)
+            {
+                int selectedIndex = Starhelper.diceRoll(emptyOrbits.Count, 1, dice) - 1;
+                var (cobj, parentStar) = emptyOrbits[selectedIndex];
+                emptyOrbits.RemoveAt(selectedIndex);
+
+                // Create Planetoid Belt
+                PlanetoidBelt belt = new PlanetoidBelt();
+
+                // Check for anomalous orbit type (but not Retrograde or Trojan as filtered above)
+                if (cobj.celestrialObject is CelestialBody cb)
+                {
+                    if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                        cb.Type == CelestialBodyType.Inclined)
+                    {
+                        belt.Type = cb.Type; // Preserve anomalous type
+                    }
+                }
+
+                cobj.celestrialObject = belt;
+
+                // Calculate eccentricity with belt=true and modifiers
+                int modifier = 0;
+                if (belt.Type == CelestialBodyType.Random || belt.Type == CelestialBodyType.Eccentric)
+                {
+                    modifier = 2;
+                }
+
+                int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                cobj.OrbitEccentricity(starsOrbited, dice, belt: true, modifier: modifier);
+
+                // Calculate orbital period
+                CalculateOrbitalPeriod(cobj);
+
+                // Calculate belt characteristics
+                CalculateBeltCharacteristics(belt, cobj, parentStar, dice);
+
+                DebugLogger.LogFormat("  Placed Planetoid Belt at orbit {0:F3} (e:{1:F3}, P:{2})",
+                    cobj.orbit, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+                DebugLogger.LogFormat("    Belt Profile: {0}", belt.BeltProfile);
+            }
+
+            DebugLogger.Log("  Planetoid Belt placement complete");
+        }
+
+        private bool HasAdjacentOrbit(Star parentStar, float beltOrbit)
+        {
+            // Find the CelestrialObject that contains this star's orbits
+            List<CelestrialObject> orbits = new List<CelestrialObject>();
+
+            // Check if this is the primary star
+            if (primaryObject.celestrialObject is Star primary && primary == parentStar)
+            {
+                orbits = primaryObject.celestrialObjectOrbits;
+            }
+            else
+            {
+                // Search for companion star
+                foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (companionObj.celestrialObject is Star companion && companion == parentStar)
+                    {
+                        orbits = companionObj.celestrialObjectOrbits;
+                        break;
+                    }
+                }
+            }
+
+            // Check if any orbit exists within ±1 of beltOrbit
+            foreach (var obj in orbits)
+            {
+                if (obj.celestrialObject == null) continue;
+
+                float orbitDiff = Math.Abs(obj.orbit - beltOrbit);
+                if (orbitDiff > 0.01f && orbitDiff <= 1.0f) // Not the same orbit, but within 1
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsOutermostOrbit(Star parentStar, float beltOrbit)
+        {
+            // Find the CelestrialObject that contains this star's orbits
+            List<CelestrialObject> orbits = new List<CelestrialObject>();
+
+            // Check if this is the primary star
+            if (primaryObject.celestrialObject is Star primary && primary == parentStar)
+            {
+                orbits = primaryObject.celestrialObjectOrbits;
+            }
+            else
+            {
+                // Search for companion star
+                foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (companionObj.celestrialObject is Star companion && companion == parentStar)
+                    {
+                        orbits = companionObj.celestrialObjectOrbits;
+                        break;
+                    }
+                }
+            }
+
+            // Find maximum orbit number
+            float maxOrbit = 0;
+            foreach (var obj in orbits)
+            {
+                if (obj.celestrialObject != null && obj.orbit > maxOrbit)
+                {
+                    maxOrbit = obj.orbit;
+                }
+            }
+
+            return Math.Abs(beltOrbit - maxOrbit) < 0.01f; // Belt is at outermost orbit
+        }
+
+        private float CalculateBeltSpan(PlanetoidBelt belt, float beltOrbit, Star parentStar, Random dice)
+        {
+            // Calculate base span: (parentStar.SystemSpread × 2d6) / 10
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            float baseSpan = (parentStar.SystemSpread * roll) / 10.0f;
+
+            DebugLogger.Log($"    Belt Span base: SystemSpread={parentStar.SystemSpread:F2}, 2d6={roll}, base={(parentStar.SystemSpread * roll) / 10.0f:F2}");
+
+            // Check adjacent orbits (+1 if next higher or lower exists)
+            if (HasAdjacentOrbit(parentStar, beltOrbit))
+            {
+                baseSpan += 1.0f;
+                DebugLogger.Log($"    Belt Span: +1 for adjacent orbit");
+            }
+
+            // Check outermost orbit (+3 if belt is outermost)
+            if (IsOutermostOrbit(parentStar, beltOrbit))
+            {
+                baseSpan += 3.0f;
+                DebugLogger.Log($"    Belt Span: +3 for outermost orbit");
+            }
+
+            DebugLogger.Log($"    Belt Span final: {baseSpan:F2} AU");
+            return baseSpan;
+        }
+
+        private void CalculateBeltComposition(PlanetoidBelt belt, float beltOrbit, float parentStarHZCO, Random dice)
+        {
+            // Roll 2d6 with HZCO modifiers
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+            int modifier = 0;
+
+            if (beltOrbit < parentStarHZCO)
+            {
+                modifier = -4;
+            }
+            else if (beltOrbit > parentStarHZCO + 2)
+            {
+                modifier = 4;
+            }
+
+            int result = baseRoll + modifier;
+
+            DebugLogger.Log($"    Composition: 2d6={baseRoll}, modifier={modifier}, result={result}");
+
+            // Lookup m-type, s-type, c-type from table
+            int mType = 0, sType = 0, cType = 0;
+
+            if (result <= 0)
+            {
+                mType = 10 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = Starhelper.diceRoll(6, 1, dice) * 5;
+                cType = 0;
+            }
+            else if (result == 1)
+            {
+                mType = 50 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(3, 1, dice);
+            }
+            else if (result == 2)
+            {
+                mType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 15 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (result == 3)
+            {
+                mType = 25 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 30 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (result == 4)
+            {
+                mType = 15 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 35 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 5 + Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (result == 5)
+            {
+                mType = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                sType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 5 + (Starhelper.diceRoll(6, 1, dice) * 2);
+            }
+            else if (result == 6)
+            {
+                mType = Starhelper.diceRoll(6, 1, dice) * 5;
+                sType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = Starhelper.diceRoll(6, 1, dice) * 5;
+            }
+            else if (result == 7)
+            {
+                mType = 5 + (Starhelper.diceRoll(6, 1, dice) * 2);
+                sType = 35 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 10 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 8)
+            {
+                mType = 5 + Starhelper.diceRoll(6, 1, dice);
+                sType = 30 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 20 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 9)
+            {
+                mType = Starhelper.diceRoll(6, 1, dice);
+                sType = 15 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 40 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 10)
+            {
+                mType = Starhelper.diceRoll(6, 1, dice);
+                sType = 5 + (Starhelper.diceRoll(6, 1, dice) * 5);
+                cType = 50 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else if (result == 11)
+            {
+                mType = Starhelper.diceRoll(3, 1, dice);
+                sType = 5 + (Starhelper.diceRoll(6, 1, dice) * 2);
+                cType = 60 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+            else // >= 12
+            {
+                mType = 0;
+                sType = Starhelper.diceRoll(6, 1, dice);
+                cType = 70 + (Starhelper.diceRoll(6, 1, dice) * 5);
+            }
+
+            // Normalize to 100%
+            int total = mType + sType + cType;
+            int other = 0;
+
+            if (total > 100)
+            {
+                // Reduce m-type and s-type proportionally until total = 100
+                int excess = total - 100;
+                int mReduction = Math.Min(mType, excess / 2);
+                int sReduction = Math.Min(sType, excess - mReduction);
+                mType -= mReduction;
+                sType -= sReduction;
+                total = mType + sType + cType;
+            }
+
+            if (total < 100)
+            {
+                other = 100 - total;
+            }
+
+            belt.MType = mType;
+            belt.SType = sType;
+            belt.CType = cType;
+            belt.Other = other;
+
+            DebugLogger.Log($"    Composition: M={mType}%, S={sType}%, C={cType}%, Other={other}%");
+        }
+
+        private int CalculateBeltBulk(int cType, float systemAge, Random dice)
+        {
+            // Roll 2d6
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+
+            // Apply age modifier (always negative)
+            int ageModifier = -(int)Math.Abs(systemAge / 2.0f);
+
+            // Apply c-type modifier
+            int cTypeModifier = cType / 10;
+
+            int bulk = baseRoll + ageModifier + cTypeModifier;
+
+            DebugLogger.Log($"    Bulk: 2d6={baseRoll}, age mod={ageModifier}, c-type mod={cTypeModifier}, total={bulk}");
+
+            return bulk;
+        }
+
+        private int CalculateBeltResourceRating(int bulk, int mType, int cType, Random dice)
+        {
+            // Roll 2d6 - 7
+            int baseRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+
+            // Add bulk
+            int rating = baseRoll + bulk;
+
+            // Add m-type / 10
+            rating += mType / 10;
+
+            // Add c-type / 10
+            rating += cType / 10;
+
+            DebugLogger.Log($"    Resource Rating: 2d6-7={baseRoll}, +bulk={bulk}, +m/10={mType / 10}, +c/10={cType / 10}, total={rating}");
+
+            return rating;
+        }
+
+        private void CalculateSignificantBodies(PlanetoidBelt belt, float beltOrbit, float beltSpan,
+                                                float parentStarHZCO, int bulk, Random dice)
+        {
+            // Calculate Size 1 Bodies
+            int size1 = Starhelper.diceRoll(6, 2, dice) - 12 + bulk;
+
+            // Apply modifiers
+            if (beltOrbit > parentStarHZCO + 3)
+            {
+                size1 += 2;
+            }
+
+            if (beltSpan < 0.1f)
+            {
+                size1 -= 4;
+            }
+
+            // Treat negative as 0
+            size1 = Math.Max(0, size1);
+
+            // Calculate Size S Bodies
+            int dm = 0;
+
+            if (beltOrbit >= parentStarHZCO + 2 && beltOrbit <= parentStarHZCO + 3)
+            {
+                dm += 1;
+            }
+            else if (beltOrbit > parentStarHZCO + 3)
+            {
+                dm += 3;
+            }
+
+            if (beltSpan > 1.0f)
+            {
+                dm += 1;
+            }
+
+            int sizeS = Starhelper.diceRoll(6, 2, dice) - 10 + ((dm + 1) * (bulk + 1));
+
+            // Treat negative as 0
+            sizeS = Math.Max(0, sizeS);
+
+            belt.Size1Bodies = size1;
+            belt.SizeSBodies = sizeS;
+
+            DebugLogger.Log($"    Significant Bodies: Size 1={size1}, Size S={sizeS}");
+        }
+
+        private string GenerateBeltProfile(PlanetoidBelt belt)
+        {
+            // Format: S-Cm.Cs.Cc.Co-B-R-#-s (B, R, #, s in ehex)
+            return $"{belt.BeltSpan:F1}-{belt.MType:D2}.{belt.SType:D2}.{belt.CType:D2}.{belt.Other:D2}-" +
+                   $"{IntToEhex(belt.Bulk)}-{IntToEhex(belt.ResourceRating)}-{IntToEhex(belt.Size1Bodies)}-{IntToEhex(belt.SizeSBodies)}";
+        }
+
+        private void CalculateBeltCharacteristics(PlanetoidBelt belt, CelestrialObject beltObj,
+                                                  Star parentStar, Random dice)
+        {
+            DebugLogger.Log($"  Calculating belt characteristics for orbit {beltObj.orbit:F3}...");
+
+            // 1. Calculate Belt Span
+            belt.BeltSpan = CalculateBeltSpan(belt, beltObj.orbit, parentStar, dice);
+
+            // 2. Calculate Belt Composition
+            CalculateBeltComposition(belt, beltObj.orbit, parentStar.HZCO, dice);
+
+            // 3. Calculate Belt Bulk
+            belt.Bulk = CalculateBeltBulk(belt.CType, parentStar.age, dice);
+
+            // 4. Calculate Belt Resource Rating
+            belt.ResourceRating = CalculateBeltResourceRating(belt.Bulk, belt.MType, belt.CType, dice);
+
+            // 5. Calculate Significant Bodies
+            CalculateSignificantBodies(belt, beltObj.orbit, belt.BeltSpan, parentStar.HZCO, belt.Bulk, dice);
+
+            // 6. Generate Belt Profile
+            belt.BeltProfile = GenerateBeltProfile(belt);
+        }
+
+        private void HandleTrojanOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Handling Trojan orbits...");
+
+            // Get all orbits with Trojan anomalous type
+            var trojanOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Trojan);
+
+            foreach (var (cobj, parentStar) in trojanOrbits)
+            {
+                DebugLogger.LogFormat("  Processing Trojan orbit at {0:F3}", cobj.orbit);
+
+                // Determine primary body type (Gas Giant or Terrestrial Planet)
+                CelestialBody? primaryBody = null;
+                CelestialBody? trojanBody = null;
+
+                // If already placed (Gas Giant), use it as primary
+                if (cobj.celestrialObject is GasGiant)
+                {
+                    primaryBody = (CelestialBody)cobj.celestrialObject;
+                    trojanBody = new TerrestrialPlanet();
+                }
+                else
+                {
+                    // Randomly determine: 50/50 Gas Giant or Terrestrial Planet
+                    bool primaryIsGasGiant = Starhelper.diceRoll(2, 1, dice) == 1;
+                    bool trojanIsGasGiant = Starhelper.diceRoll(2, 1, dice) == 1;
+
+                    // If at least one is Gas Giant, make it the primary
+                    if (primaryIsGasGiant && !trojanIsGasGiant)
+                    {
+                        primaryBody = new GasGiant();
+                        trojanBody = new TerrestrialPlanet();
+                    }
+                    else if (!primaryIsGasGiant && trojanIsGasGiant)
+                    {
+                        primaryBody = new TerrestrialPlanet();
+                        trojanBody = new GasGiant();
+                    }
+                    else if (primaryIsGasGiant && trojanIsGasGiant)
+                    {
+                        primaryBody = new GasGiant();
+                        trojanBody = new GasGiant();
+                    }
+                    else
+                    {
+                        primaryBody = new TerrestrialPlanet();
+                        trojanBody = new TerrestrialPlanet();
+                    }
+
+                    // Set the primary body
+                    cobj.celestrialObject = primaryBody;
+                }
+
+                // Set Trojan position (L4 or L5)
+                string trojanPosition = Starhelper.diceRoll(2, 1, dice) == 1 ? "L4" : "L5";
+                if (trojanBody is GasGiant gg)
+                {
+                    gg.TrojanPosition = trojanPosition;
+                    DetermineGasGiantSize(gg, dice);
+                }
+                else if (trojanBody is TerrestrialPlanet tp)
+                {
+                    tp.TrojanPosition = trojanPosition;
+                    tp.Size = DetermineTerrestrialSize(dice);
+                    tp.Diameter = CalculateDiameter(tp.Size, dice);
+                }
+
+                // Determine size for primary based on type
+                if (primaryBody is TerrestrialPlanet primaryTp)
+                {
+                    primaryTp.Size = DetermineTerrestrialSize(dice);
+                    primaryTp.Diameter = CalculateDiameter(primaryTp.Size, dice);
+                }
+                else if (primaryBody is GasGiant primaryGg)
+                {
+                    DetermineGasGiantSize(primaryGg, dice);
+                }
+
+                // Calculate eccentricity for primary (if not already calculated)
+                if (cobj.orbitEccentricity == 0)
+                {
+                    int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                    cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: 0);
+                    CalculateOrbitalPeriod(cobj);
+                }
+
+                // Create second CelestrialObject for Trojan companion
+                CelestrialObject trojanCobj = new CelestrialObject();
+                trojanCobj.orbit = cobj.orbit;
+                trojanCobj.orbitAU = cobj.orbitAU;
+                trojanCobj.orbitEccentricity = cobj.orbitEccentricity;
+                trojanCobj.OrbitalPeriodYears = cobj.OrbitalPeriodYears;
+                trojanCobj.celestrialObject = trojanBody;
+
+                // Add to parent star's orbits
+                CelestrialObject? parentCobj = FindCelestrialObjectForStar(parentStar);
+                if (parentCobj != null)
+                {
+                    parentCobj.celestrialObjectOrbits.Add(trojanCobj);
+
+                    // Re-sort the orbits
+                    parentCobj.celestrialObjectOrbits = parentCobj.celestrialObjectOrbits.OrderBy(o => o.orbit).ToList();
+                }
+
+                DebugLogger.LogFormat("    Created Trojan companion at {0} position", trojanPosition);
+            }
+
+            DebugLogger.Log("  Trojan orbit handling complete");
+        }
+
+        private void PlaceTerrestrialPlanets(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Terrestrial Planets in remaining orbits...");
+
+            // Get all remaining Filled bodies
+            var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            DebugLogger.LogFormat("  Found {0} Empty orbits to fill with Terrestrial Planets", emptyOrbits.Count);
+
+            foreach (var (cobj, parentStar) in emptyOrbits)
+            {
+                // Create Terrestrial Planet
+                TerrestrialPlanet planet = new TerrestrialPlanet();
+
+                // Check for anomalous orbit type
+                if (cobj.celestrialObject is CelestialBody cb)
+                {
+                    if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                        cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde)
+                    {
+                        planet.Type = cb.Type; // Preserve anomalous type
+                    }
+                }
+
+                cobj.celestrialObject = planet;
+
+                // Calculate eccentricity with modifiers
+                int modifier = 0;
+                if (planet.Type == CelestialBodyType.Random || planet.Type == CelestialBodyType.Eccentric)
+                {
+                    modifier = 2;
+                }
+
+                // Calculate inclination for Eccentric orbits
+                if (planet.Type == CelestialBodyType.Eccentric)
+                {
+                    int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                    planet.Inclination = ((inclinationRoll + 2) * 10) + 10;
+                }
+
+                int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+                cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+                // Calculate orbital period
+                CalculateOrbitalPeriod(cobj);
+
+                // Determine planet size and diameter
+                planet.Size = DetermineTerrestrialSize(dice);
+                planet.Diameter = CalculateDiameter(planet.Size, dice);
+
+                // Calculate physical properties
+                CalculatePhysicalProperties(planet, cobj.orbit, parentStar, dice);
+
+                // Generate atmosphere
+                var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+                GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
+
+                // Calculate atmospheric pressure, oxygen, and hydrographics
+                CalculateAtmosphericPressure(planet, dice);
+                CalculateOxygenFraction(planet, parentStar.age, dice);
+                CalculateHydrographics(planet, dice);
+
+                // Calculate surface distribution, albedo, and greenhouse
+                CalculateSurfaceDistribution(planet, dice);
+                CalculateAlbedo(planet, cobj.orbit, parentStar.HZCO, dice);
+                CalculateGreenhouse(planet, dice);
+
+                // Calculate rotation and day length
+                CalculateBasicRotationRate(planet, parentStar.age, dice);
+                CalculateSolarDays(planet, cobj.OrbitalPeriodYears);
+
+                // Calculate axial tilt
+                CalculateAxialTilt(planet, dice);
+
+                DebugLogger.LogFormat("  Placed Terrestrial Planet at orbit {0:F3} (Size:{1}, Diameter:{2}km, e:{3:F3}, P:{4})",
+                    cobj.orbit, planet.Size, planet.Diameter, cobj.orbitEccentricity, FormatOrbitalPeriod(cobj.OrbitalPeriodYears));
+            }
+
+            DebugLogger.Log("  Terrestrial Planet placement complete");
+        }
+
+        private void PlaceMainworldAsMoon(GasGiant gasGiant, CelestrialObject ggObj, Star parentStar, Random dice)
+        {
+            DebugLogger.Log($"  Creating mainworld as moon of gas giant {gasGiant.Designation}");
+
+            // Create moon for mainworld
+            Moon moon = new Moon();
+
+            // Apply mainworld size
+            moon.Size = IntToEhex(mainworld!.Size);
+
+            // Assign designation based on current moon count (a, b, c, etc.)
+            int moonIndex = gasGiant.Moons.Count;
+            moon.Designation = ((char)('a' + moonIndex)).ToString();
+
+            moon.Diameter = CalculateDiameter(moon.Size, dice);
+
+            // Calculate physical properties for moon (use parent gas giant's orbit for composition)
+            CalculatePhysicalProperties(moon, ggObj.orbit, parentStar, dice);
+
+            // Apply mainworld atmosphere
+            string targetAtmosphere = IntToEhex(mainworld.Atmosphere);
+
+            // Generate atmosphere normally first (to get composition)
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+            GenerateAtmosphere(moon, ggObj.orbit, hzMin, hzMax, parentStar, dice);
+
+            // Override with mainworld atmosphere
+            moon.Atmosphere = targetAtmosphere;
+
+            // Calculate atmospheric properties
+            CalculateAtmosphericPressure(moon, dice);
+            CalculateOxygenFraction(moon, parentStar.age, dice);
+            CalculateHydrographics(moon, dice);
+
+            // Override with mainworld hydrographics
+            moon.HydrographicsCode = IntToEhex(mainworld.Hydrographics);
+
+            // Recalculate coverage based on code
+            int hydroValue = mainworld.Hydrographics;
+            if (hydroValue == 0)
+                moon.HydrographicsCoverage = 0;
+            else if (hydroValue == 10) // A
+                moon.HydrographicsCoverage = 96 + (Starhelper.diceRoll(100, 1, dice) / 100f) * 4;
+            else
+            {
+                int min = hydroValue * 10 - 4;
+                int max = hydroValue * 10 + 5;
+                moon.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+            }
+
+            // Calculate remaining properties
+            CalculateSurfaceDistribution(moon, dice);
+            CalculateAlbedo(moon, ggObj.orbit, parentStar.HZCO, dice);
+            CalculateGreenhouse(moon, dice);
+
+            // Add moon to gas giant first (needed for orbit calculations)
+            gasGiant.Moons.Add(moon);
+
+            // Calculate Hill Sphere and assign moon orbit
+            CalculateWorldHillSphere(gasGiant, ggObj, parentStar, dice);
+            AssignMoonOrbits(gasGiant, dice);
+            CalculateMoonOrbitalPeriods(gasGiant);
+
+            // Now generate atmosphere, rotation, and temperatures
+            // Note: We already set atmosphere above, but this will calculate rotation/tidal lock
+            CalculateBasicRotationRate(moon, parentStar.age, dice);
+
+            // Get moon's orbital period for solar day calculation
+            float moonOrbitalPeriodYears = moon.OrbitalPeriod / (365.25f * 24f); // Convert hours to years
+            CalculateSolarDays(moon, moonOrbitalPeriodYears);
+            CalculateAxialTilt(moon, dice);
+
+            // Calculate temperatures (need parent orbit, moon orbit in AU, eccentricity, luminosity)
+            float moonOrbitAU = moon.OrbitDistanceKm / 149597870.7f; // Convert km to AU
+            CalculateTemperatures(moon, ggObj.orbitAU, moonOrbitAU, moon.Eccentricity, parentStar.luminosity);
+
+            // Store reference to mainworld moon
+            mainworld.PlacedWorld = moon;
+
+            DebugLogger.Log($"  Placed mainworld as moon of {gasGiant.Designation}");
+            DebugLogger.LogFormat("  Moon properties: Size:{0}, Atmosphere:{1}, Hydrographics:{2}, Diameter:{3}km",
+                moon.Size, moon.Atmosphere, moon.HydrographicsCode, moon.Diameter);
+        }
+
+        private void PlaceMainworldAsStandalone(CelestrialObject cobj, Star parentStar, Random dice)
+        {
+            // Create Terrestrial Planet for mainworld
+            TerrestrialPlanet planet = new TerrestrialPlanet();
+
+            // Check for anomalous orbit type
+            if (cobj.celestrialObject is CelestialBody cb)
+            {
+                if (cb.Type == CelestialBodyType.Random || cb.Type == CelestialBodyType.Eccentric ||
+                    cb.Type == CelestialBodyType.Inclined || cb.Type == CelestialBodyType.Retrograde)
+                {
+                    planet.Type = cb.Type;
+                }
+            }
+
+            cobj.celestrialObject = planet;
+
+            // Calculate eccentricity
+            int modifier = 0;
+            if (planet.Type == CelestialBodyType.Random || planet.Type == CelestialBodyType.Eccentric)
+                modifier = 2;
+
+            if (planet.Type == CelestialBodyType.Eccentric)
+            {
+                int inclinationRoll = Starhelper.diceRoll(6, 1, dice);
+                planet.Inclination = ((inclinationRoll + 2) * 10) + 10;
+            }
+
+            int starsOrbited = CountStarsOrbitedByPlanet(parentStar);
+            cobj.OrbitEccentricity(starsOrbited, dice, belt: false, modifier: modifier);
+
+            // Calculate orbital period
+            CalculateOrbitalPeriod(cobj);
+
+            // Apply mainworld size
+            planet.Size = IntToEhex(mainworld!.Size);
+            planet.Diameter = CalculateDiameter(planet.Size, dice);
+
+            // Calculate physical properties
+            CalculatePhysicalProperties(planet, cobj.orbit, parentStar, dice);
+
+            // Apply mainworld atmosphere - temporarily store for later override
+            string targetAtmosphere = IntToEhex(mainworld.Atmosphere);
+
+            // Generate atmosphere normally first
+            var (hzMin, hzMax) = CalculateHabitableZone(parentStar);
+            GenerateAtmosphere(planet, cobj.orbit, hzMin, hzMax, parentStar, dice);
+
+            // Override with mainworld atmosphere
+            planet.Atmosphere = targetAtmosphere;
+
+            // Calculate atmospheric pressure, oxygen, and hydrographics
+            CalculateAtmosphericPressure(planet, dice);
+            CalculateOxygenFraction(planet, parentStar.age, dice);
+            CalculateHydrographics(planet, dice);
+
+            // Override with mainworld hydrographics
+            planet.HydrographicsCode = IntToEhex(mainworld.Hydrographics);
+            // Recalculate coverage based on code
+            int hydroValue = mainworld.Hydrographics;
+            if (hydroValue == 0)
+                planet.HydrographicsCoverage = 0;
+            else if (hydroValue == 10) // A
+                planet.HydrographicsCoverage = 96 + (Starhelper.diceRoll(100, 1, dice) / 100f) * 4;
+            else
+            {
+                int min = hydroValue * 10 - 4;
+                int max = hydroValue * 10 + 5;
+                planet.HydrographicsCoverage = min + (Starhelper.diceRoll(100, 1, dice) / 100f) * (max - min);
+            }
+
+            // Calculate remaining properties
+            CalculateSurfaceDistribution(planet, dice);
+            CalculateAlbedo(planet, cobj.orbit, parentStar.HZCO, dice);
+            CalculateGreenhouse(planet, dice);
+            CalculateBasicRotationRate(planet, parentStar.age, dice);
+            CalculateSolarDays(planet, cobj.OrbitalPeriodYears);
+            CalculateAxialTilt(planet, dice);
+
+            // Store reference to mainworld
+            mainworld.PlacedWorld = planet;
+
+            DebugLogger.LogFormat("  Placed Mainworld at orbit {0:F3} (Size:{1}, Atmosphere:{2}, Hydrographics:{3}, Diameter:{4}km)",
+                cobj.orbit, planet.Size, planet.Atmosphere, planet.HydrographicsCode, planet.Diameter);
+        }
+
+        private void PlaceMainworld(Random dice)
+        {
+            if (mainworld == null) return;
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Placing Mainworld...");
+            DebugLogger.Log($"  Mainworld UWP: {mainworld.UWP}");
+            DebugLogger.Log($"  Size: {mainworld.Size}, Atmosphere: {mainworld.Atmosphere}, Hydrographics: {mainworld.Hydrographics}");
+
+            // Size 0 mainworlds are placed in planetoid belts if one exists
+            if (mainworld.Size == 0)
+            {
+                var allPlanetoidBelts = GetAllCelestialBodiesOfType(CelestialBodyType.PlanetoidBelt);
+                if (allPlanetoidBelts.Count > 0)
+                {
+                    DebugLogger.Log("  Mainworld has size 0, placing in planetoid belt");
+
+                    // Select a random planetoid belt
+                    int beltIndex = Starhelper.diceRoll(allPlanetoidBelts.Count, 1, dice) - 1;
+                    var (beltObj, beltStar) = allPlanetoidBelts[beltIndex];
+                    PlanetoidBelt belt = (PlanetoidBelt)beltObj.celestrialObject!;
+
+                    DebugLogger.Log($"  Selected planetoid belt: {belt.Designation} at orbit {beltObj.orbit:F3}");
+
+                    // Mark belt as containing mainworld
+                    belt.ContainsMainworld = true;
+                    belt.MainworldUWP = mainworld.UWP;
+
+                    // Store reference to mainworld (the belt itself is the mainworld location)
+                    mainworld.PlacedWorld = belt;
+
+                    DebugLogger.Log($"  Placed size 0 mainworld in belt {belt.Designation}");
+                    return;
+                }
+                else
+                {
+                    DebugLogger.Log("  WARNING: Mainworld has size 0 but no planetoid belts exist. Placing as standalone.");
+                    // Fall through to normal placement logic
+                }
+            }
+
+            if (mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9)
+            {
+                // Atmosphere 4-9: MUST be placed in HZ (either standalone or as gas giant moon)
+                DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (4-9), must be placed in habitable zone");
+
+                // Collect all HZ placement options
+                var hzPlacementOptions = new List<(string type, object data, float weight)>();
+
+                // Option 1: Standalone HZ orbits
+                var emptyOrbits = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+                foreach (var (orbitObj, star) in emptyOrbits)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                    if (starHzMin > 0 && orbitObj.orbit >= starHzMin && orbitObj.orbit <= starHzMax)
+                    {
+                        // Calculate distance from HZCO (as fraction of HZ width)
+                        float hzWidth = starHzMax - starHzMin;
+                        float distanceFromHZCO = Math.Abs(orbitObj.orbit - star.HZCO);
+                        float normalizedDistance = hzWidth > 0 ? distanceFromHZCO / hzWidth : 0;
+
+                        // Orbits near HZCO (within 20% of HZ width) get 2x weight
+                        float weight = normalizedDistance < 0.2f ? 2.0f : 1.0f;
+                        hzPlacementOptions.Add(("standalone", (orbitObj, star), weight));
+                    }
+                }
+
+                // Option 2: Gas giant moons in HZ
+                var allGasGiants = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+                foreach (var (ggObj, ggStar) in allGasGiants)
+                {
+                    var (starHzMin, starHzMax) = CalculateHabitableZone(ggStar);
+                    if (starHzMin > 0 && ggObj.orbit >= starHzMin && ggObj.orbit <= starHzMax)
+                    {
+                        // Gas giant is in HZ, check if it can support moons
+                        GasGiant gg = (GasGiant)ggObj.celestrialObject!;
+
+                        // Calculate if this gas giant can support stable moons
+                        // Need to check Hill Sphere Moon Limit > Roche Limit
+                        float worldMassEarth = gg.GasGiantMass;
+                        float orbitAU = ggObj.orbitAU;
+                        float eccentricity = ggObj.orbitEccentricity;
+                        float worldDiameterKm = gg.Diameter * 12742.0f; // Convert Earth diameters to km
+                        float totalStarMass = CalculateTotalOrbitedMassForPlanet(ggObj);
+
+                        // Calculate Hill Sphere
+                        float hillSphere = orbitAU * (1.0f - eccentricity) *
+                                           (float)Math.Sqrt((worldMassEarth * 0.000003) / (3.0 * totalStarMass));
+                        float hillSpherePD = hillSphere * (149597870.9f / worldDiameterKm);
+                        float hillSphereMoonLimit = hillSpherePD / 2.0f;
+                        float rocheLimit = 1.537f;
+
+                        // Only add if gas giant can support moons
+                        if (hillSphereMoonLimit > rocheLimit)
+                        {
+                            // Give equal weight to gas giant moon option
+                            hzPlacementOptions.Add(("gasgiant", (ggObj, ggStar), 1.0f));
+                        }
+                    }
+                }
+
+                if (hzPlacementOptions.Count == 0)
+                {
+                    DebugLogger.Log("  ERROR: No HZ placement options available for atmosphere 4-9 mainworld");
+                    DebugLogger.Log($"  No standalone HZ orbits AND no HZ gas giants available");
+                    throw new Exception($"No habitable zone placement options for atmosphere {mainworld!.Atmosphere} mainworld. System will be regenerated.");
+                }
+
+                DebugLogger.Log($"  Found {hzPlacementOptions.Count} HZ placement option(s):");
+                int standaloneCount = hzPlacementOptions.Count(o => o.type == "standalone");
+                int gasGiantCount = hzPlacementOptions.Count(o => o.type == "gasgiant");
+                DebugLogger.Log($"    Standalone HZ orbits: {standaloneCount}");
+                DebugLogger.Log($"    HZ gas giant moons: {gasGiantCount}");
+
+                // Weighted random selection from all HZ options
+                float totalWeight = hzPlacementOptions.Sum(o => o.weight);
+                float randomValue = (float)dice.NextDouble() * totalWeight;
+                float cumulativeWeight = 0;
+
+                int chosenIndex = 0;
+                for (int i = 0; i < hzPlacementOptions.Count; i++)
+                {
+                    cumulativeWeight += hzPlacementOptions[i].weight;
+                    if (randomValue <= cumulativeWeight)
+                    {
+                        chosenIndex = i;
+                        break;
+                    }
+                }
+
+                var chosen = hzPlacementOptions[chosenIndex];
+
+                if (chosen.type == "standalone")
+                {
+                    // Place as standalone world in HZ
+                    var (orbitObj, star) = ((CelestrialObject, Star))chosen.data;
+                    DebugLogger.Log($"  Selected standalone HZ orbit {orbitObj.orbit:F3} (HZCO: {star.HZCO:F3})");
+
+                    PlaceMainworldAsStandalone(orbitObj, star, dice);
+                }
+                else // gasgiant
+                {
+                    // Place as gas giant moon in HZ
+                    var (ggObj, ggStar) = ((CelestrialObject, Star))chosen.data;
+                    GasGiant gasGiant = (GasGiant)ggObj.celestrialObject!;
+                    DebugLogger.Log($"  Selected HZ gas giant: {gasGiant.Designation} at orbit {ggObj.orbit:F3}");
+
+                    PlaceMainworldAsMoon(gasGiant, ggObj, ggStar, dice);
+
+                    // Reduce terrestrial count by 1 since mainworld is now a moon
+                    TerrestrialPlanetCount = Math.Max(0, TerrestrialPlanetCount - 1);
+                    DebugLogger.Log($"  Reduced terrestrial count by 1 (mainworld is moon). New count: {TerrestrialPlanetCount}");
+                }
+
+                return;
+            }
+
+            // Atmosphere NOT 4-9: can be placed anywhere (existing logic)
+            DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (not 4-9), can be placed anywhere");
+
+            // Check if mainworld should be a gas giant moon
+            var allGasGiantsNonHz = GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant);
+            if (allGasGiantsNonHz.Count > 0)
+            {
+                // Roll chance for gas giant moon placement
+                // Other atmospheres: 1 in 3 chance (more likely as moons)
+                int targetRoll = 4;
+                int roll = Starhelper.diceRoll(6, 1, dice);
+
+                if (roll >= targetRoll)
+                {
+                    DebugLogger.Log($"  Gas giant moon roll: {roll} >= {targetRoll}, mainworld will be a gas giant moon");
+
+                    // Select a random gas giant
+                    int ggIndex = Starhelper.diceRoll(allGasGiantsNonHz.Count, 1, dice) - 1;
+                    var (ggObj, ggStar) = allGasGiantsNonHz[ggIndex];
+                    GasGiant gasGiant = (GasGiant)ggObj.celestrialObject!;
+
+                    DebugLogger.Log($"  Selected gas giant: {gasGiant.Designation} at orbit {ggObj.orbit:F3}");
+
+                    // Create mainworld as a moon of this gas giant
+                    PlaceMainworldAsMoon(gasGiant, ggObj, ggStar, dice);
+
+                    // Reduce terrestrial count by 1 since mainworld is now a moon
+                    TerrestrialPlanetCount = Math.Max(0, TerrestrialPlanetCount - 1);
+                    DebugLogger.Log($"  Reduced terrestrial count by 1 (mainworld is moon). New count: {TerrestrialPlanetCount}");
+
+                    return; // Mainworld placed as moon, done
+                }
+                else
+                {
+                    DebugLogger.Log($"  Gas giant moon roll: {roll} < {targetRoll}, mainworld will be standalone world");
+                }
+            }
+
+            // Get all available Filled orbits
+            var emptyOrbitsNonHz = GetAllCelestialBodiesOfType(CelestialBodyType.Filled);
+
+            if (emptyOrbitsNonHz.Count == 0)
+            {
+                DebugLogger.Log("  WARNING: No available orbits for mainworld!");
+                return;
+            }
+
+            // Atmosphere not 4-9: random placement with outer orbit penalty
+            DebugLogger.Log($"  Mainworld has atmosphere {mainworld.Atmosphere} (not 4-9), placing randomly with outer orbit penalty");
+
+            // Apply weights: inner/HZ orbits = 1.0, outer orbits (beyond HZCO) = 0.5
+            var weightedOrbits = new List<(CelestrialObject cobj, Star star, float weight)>();
+            foreach (var (orbitObj, star) in emptyOrbitsNonHz)
+            {
+                // Outer orbits (beyond HZCO + 1.0) get 0.5 weight to reduce gas giant zone placement
+                var (starHzMin, starHzMax) = CalculateHabitableZone(star);
+                float weight = (starHzMax > 0 && orbitObj.orbit > starHzMax) ? 0.5f : 1.0f;
+                weightedOrbits.Add((orbitObj, star, weight));
+            }
+
+            // Weighted random selection
+            float totalWeightNonHz = weightedOrbits.Sum(o => o.weight);
+            float randomValueNonHz = (float)dice.NextDouble() * totalWeightNonHz;
+            float cumulativeWeightNonHz = 0;
+
+            int chosenIndexNonHz = 0;
+            for (int i = 0; i < weightedOrbits.Count; i++)
+            {
+                cumulativeWeightNonHz += weightedOrbits[i].weight;
+                if (randomValueNonHz <= cumulativeWeightNonHz)
+                {
+                    chosenIndexNonHz = i;
+                    break;
+                }
+            }
+
+            CelestrialObject cobjNonHz = weightedOrbits[chosenIndexNonHz].cobj;
+            Star parentStarNonHz = weightedOrbits[chosenIndexNonHz].star;
+            DebugLogger.Log($"  Selected orbit {cobjNonHz.orbit:F3} (weight: {weightedOrbits[chosenIndexNonHz].weight:F1})");
+
+            // Place mainworld as standalone
+            PlaceMainworldAsStandalone(cobjNonHz, parentStarNonHz, dice);
+        }
+
+        private void SelectMainworld(Random dice)
+        {
+            // Collect all candidates (terrestrial planets, moons, planetoid belts)
+            List<(object world, string designation, string type, int habitability, int resource, bool hasSophonts, string size)> candidates = new List<(object, string, string, int, int, bool, string)>();
+
+            // Collect from all stars
+            CollectMainworldCandidates(primaryObject, candidates);
+
+            if (candidates.Count == 0)
+            {
+                DebugLogger.Log("  No suitable mainworld candidates found");
+                return;
+            }
+
+            DebugLogger.Log($"  Found {candidates.Count} potential candidates");
+
+            // Create shortlist
+            List<(object world, string designation, string type, int habitability, int resource, bool hasSophonts, string size)> shortlist = new List<(object, string, string, int, int, bool, string)>();
+
+            // Add highest habitability candidate (minimum 6)
+            int maxHabitability = candidates.Max(c => c.habitability);
+            if (maxHabitability >= 6)
+            {
+                var habitabilityCandidates = candidates.Where(c => c.habitability == maxHabitability).ToList();
+                foreach (var candidate in habitabilityCandidates)
+                {
+                    if (!shortlist.Any(s => s.world == candidate.world))
+                    {
+                        shortlist.Add(candidate);
+                        DebugLogger.Log($"  Added to shortlist (habitability {candidate.habitability}): {candidate.designation}");
+                    }
+                }
+            }
+
+            // Add any worlds with sophonts
+            var sophontCandidates = candidates.Where(c => c.hasSophonts).ToList();
+            foreach (var candidate in sophontCandidates)
+            {
+                if (!shortlist.Any(s => s.world == candidate.world))
+                {
+                    shortlist.Add(candidate);
+                    DebugLogger.Log($"  Added to shortlist (sophonts present): {candidate.designation}");
+                }
+            }
+
+            // Add highest resource candidate (minimum 6)
+            int maxResource = candidates.Max(c => c.resource);
+            if (maxResource >= 6)
+            {
+                var resourceCandidates = candidates.Where(c => c.resource == maxResource).ToList();
+                foreach (var candidate in resourceCandidates)
+                {
+                    if (!shortlist.Any(s => s.world == candidate.world))
+                    {
+                        shortlist.Add(candidate);
+                        DebugLogger.Log($"  Added to shortlist (resource {candidate.resource}): {candidate.designation}");
+                    }
+                }
+            }
+
+            // If shortlist is empty, use highest resource rating world
+            if (shortlist.Count == 0)
+            {
+                DebugLogger.Log("  Shortlist empty, selecting highest resource world");
+                var highestResource = candidates.Where(c => c.resource == maxResource).ToList();
+                if (highestResource.Count == 1)
+                {
+                    shortlist.Add(highestResource[0]);
+                }
+                else
+                {
+                    // Randomize among tied candidates
+                    int chosen = Starhelper.diceRoll(highestResource.Count, 1, dice) - 1;
+                    shortlist.Add(highestResource[chosen]);
+                }
+            }
+
+            // Now select from shortlist
+            object? selectedWorld = null;
+
+            // Priority 1: Any world with sophonts, unless another has higher habitability
+            var sophontWorlds = shortlist.Where(c => c.hasSophonts).ToList();
+            var highHabWorlds = shortlist.Where(c => c.habitability >= 8).ToList();
+
+            if (sophontWorlds.Count > 0 && highHabWorlds.Count == 0)
+            {
+                // Choose sophont world
+                if (sophontWorlds.Count == 1)
+                {
+                    selectedWorld = sophontWorlds[0].world;
+                    DebugLogger.Log($"  Selected mainworld (sophonts): {sophontWorlds[0].designation}");
+                }
+                else
+                {
+                    // Randomize between sophont worlds
+                    int chosen = Starhelper.diceRoll(sophontWorlds.Count, 1, dice) - 1;
+                    selectedWorld = sophontWorlds[chosen].world;
+                    DebugLogger.Log($"  Selected mainworld (random sophont): {sophontWorlds[chosen].designation}");
+                }
+            }
+            // Priority 2: Highest habitability >= 8
+            else if (highHabWorlds.Count > 0)
+            {
+                int maxHab = highHabWorlds.Max(c => c.habitability);
+                var topHabWorlds = highHabWorlds.Where(c => c.habitability == maxHab).ToList();
+
+                if (topHabWorlds.Count == 1)
+                {
+                    selectedWorld = topHabWorlds[0].world;
+                    DebugLogger.Log($"  Selected mainworld (high habitability {maxHab}): {topHabWorlds[0].designation}");
+                }
+                else
+                {
+                    // Apply bonuses for size and moon type
+                    List<(object world, string designation, float weight)> weighted = new List<(object, string, float)>();
+
+                    foreach (var candidate in topHabWorlds)
+                    {
+                        float weight = 1.0f;
+
+                        // Get size value for comparison
+                        int sizeValue = GetSizeValue(candidate.size);
+
+                        // Compare with other candidates to determine if this is larger
+                        bool isLargest = true;
+                        bool isSmallestUnder5 = sizeValue < 5;
+                        foreach (var other in topHabWorlds)
+                        {
+                            if (other.world != candidate.world)
+                            {
+                                int otherSize = GetSizeValue(other.size);
+                                if (otherSize > sizeValue)
+                                {
+                                    isLargest = false;
+                                }
+                                if (otherSize < 5)
+                                {
+                                    isSmallestUnder5 = false;
+                                }
+                            }
+                        }
+
+                        // Apply size bonuses
+                        if (isLargest)
+                        {
+                            if (isSmallestUnder5)
+                                weight += 0.25f; // 25% bonus if smaller world is < size 5
+                            else
+                                weight += 0.10f; // 10% bonus for larger world
+                        }
+
+                        // Apply gas giant moon bonus
+                        if (candidate.type == "Moon" && candidate.world is Moon moon)
+                        {
+                            // Check if parent is a gas giant by looking at the parent in the hierarchy
+                            // For now, we'll mark this - implementation may need parent tracking
+                            weight += 0.05f; // 5% bonus for gas giant moon
+                        }
+
+                        weighted.Add((candidate.world, candidate.designation, weight));
+                        DebugLogger.Log($"    {candidate.designation}: weight={weight:F2}");
+                    }
+
+                    // Select using weighted random
+                    float totalWeight = weighted.Sum(w => w.weight);
+                    float randomValue = (float)(dice.NextDouble() * totalWeight);
+                    float cumulative = 0;
+
+                    foreach (var w in weighted)
+                    {
+                        cumulative += w.weight;
+                        if (randomValue <= cumulative)
+                        {
+                            selectedWorld = w.world;
+                            DebugLogger.Log($"  Selected mainworld (weighted random): {w.designation}");
+                            break;
+                        }
+                    }
+                }
+            }
+            // Priority 3: Random from shortlist
+            else
+            {
+                int chosen = Starhelper.diceRoll(shortlist.Count, 1, dice) - 1;
+                selectedWorld = shortlist[chosen].world;
+                DebugLogger.Log($"  Selected mainworld (random from shortlist): {shortlist[chosen].designation}");
+            }
+
+            // Create mainworld data structure
+            if (selectedWorld != null)
+            {
+                mainworld = new MainworldData();
+                mainworld.PlacedWorld = selectedWorld;
+
+                // Extract UWP from the selected world
+                if (selectedWorld is TerrestrialPlanet tp)
+                {
+                    mainworld.UWP = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                }
+                else if (selectedWorld is Moon m)
+                {
+                    mainworld.UWP = m.Size + m.Atmosphere + m.HydrographicsCode;
+                }
+                else if (selectedWorld is PlanetoidBelt pb)
+                {
+                    mainworld.UWP = "000"; // Planetoid belt default
+                }
+
+                DebugLogger.Log($"  Mainworld selected: UWP={mainworld.UWP}");
+            }
+        }
+
+        private void CollectMainworldCandidates(CelestrialObject starObj, List<(object world, string designation, string type, int habitability, int resource, bool hasSophonts, string size)> candidates)
+        {
+            if (!(starObj.celestrialObject is Star star))
+                return;
+
+            foreach (var bodyObj in starObj.celestrialObjectOrbits)
+            {
+                if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                {
+                    candidates.Add((tp, tp.Designation, "TerrestrialPlanet", tp.HabitabilityRating, tp.ResourceRating, tp.CurrentNativeSophont == "Yes", tp.Size));
+
+                    // Check moons
+                    foreach (var moon in tp.Moons)
+                    {
+                        if (moon.Size != "R") // Skip rings
+                        {
+                            candidates.Add((moon, $"{tp.Designation} {moon.Designation}", "Moon", moon.HabitabilityRating, moon.ResourceRating, moon.CurrentNativeSophont == "Yes", moon.Size));
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is GasGiant gg)
+                {
+                    // Check gas giant moons
+                    foreach (var moon in gg.Moons)
+                    {
+                        if (moon.Size != "R") // Skip rings
+                        {
+                            candidates.Add((moon, $"{gg.Designation} {moon.Designation}", "Moon", moon.HabitabilityRating, moon.ResourceRating, moon.CurrentNativeSophont == "Yes", moon.Size));
+                        }
+                    }
+                }
+                else if (bodyObj.celestrialObject is PlanetoidBelt pb)
+                {
+                    // Planetoid belts are candidates with resource rating
+                    candidates.Add((pb, pb.Designation, "PlanetoidBelt", 0, pb.ResourceRating, false, "0"));
+                }
+                else if (bodyObj.celestrialObject is Star companionStar)
+                {
+                    // Recursively check companion stars
+                    CollectMainworldCandidates(bodyObj, candidates);
+                }
+            }
+        }
+
+        private void GenerateInitialUWP(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Extract Size, Atmosphere, and Hydrographics from current UWP (SAH format)
+            mainworld.Size = FromEhex(mainworld.UWP.Substring(0, 1));
+            mainworld.Atmosphere = FromEhex(mainworld.UWP.Substring(1, 1));
+            mainworld.Hydrographics = FromEhex(mainworld.UWP.Substring(2, 1));
+
+            DebugLogger.Log($"  Mainworld SAH: Size={IntToEhex(mainworld.Size)}, Atmosphere={IntToEhex(mainworld.Atmosphere)}, Hydrographics={IntToEhex(mainworld.Hydrographics)}");
+
+            // Get habitability rating for tech level minimum checks
+            int habitabilityRating = 0;
+            if (mainworld.PlacedWorld is TerrestrialPlanet tp)
+            {
+                habitabilityRating = tp.HabitabilityRating;
+            }
+            else if (mainworld.PlacedWorld is Moon m)
+            {
+                habitabilityRating = m.HabitabilityRating;
+            }
+
+            bool validUWP = false;
+            int attempts = 0;
+            const int maxAttempts = 1000;
+
+            while (!validUWP && attempts < maxAttempts)
+            {
+                attempts++;
+
+                // 1. Calculate Population Code
+                mainworld.Population = Starhelper.diceRoll(6, 2, dice) - 2;
+                if (mainworld.Population < 0) mainworld.Population = 0;
+
+                DebugLogger.Log($"  Population Code: {IntToEhex(mainworld.Population)}");
+
+                // Calculate PopulationP
+                if (mainworld.Population == 0)
+                {
+                    mainworld.PopulationP = 0;
+                }
+                else if (mainworld.Population == 10) // A
+                {
+                    mainworld.PopulationP = 1;
+                    // Roll 1d6, on 5-6 add 2 and repeat
+                    while (mainworld.PopulationP < 9)
+                    {
+                        int roll = Starhelper.diceRoll(6, 1, dice);
+                        if (roll >= 5)
+                        {
+                            mainworld.PopulationP += 2;
+                            if (mainworld.PopulationP > 9)
+                            {
+                                mainworld.PopulationP = 9;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    mainworld.PopulationP = Starhelper.diceRoll(9, 1, dice) + 1;
+                    if (mainworld.PopulationP > 9) mainworld.PopulationP = 9;
+                }
+
+                // Calculate actual population
+                if (mainworld.Population == 0)
+                {
+                    mainworld.ActualPopulation = 0;
+                }
+                else
+                {
+                    long basePopulation = (long)Math.Pow(10, mainworld.Population);
+                    long minPop = basePopulation * (mainworld.PopulationP - 1);
+                    long maxPop = basePopulation * mainworld.PopulationP;
+                    mainworld.ActualPopulation = minPop + (long)(dice.NextDouble() * (maxPop - minPop));
+                }
+
+                DebugLogger.Log($"  PopulationP: {mainworld.PopulationP}, Actual Population: {mainworld.ActualPopulation:N0}");
+
+                // 2. Calculate Government Code
+                mainworld.Government = Starhelper.diceRoll(6, 2, dice) - 7 + mainworld.Population;
+                if (mainworld.Government < 0) mainworld.Government = 0;
+                if (mainworld.Government > 15) mainworld.Government = 15;
+
+                // Get Government Type
+                mainworld.GovernmentType = GetGovernmentType(mainworld.Government);
+
+                DebugLogger.Log($"  Government Code: {IntToEhex(mainworld.Government)} ({mainworld.GovernmentType})");
+
+                // 3. Calculate Law Level
+                mainworld.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + mainworld.Government;
+                if (mainworld.LawLevel < 0) mainworld.LawLevel = 0;
+
+                DebugLogger.Log($"  Law Level: {IntToEhex(mainworld.LawLevel)}");
+
+                // 4. Calculate Starport
+                int starportRoll = Starhelper.diceRoll(6, 2, dice);
+                int starportDM = 0;
+
+                if (mainworld.Population >= 8 && mainworld.Population <= 9) starportDM += 1;
+                if (mainworld.Population >= 10) starportDM += 2;
+                if (mainworld.Population >= 3 && mainworld.Population <= 4) starportDM -= 1;
+                if (mainworld.Population <= 2) starportDM -= 2;
+
+                int starportResult = starportRoll + starportDM;
+                mainworld.Starport = GetStarportClass(starportResult);
+
+                DebugLogger.Log($"  Starport: {mainworld.Starport} (roll {starportRoll} + DM {starportDM} = {starportResult})");
+
+                // 5. Calculate Tech Level
+                int techLevelRoll = Starhelper.diceRoll(6, 1, dice);
+                int techLevelDM = GetTechLevelDM(mainworld);
+                mainworld.TechLevel = techLevelRoll + techLevelDM;
+                if (mainworld.TechLevel < 0) mainworld.TechLevel = 0;
+
+                DebugLogger.Log($"  Tech Level: {IntToEhex(mainworld.TechLevel)} (roll {techLevelRoll} + DM {techLevelDM})");
+
+                // Check Tech Level minimums
+                int minimumTechLevel = GetMinimumTechLevel(mainworld.Atmosphere, habitabilityRating);
+
+                if (mainworld.TechLevel < minimumTechLevel)
+                {
+                    DebugLogger.Log($"  Tech Level {IntToEhex(mainworld.TechLevel)} below minimum {IntToEhex(minimumTechLevel)}");
+
+                    // Check if maximum possible roll can reach minimum
+                    int maxPossibleTechLevel = 6 + techLevelDM;
+                    if (maxPossibleTechLevel >= minimumTechLevel)
+                    {
+                        // Reroll until we get a valid tech level
+                        DebugLogger.Log($"  Rerolling Tech Level (max possible: {IntToEhex(maxPossibleTechLevel)})");
+                        continue; // Restart the while loop to reroll
+                    }
+                    else
+                    {
+                        // Cannot reach minimum, need to regenerate everything
+                        DebugLogger.Log($"  Cannot reach minimum Tech Level (max possible: {IntToEhex(maxPossibleTechLevel)})");
+
+                        if (attempts >= maxAttempts - 1)
+                        {
+                            // Last attempt failed, set to uninhabited
+                            DebugLogger.Log($"  Setting mainworld to uninhabited after {maxAttempts} attempts");
+                            mainworld.Population = 0;
+                            mainworld.Government = 0;
+                            mainworld.LawLevel = 0;
+                            mainworld.TechLevel = 0;
+                            mainworld.PopulationP = 0;
+                            mainworld.ActualPopulation = 0;
+
+                            // Recalculate starport for population 0
+                            starportRoll = Starhelper.diceRoll(6, 2, dice);
+                            starportResult = starportRoll - 2; // Population 0 has -2 DM
+                            mainworld.Starport = GetStarportClass(starportResult);
+
+                            validUWP = true;
+                        }
+                        else
+                        {
+                            continue; // Try again with new population/government/law level
+                        }
+                    }
+                }
+                else
+                {
+                    validUWP = true;
+                }
+            }
+
+            // Build final UWP string
+            mainworld.UWP = $"{mainworld.Starport}{IntToEhex(mainworld.Size)}{IntToEhex(mainworld.Atmosphere)}{IntToEhex(mainworld.Hydrographics)}{IntToEhex(mainworld.Population)}{IntToEhex(mainworld.Government)}{IntToEhex(mainworld.LawLevel)}-{IntToEhex(mainworld.TechLevel)}";
+
+            DebugLogger.Log($"  Final UWP: {mainworld.UWP}");
+            DebugLogger.Log($"  Population: {mainworld.ActualPopulation:N0}");
+            DebugLogger.Log($"  Government: {mainworld.GovernmentType}");
+        }
+
+        private void GenerateSophontWorldUWP(object world, Random dice)
+        {
+            // Extract Size, Atmosphere, and Hydrographics from current SAH
+            string sah = "";
+            int habitabilityRating = 0;
+
+            if (world is TerrestrialPlanet tp)
+            {
+                sah = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                habitabilityRating = tp.HabitabilityRating;
+            }
+            else if (world is Moon m)
+            {
+                sah = m.Size + m.Atmosphere + m.HydrographicsCode;
+                habitabilityRating = m.HabitabilityRating;
+            }
+            else
+            {
+                return; // Not a valid world type
+            }
+
+            MainworldData sophontWorld = new MainworldData
+            {
+                PlacedWorld = world,
+                Size = FromEhex(sah.Substring(0, 1)),
+                Atmosphere = FromEhex(sah.Substring(1, 1)),
+                Hydrographics = FromEhex(sah.Substring(2, 1))
+            };
+
+            DebugLogger.Log($"  Sophont World SAH: Size={IntToEhex(sophontWorld.Size)}, Atmosphere={IntToEhex(sophontWorld.Atmosphere)}, Hydrographics={IntToEhex(sophontWorld.Hydrographics)}");
+
+            // 1. Calculate Population Code using one of three methods
+            int populationMethod = Starhelper.diceRoll(3, 1, dice); // Random 1-3
+
+            if (populationMethod == 1)
+            {
+                // Method 1: (2d6) - 2, but reroll if result < 6
+                do
+                {
+                    sophontWorld.Population = Starhelper.diceRoll(6, 2, dice) - 2;
+                } while (sophontWorld.Population < 6);
+                DebugLogger.Log($"  Population Code (Method 1 - reroll): {IntToEhex(sophontWorld.Population)}");
+            }
+            else if (populationMethod == 2)
+            {
+                // Method 2: (2d6) - 2, but change any result < 6 to 6 or 7
+                sophontWorld.Population = Starhelper.diceRoll(6, 2, dice) - 2;
+                if (sophontWorld.Population < 6)
+                {
+                    sophontWorld.Population = Starhelper.diceRoll(2, 1, dice) + 5; // Roll 1d2 + 5 = 6 or 7
+                }
+                DebugLogger.Log($"  Population Code (Method 2 - replace): {IntToEhex(sophontWorld.Population)}");
+            }
+            else
+            {
+                // Method 3: (2d3) + 4
+                sophontWorld.Population = Starhelper.diceRoll(3, 2, dice) + 4;
+                DebugLogger.Log($"  Population Code (Method 3 - 2d3+4): {IntToEhex(sophontWorld.Population)}");
+            }
+
+            if (sophontWorld.Population < 0) sophontWorld.Population = 0;
+
+            // Calculate PopulationP
+            if (sophontWorld.Population == 0)
+            {
+                sophontWorld.PopulationP = 0;
+            }
+            else if (sophontWorld.Population == 10) // A
+            {
+                sophontWorld.PopulationP = 1;
+                // Roll 1d6, on 5-6 add 2 and repeat
+                while (sophontWorld.PopulationP < 9)
+                {
+                    int roll = Starhelper.diceRoll(6, 1, dice);
+                    if (roll >= 5)
+                    {
+                        sophontWorld.PopulationP += 2;
+                        if (sophontWorld.PopulationP > 9)
+                        {
+                            sophontWorld.PopulationP = 9;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                sophontWorld.PopulationP = Starhelper.diceRoll(9, 1, dice) + 1;
+                if (sophontWorld.PopulationP > 9) sophontWorld.PopulationP = 9;
+            }
+
+            // Calculate actual population
+            if (sophontWorld.Population == 0)
+            {
+                sophontWorld.ActualPopulation = 0;
+            }
+            else
+            {
+                long basePopulation = (long)Math.Pow(10, sophontWorld.Population);
+                long minPop = basePopulation * (sophontWorld.PopulationP - 1);
+                long maxPop = basePopulation * sophontWorld.PopulationP;
+                sophontWorld.ActualPopulation = minPop + (long)(dice.NextDouble() * (maxPop - minPop));
+            }
+
+            DebugLogger.Log($"  PopulationP: {sophontWorld.PopulationP}, Actual Population: {sophontWorld.ActualPopulation:N0}");
+
+            // 2. Calculate Government Code
+            sophontWorld.Government = Starhelper.diceRoll(6, 2, dice) - 7 + sophontWorld.Population;
+            if (sophontWorld.Government < 0) sophontWorld.Government = 0;
+            if (sophontWorld.Government > 15) sophontWorld.Government = 15;
+
+            // Get Government Type
+            sophontWorld.GovernmentType = GetGovernmentType(sophontWorld.Government);
+
+            DebugLogger.Log($"  Government Code: {IntToEhex(sophontWorld.Government)} ({sophontWorld.GovernmentType})");
+
+            // 3. Calculate Law Level
+            sophontWorld.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + sophontWorld.Government;
+            if (sophontWorld.LawLevel < 0) sophontWorld.LawLevel = 0;
+
+            DebugLogger.Log($"  Law Level: {IntToEhex(sophontWorld.LawLevel)}");
+
+            // 4. Calculate Starport (with -2 DM for sophont worlds)
+            int starportRoll = Starhelper.diceRoll(6, 2, dice);
+            int starportDM = -2; // Sophont worlds have -2 DM
+
+            if (sophontWorld.Population >= 8 && sophontWorld.Population <= 9) starportDM += 1;
+            if (sophontWorld.Population >= 10) starportDM += 2;
+            if (sophontWorld.Population >= 3 && sophontWorld.Population <= 4) starportDM -= 1;
+            if (sophontWorld.Population <= 2) starportDM -= 2;
+
+            int starportResult = starportRoll + starportDM;
+            sophontWorld.Starport = GetStarportClass(starportResult);
+
+            DebugLogger.Log($"  Starport: {sophontWorld.Starport} (roll {starportRoll} + DM {starportDM} = {starportResult})");
+
+            // 5. Calculate Tech Level (no minimum check for sophont worlds)
+            int techLevelRoll = Starhelper.diceRoll(6, 1, dice);
+            int techLevelDM = GetTechLevelDM(sophontWorld);
+            sophontWorld.TechLevel = techLevelRoll + techLevelDM;
+            if (sophontWorld.TechLevel < 0) sophontWorld.TechLevel = 0;
+
+            DebugLogger.Log($"  Tech Level: {IntToEhex(sophontWorld.TechLevel)} (roll {techLevelRoll} + DM {techLevelDM}) - no minimum check");
+
+            // Build final UWP string
+            sophontWorld.UWP = $"{sophontWorld.Starport}{IntToEhex(sophontWorld.Size)}{IntToEhex(sophontWorld.Atmosphere)}{IntToEhex(sophontWorld.Hydrographics)}{IntToEhex(sophontWorld.Population)}{IntToEhex(sophontWorld.Government)}{IntToEhex(sophontWorld.LawLevel)}-{IntToEhex(sophontWorld.TechLevel)}";
+
+            DebugLogger.Log($"  Final UWP: {sophontWorld.UWP}");
+            DebugLogger.Log($"  Population: {sophontWorld.ActualPopulation:N0}");
+            DebugLogger.Log($"  Government: {sophontWorld.GovernmentType}");
+
+            // Add to sophont worlds list
+            sophontWorlds.Add(sophontWorld);
+        }
+
+        private void DeterminePopulationDetails(Random dice)
+        {
+            if (mainworld == null || mainworld.Population == 0) return;
+
+            DebugLogger.Log("Determining trade codes...");
+
+            // Determine Trade Codes
+            DetermineTradeCodes();
+
+            DebugLogger.Log($"Trade Codes: {string.Join(", ", mainworld.TradeCodes.Select(tc => tc.Code))}");
+
+            // Calculate PCR (Population Concentration Rating)
+            DeterminePCR(dice);
+
+            DebugLogger.Log($"PCR: {mainworld.PCR} ({mainworld.PCRDescription})");
+
+            // Calculate Urbanisation
+            DetermineUrbanisation(dice);
+
+            DebugLogger.Log($"Urbanisation: {mainworld.UrbanisationPercent}% ({mainworld.TotalUrbanPopulation:N0} people)");
+
+            // Calculate Number of Major Cities
+            DetermineNumberOfMajorCities(dice);
+
+            DebugLogger.Log($"Number of Major Cities: {mainworld.NumberOfMajorCities}");
+
+            // Distribute Major City Populations
+            DistributeMajorCityPopulations(dice);
+
+            DebugLogger.Log($"Major Cities: {string.Join(", ", mainworld.MajorCities.Select(c => $"{c.Name}: {c.Population:N0}"))}");
+
+            // Determine Factions and Government Structure
+            DetermineFactions(dice);
+        }
+
+        private void DetermineAdditionalInhabitedWorlds(Random dice)
+        {
+            additionalInhabitedWorlds.Clear();
+
+            // Get effective mainworld TL and population cap
+            int effectiveTL;
+            int effectivePopulation;
+
+            if (mainworld != null)
+            {
+                effectiveTL = mainworld.TechLevel;
+                effectivePopulation = mainworld.Population;
+            }
+            else if (sophontWorlds.Count > 0)
+            {
+                // Use the highest-TL sophont world as effective mainworld
+                var bestSophont = sophontWorlds.OrderByDescending(sw => sw.TechLevel).First();
+                effectiveTL = bestSophont.TechLevel;
+                effectivePopulation = bestSophont.Population;
+            }
+            else
+            {
+                return; // No mainworld to drive expansion
+            }
+
+            if (effectiveTL <= 8) return;
+
+            // Base chance: TL9=5%, TL10=15%, TL11=25%, TL12=35%... capped at 90%
+            int baseChance = Math.Min(90, (effectiveTL - 9) * 10 + 5);
+
+            DebugLogger.Log($"Additional Inhabited Worlds: effectiveTL={effectiveTL}, baseChance={baseChance}%");
+
+            // Collect excluded worlds (mainworld + all sophont worlds)
+            var excludedWorlds = new HashSet<object>();
+            if (mainworld?.PlacedWorld != null) excludedWorlds.Add(mainworld.PlacedWorld);
+            foreach (var sw in sophontWorlds)
+                if (sw.PlacedWorld != null) excludedWorlds.Add(sw.PlacedWorld);
+
+            // Check candidate worlds across all stars
+            void CheckWorld(object world, string designation, bool isInHabitableZone)
+            {
+                if (excludedWorlds.Contains(world)) return;
+
+                int atmosphere = 0, habitabilityRating = 0, resourceRating = 0, hydrographics = 0;
+                string sizeCode = "0";
+
+                if (world is TerrestrialPlanet tp)
+                {
+                    atmosphere = FromEhex(tp.Atmosphere);
+                    habitabilityRating = tp.HabitabilityRating;
+                    resourceRating = tp.ResourceRating;
+                    hydrographics = FromEhex(tp.HydrographicsCode);
+                    sizeCode = tp.Size;
+                }
+                else if (world is Moon moon)
+                {
+                    atmosphere = FromEhex(moon.Atmosphere);
+                    habitabilityRating = moon.HabitabilityRating;
+                    resourceRating = moon.ResourceRating;
+                    hydrographics = FromEhex(moon.HydrographicsCode);
+                    sizeCode = moon.Size;
+                }
+                else if (world is PlanetoidBelt belt)
+                {
+                    // Belts have no atmosphere or habitability
+                    atmosphere = 0;
+                    habitabilityRating = 0;
+                    resourceRating = belt.ResourceRating;
+                    hydrographics = 0;
+                }
+                else return;
+
+                // Check minimum tech level requirement
+                int minTL = GetMinimumTechLevel(atmosphere, habitabilityRating);
+                if (effectiveTL < minTL)
+                {
+                    DebugLogger.Log($"  {designation}: skipped (minTL={minTL} > effectiveTL={effectiveTL})");
+                    return;
+                }
+
+                // Exclude worlds with both low resource rating and low habitability rating
+                if (resourceRating <= 5 && habitabilityRating < 5)
+                {
+                    DebugLogger.Log($"  {designation}: skipped (RR={resourceRating} <= 5 and HR={habitabilityRating} < 5)");
+                    return;
+                }
+
+                // Resource Rating DM
+                int rrDM = resourceRating switch
+                {
+                    >= 11 => 25,  // B+
+                    >= 9  => 10,  // 9-A
+                    >= 6  => 5,   // 6-8
+                    _     => 0
+                };
+
+                // Habitability Rating DM (not for belts)
+                int hrDM = (world is PlanetoidBelt) ? 0 : habitabilityRating switch
+                {
+                    >= 10 => 25,   // A+
+                    >= 8  => 15,   // 8-9
+                    < 3   => -10,  // 0-2
+                    _     => 0
+                };
+
+                int totalChance = Math.Max(0, baseChance + rrDM + hrDM);
+                int roll = dice.Next(1, 101);
+
+                DebugLogger.Log($"  {designation}: RR={resourceRating}(+{rrDM}%), HR={habitabilityRating}(+{hrDM}%), total={totalChance}%, roll={roll}");
+
+                if (roll > totalChance) return;
+
+                // Designated — generate population
+                int popCode = Starhelper.diceRoll(6, 2, dice) - 3;
+                if (popCode < 0) popCode = 0;
+                if (popCode >= effectivePopulation) popCode = effectivePopulation - 1;
+
+                if (popCode <= 0)
+                {
+                    // Re-roll once
+                    popCode = Starhelper.diceRoll(6, 2, dice) - 3;
+                    if (popCode < 0) popCode = 0;
+                    if (popCode >= effectivePopulation) popCode = effectivePopulation - 1;
+                    if (popCode <= 0)
+                    {
+                        DebugLogger.Log($"  {designation}: designated but population rolled 0 twice — removed");
+                        return;
+                    }
+                }
+
+                // Calculate PopulationP (same logic as mainworld)
+                int popP;
+                if (popCode == 10) // A
+                {
+                    popP = 1;
+                    while (popP < 9)
+                    {
+                        int r = Starhelper.diceRoll(6, 1, dice);
+                        if (r >= 5) { popP += 2; if (popP > 9) { popP = 9; break; } }
+                        else break;
+                    }
+                }
+                else
+                {
+                    popP = Starhelper.diceRoll(9, 1, dice) + 1;
+                    if (popP > 9) popP = 9;
+                }
+
+                // Calculate actual population
+                long basePop = (long)Math.Pow(10, popCode);
+                long minPop = basePop * (popP - 1);
+                long maxPop = basePop * popP;
+                long actualPop = minPop + (long)(dice.NextDouble() * (maxPop - minPop));
+
+                additionalInhabitedWorlds.Add(new AdditionalInhabitedWorld
+                {
+                    World = world,
+                    WorldDesignation = designation,
+                    PopulationCode = popCode,
+                    PopulationP = popP,
+                    ActualPopulation = actualPop,
+                    HabitabilityRating = habitabilityRating,
+                    ResourceRating = resourceRating,
+                    Atmosphere = atmosphere,
+                    Hydrographics = hydrographics,
+                    IsInHabitableZone = isInHabitableZone,
+                    SizeCode = sizeCode,
+                });
+
+                DebugLogger.Log($"  {designation}: Additional Inhabited World — pop {IntToEhex(popCode)}, P={popP}, actual={actualPop:N0}");
+            }
+
+            // Iterate primary star's orbits
+            if (primaryObject.celestrialObject is Star primaryStar2)
+            {
+                var (phzMin, phzMax) = CalculateHabitableZone(primaryStar2);
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    bool inHz = phzMin > 0 && bodyObj.orbit >= phzMin && bodyObj.orbit <= phzMax;
+                    if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                    {
+                        CheckWorld(tp, tp.Designation, inHz);
+                        foreach (var moon in tp.Moons)
+                            CheckWorld(moon, $"{tp.Designation} {moon.Designation}", inHz);
+                    }
+                    else if (bodyObj.celestrialObject is GasGiant gg)
+                    {
+                        foreach (var moon in gg.Moons)
+                            CheckWorld(moon, $"{gg.Designation} {moon.Designation}", inHz);
+                    }
+                    else if (bodyObj.celestrialObject is PlanetoidBelt belt)
+                    {
+                        CheckWorld(belt, belt.Designation, inHz);
+                    }
+                }
+            }
+
+            // Iterate companion stars
+            var companionStarObjects = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .ToList();
+
+            foreach (var companionObj in companionStarObjects)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    var (chzMin, chzMax) = CalculateHabitableZone(companionStar);
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        bool inHz = chzMin > 0 && bodyObj.orbit >= chzMin && bodyObj.orbit <= chzMax;
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                        {
+                            CheckWorld(tp, tp.Designation, inHz);
+                            foreach (var moon in tp.Moons)
+                                CheckWorld(moon, $"{tp.Designation} {moon.Designation}", inHz);
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            foreach (var moon in gg.Moons)
+                                CheckWorld(moon, $"{gg.Designation} {moon.Designation}", inHz);
+                        }
+                        else if (bodyObj.celestrialObject is PlanetoidBelt belt)
+                        {
+                            CheckWorld(belt, belt.Designation, inHz);
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.Log($"Additional Inhabited Worlds total: {additionalInhabitedWorlds.Count}");
+        }
+
+        private string? GetAdditionalInhabitedPopDigit(object world)
+        {
+            var aiw = additionalInhabitedWorlds.FirstOrDefault(w => w.World == world);
+            return aiw != null ? IntToEhex(aiw.PopulationCode) : null;
+        }
+
+        private AdditionalInhabitedWorld? GetAdditionalInhabitedWorld(object world)
+        {
+            return additionalInhabitedWorlds.FirstOrDefault(w => w.World == world);
+        }
+
+        private string GetMainworldDesignation()
+        {
+            if (mainworld?.PlacedWorld == null) return "";
+            if (mainworld.PlacedWorld is TerrestrialPlanet mwTp)
+                return mwTp.Designation;
+            if (mainworld.PlacedWorld is PlanetoidBelt mwBelt)
+                return mwBelt.Designation;
+            if (mainworld.PlacedWorld is Moon mwMoon)
+            {
+                // Search primary star orbits for parent
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.Moons.Contains(mwMoon))
+                        return $"{tp.Designation} {mwMoon.Designation}";
+                    if (bodyObj.celestrialObject is GasGiant gg && gg.Moons.Contains(mwMoon))
+                        return $"{gg.Designation} {mwMoon.Designation}";
+                }
+                // Search companion stars
+                foreach (var compObj in primaryObject.celestrialObjectOrbits.Where(o => o.celestrialObject is Star))
+                {
+                    if (compObj.celestrialObject is Star compStar)
+                    {
+                        foreach (var bodyObj in compObj.celestrialObjectOrbits)
+                        {
+                            if (bodyObj.celestrialObject is TerrestrialPlanet tp && tp.Moons.Contains(mwMoon))
+                                return $"{tp.Designation} {mwMoon.Designation}";
+                            if (bodyObj.celestrialObject is GasGiant gg && gg.Moons.Contains(mwMoon))
+                                return $"{gg.Designation} {mwMoon.Designation}";
+                        }
+                    }
+                }
+                return mwMoon.Designation; // fallback
+            }
+            return "";
+        }
+
+        private string FormatTradeCodesWithTooltips(IEnumerable<TradeCode> codes)
+        {
+            return string.Join(", ", codes.Select(tc =>
+                $"<span class=\"gov-tooltip\" data-tooltip=\"{tc.Name}\">{tc.Code}</span>"));
+        }
+
+        // ─── Secondary World Governments & Classifications ─────────────────────────
+
+        private void DetermineSecondaryWorldGovernments(Random dice)
+        {
+            if (mainworld == null || additionalInhabitedWorlds.Count == 0) return;
+
+            string mainworldDesig = GetMainworldDesignation();
+            bool anyUnderAuthority = false;
+
+            // Process in descending population order
+            var sorted = additionalInhabitedWorlds.OrderByDescending(w => w.PopulationCode).ToList();
+
+            foreach (var aiw in sorted)
+            {
+                // Initial government code
+                int govCode = Math.Clamp(Starhelper.diceRoll(6, 2, dice) - 7 + aiw.PopulationCode, 0, 15);
+
+                // Independence roll — capture raw die before DMs
+                int rawRoll = Starhelper.diceRoll(6, 1, dice);
+                int dm = 0;
+                if (aiw.PopulationCode == 2) dm -= 1;
+                if (aiw.PopulationCode == 1) dm -= 2;
+                if (mainworld.Government == 1) dm += 1;
+                if (mainworld.Government == 2 || mainworld.Government == 4) dm -= 1;
+                if (aiw.HabitabilityRating >= 8) dm += 1;
+                if (aiw.ResourceRating >= 9) dm += 1;
+                if (anyUnderAuthority) dm += 1;
+                int finalRoll = rawRoll + dm;
+
+                bool isIndependent = (rawRoll == 1) || (finalRoll <= 3);
+
+                if (!isIndependent)
+                {
+                    // Under authority: replace government code via table
+                    int underDM = 0;
+                    if (mainworld.Government == 0) underDM = -2;
+                    else if (mainworld.Government == 6) underDM = mainworld.Population;
+                    int underResult = Starhelper.diceRoll(6, 1, dice) + underDM;
+                    govCode = underResult switch
+                    {
+                        <= 1 => 0,
+                        2    => 1,
+                        3    => 2,
+                        4    => 3,
+                        _    => 6
+                    };
+                    aiw.AuthorityDesignation = mainworldDesig;
+                    anyUnderAuthority = true;
+                }
+
+                aiw.IsIndependent = isIndependent;
+                aiw.GovernmentCode = govCode;
+                aiw.GovernmentType = GetGovernmentType(govCode);
+
+                // Law Level from final government code
+                aiw.LawLevel = Math.Clamp(Starhelper.diceRoll(6, 2, dice) - 7 + govCode, 0, 15);
+
+                // Government profile
+                if (govCode == 0)
+                {
+                    aiw.GovernmentProfile = "0";
+                }
+                else if (govCode == 7)
+                {
+                    aiw.CentralisationCode = "n/a";
+                    aiw.CentralisationType = "";
+                    aiw.AuthorityCode = "n/a";
+                    aiw.AuthorityType = "";
+                    aiw.StructureCode = "n/a";
+                    aiw.StructureType = "";
+                    aiw.GovernmentProfile = "7-n/a";
+
+                    // Generate factions and nation law levels for Gov 7 secondary worlds
+                    aiw.Factions = GenerateFactionList(aiw.PopulationCode, 7, 0, 0, 0, dice);
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            nation.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + nation.Government.Code;
+                            if (nation.LawLevel < 0) nation.LawLevel = 0;
+                        }
+                    // World LL = first nation's LL
+                    if (aiw.Factions.Count > 0 && aiw.Factions[0].Nations.Count > 0)
+                        aiw.LawLevel = aiw.Factions[0].Nations[0].LawLevel;
+                    aiw.FactionRelationships = GenerateFactionRelationships(aiw.Factions, 7, dice);
+                }
+                else
+                {
+                    var govData = GenerateGovernmentDetails(govCode, mainworld.PCR, 0, dice);
+                    aiw.CentralisationCode = govData.CentralisationCode;
+                    aiw.CentralisationType = govData.CentralisationType;
+                    aiw.AuthorityCode = govData.AuthorityCode;
+                    aiw.AuthorityType = govData.AuthorityType;
+                    aiw.StructureCode = govData.StructureCode;
+                    aiw.StructureType = govData.StructureType;
+                    aiw.GovernmentProfile = govData.Profile;
+                    // Non-gov-7 worlds still get factions (with a G-strength government faction)
+                    aiw.Factions = GenerateFactionList(aiw.PopulationCode, govCode, 0, 0, 0, dice);
+                    aiw.FactionRelationships = GenerateFactionRelationships(aiw.Factions, govCode, dice);
+                }
+
+                DebugLogger.Log($"  {aiw.WorldDesignation}: {(isIndependent ? "Independent" : $"Under authority of {mainworldDesig}")}, Gov={IntToEhex(govCode)}, LL={IntToEhex(aiw.LawLevel)}, Profile={aiw.GovernmentProfile}");
+            }
+        }
+
+        private void DetermineSecondaryWorldTradeCodes(Random dice)
+        {
+            if (mainworld == null || additionalInhabitedWorlds.Count == 0) return;
+
+            bool mainworldHasIn = mainworld.TradeCodes.Any(tc => tc.Code == "In");
+            bool mainworldHasPo = mainworld.TradeCodes.Any(tc => tc.Code == "Po");
+
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.TradeCodes.Clear();
+
+                // Numeric size of the world
+                int size = 0;
+                if (aiw.World is TerrestrialPlanet tp)
+                    size = (tp.Size == "S" || tp.Size == "R") ? 0 : FromEhex(tp.Size);
+                else if (aiw.World is Moon m)
+                    size = (m.Size == "S" || m.Size == "R") ? 0 : FromEhex(m.Size);
+                // PlanetoidBelt: size stays 0
+
+                // TechLevel (1d6 + DMs, no starport DM)
+                int tlDM = 0;
+                if (size == 0 || size == 1) tlDM += 2;
+                else if (size >= 2 && size <= 4) tlDM += 1;
+                if (aiw.Atmosphere <= 3 || aiw.Atmosphere >= 10) tlDM += 1;
+                if (aiw.Hydrographics == 0) tlDM += 1;
+                else if (aiw.Hydrographics == 9) tlDM += 1;
+                else if (aiw.Hydrographics == 10) tlDM += 2;
+                if (aiw.PopulationCode >= 1 && aiw.PopulationCode <= 5) tlDM += 1;
+                else if (aiw.PopulationCode >= 8 && aiw.PopulationCode <= 10) tlDM += 1;
+                if (aiw.GovernmentCode == 0 || aiw.GovernmentCode == 5) tlDM += 1;
+                else if (aiw.GovernmentCode == 7) tlDM += 2;
+                else if (aiw.GovernmentCode == 13 || aiw.GovernmentCode == 14) tlDM -= 2;
+
+                int tl = Math.Max(0, Starhelper.diceRoll(6, 1, dice) + tlDM);
+                int minTL = GetMinimumTechLevel(aiw.Atmosphere, aiw.HabitabilityRating);
+                if (tl < minTL) tl = minTL;
+                aiw.TechLevel = tl;
+
+                // Build full UWP for this secondary world (Starport always X)
+                aiw.UWP = $"X{aiw.SizeCode}{IntToEhex(aiw.Atmosphere)}{IntToEhex(aiw.Hydrographics)}{IntToEhex(aiw.PopulationCode)}{IntToEhex(aiw.GovernmentCode)}{IntToEhex(aiw.LawLevel)}-{IntToEhex(tl)}";
+
+                // Colony (Cy): Pop >= 5 AND Gov >= 6
+                if (aiw.PopulationCode >= 5 && aiw.GovernmentCode >= 6)
+                    aiw.TradeCodes.Add(new TradeCode("Colony", "Cy"));
+
+                // Farming (Fa): IsInHabitableZone AND Atm 4-9 AND Hyd 4-8 AND Pop >= 2
+                if (aiw.IsInHabitableZone &&
+                    aiw.Atmosphere >= 4 && aiw.Atmosphere <= 9 &&
+                    aiw.Hydrographics >= 4 && aiw.Hydrographics <= 8 &&
+                    aiw.PopulationCode >= 2)
+                    aiw.TradeCodes.Add(new TradeCode("Farming", "Fa"));
+
+                // Freeport (Fp): Gov 0-5 AND TL >= 8; roll 2d6 >= 10 (+2 if mainworld A/B starport)
+                if (aiw.GovernmentCode >= 0 && aiw.GovernmentCode <= 5 && aiw.TechLevel >= 8)
+                {
+                    int fpDM = (mainworld.Starport == 'A' || mainworld.Starport == 'B') ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + fpDM >= 10)
+                        aiw.TradeCodes.Add(new TradeCode("Freeport", "Fp"));
+                }
+
+                // Military Base (Mb): Mainworld TL >= 8 AND mainworld not Po AND Gov 6; roll 2d6 >= 12 (+2 if mainworld gov 6)
+                if (mainworld.TechLevel >= 8 && !mainworldHasPo && aiw.GovernmentCode == 6)
+                {
+                    int mbDM = mainworld.Government == 6 ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + mbDM >= 12)
+                    {
+                        aiw.TradeCodes.Add(new TradeCode("Military Base", "Mb"));
+                        aiw.HasMilitaryBase = true;
+                    }
+                }
+
+                // Mining Facility (Mi): Mainworld has In AND Pop >= 2
+                if (mainworldHasIn && aiw.PopulationCode >= 2)
+                {
+                    int miTarget = (aiw.World is PlanetoidBelt) ? 6 : 10;
+                    if (Starhelper.diceRoll(6, 2, dice) >= miTarget)
+                        aiw.TradeCodes.Add(new TradeCode("Mining Facility", "Mi"));
+                }
+
+                // Penal Colony (Pe): Mainworld TL >= 9 AND mainworld LL >= 8 AND Gov 6; roll 2d6 >= 10 (+2 if aiw LL >= 8)
+                if (mainworld.TechLevel >= 9 && mainworld.LawLevel >= 8 && aiw.GovernmentCode == 6)
+                {
+                    int peDM = aiw.LawLevel >= 8 ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + peDM >= 10)
+                        aiw.TradeCodes.Add(new TradeCode("Penal Colony", "Pe"));
+                }
+
+                // Research Base (Rb): Mainworld Pop >= 6 AND mainworld TL >= 8 AND mainworld not Po; roll 2d6 >= 10 (+2 if mainworld TL >= 12)
+                if (mainworld.Population >= 6 && mainworld.TechLevel >= 8 && !mainworldHasPo)
+                {
+                    int rbDM = mainworld.TechLevel >= 12 ? 2 : 0;
+                    if (Starhelper.diceRoll(6, 2, dice) + rbDM >= 10)
+                        aiw.TradeCodes.Add(new TradeCode("Research Base", "Rb"));
+                }
+
+                // ── Tech Level Authority Adjustment ────────────────────────────────
+                // If the mainworld has authority, the secondary world's TL is adjusted
+                // based on its trade codes. Multiple codes: calculate all, take highest.
+                if (!aiw.IsIndependent)
+                {
+                    int mstl = GetMinimumTechLevel(aiw.Atmosphere, aiw.HabitabilityRating);
+                    int mainTL = mainworld.TechLevel;
+                    bool hasCy = aiw.TradeCodes.Any(tc => tc.Code == "Cy");
+                    bool hasFa = aiw.TradeCodes.Any(tc => tc.Code == "Fa");
+                    bool hasFp = aiw.TradeCodes.Any(tc => tc.Code == "Fp");
+                    bool hasMb = aiw.TradeCodes.Any(tc => tc.Code == "Mb");
+                    bool hasMi = aiw.TradeCodes.Any(tc => tc.Code == "Mi");
+                    bool hasPe = aiw.TradeCodes.Any(tc => tc.Code == "Pe");
+                    bool hasRb = aiw.TradeCodes.Any(tc => tc.Code == "Rb");
+                    bool hasSpecific = hasCy || hasFa || hasFp || hasMb || hasMi || hasPe || hasRb;
+
+                    int adjustedTL = hasSpecific ? 0 : Math.Max(mainTL - 1, mstl); // All Others fallback
+                    if (hasCy) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL - 1, mstl));
+                    if (hasFa) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL - 1, mstl));
+                    if (hasFp) adjustedTL = Math.Max(adjustedTL, Math.Max(aiw.TechLevel, mstl)); // determine normally
+                    if (hasMb) adjustedTL = Math.Max(adjustedTL, mainTL);
+                    if (hasMi) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL, mstl));
+                    if (hasPe) adjustedTL = Math.Max(adjustedTL, Math.Max(mainTL - 1, mstl));
+                    if (hasRb) adjustedTL = Math.Max(adjustedTL, mainTL);
+
+                    aiw.TechLevel = adjustedTL;
+                    aiw.UWP = $"X{aiw.SizeCode}{IntToEhex(aiw.Atmosphere)}{IntToEhex(aiw.Hydrographics)}{IntToEhex(aiw.PopulationCode)}{IntToEhex(aiw.GovernmentCode)}{IntToEhex(aiw.LawLevel)}-{IntToEhex(aiw.TechLevel)}";
+                }
+
+                // ── Law Level Adjustments ──────────────────────────────────────────
+                bool llAdjusted = false;
+
+                if (!aiw.IsIndependent && aiw.GovernmentCode == 6)
+                {
+                    // Gov 6 (Captive Government): 1d6, +1 DM if Mb or Pe present
+                    bool hasMbOrPe = aiw.TradeCodes.Any(tc => tc.Code == "Mb" || tc.Code == "Pe");
+                    int gov6Roll = Starhelper.diceRoll(6, 1, dice) + (hasMbOrPe ? 1 : 0);
+                    int mainLL = mainworld.LawLevel;
+                    aiw.LawLevel = gov6Roll switch
+                    {
+                        <= 2 => Math.Clamp(Starhelper.diceRoll(6, 2, dice) - 7 + 6, 0, 15),
+                        3 or 4 => mainLL,
+                        5 => Math.Clamp(mainLL + 1, 0, 15),
+                        _ => Math.Clamp(mainLL + Starhelper.diceRoll(6, 1, dice), 0, 15)
+                    };
+                    llAdjusted = true;
+                }
+                else if (!aiw.IsIndependent && aiw.GovernmentCode >= 1 && aiw.GovernmentCode <= 3)
+                {
+                    // Gov 1-3 under mainworld authority: roll 2d6 - mainworld govCode
+                    int depResult = Starhelper.diceRoll(6, 2, dice) - mainworld.Government;
+                    if (depResult <= 0)
+                    {
+                        aiw.LawLevel = mainworld.LawLevel;
+                    }
+                    else
+                    {
+                        int subRoll = Starhelper.diceRoll(6, 1, dice);
+                        aiw.LawLevel = subRoll <= 3
+                            ? subRoll
+                            : Math.Clamp(Starhelper.diceRoll(6, 1, dice) + aiw.GovernmentCode, 0, 15);
+                    }
+                    llAdjusted = true;
+                }
+
+                // Freeport: -1 DM to law level
+                if (aiw.TradeCodes.Any(tc => tc.Code == "Fp"))
+                {
+                    aiw.LawLevel = Math.Max(0, aiw.LawLevel - 1);
+                    llAdjusted = true;
+                }
+
+                if (llAdjusted)
+                {
+                    // Rebuild UWP with updated law level
+                    aiw.UWP = $"X{aiw.SizeCode}{IntToEhex(aiw.Atmosphere)}{IntToEhex(aiw.Hydrographics)}{IntToEhex(aiw.PopulationCode)}{IntToEhex(aiw.GovernmentCode)}{IntToEhex(aiw.LawLevel)}-{IntToEhex(aiw.TechLevel)}";
+
+                    // Recompute Penal Colony — its DM depends on aiw.LawLevel >= 8
+                    if (aiw.GovernmentCode == 6)
+                    {
+                        aiw.TradeCodes.RemoveAll(tc => tc.Code == "Pe");
+                        if (mainworld.TechLevel >= 9 && mainworld.LawLevel >= 8)
+                        {
+                            int peDM = aiw.LawLevel >= 8 ? 2 : 0;
+                            if (Starhelper.diceRoll(6, 2, dice) + peDM >= 10)
+                                aiw.TradeCodes.Add(new TradeCode("Penal Colony", "Pe"));
+                        }
+                    }
+                }
+
+                // PCR (simplified, for law level DM use): 1d6 > pop → 9, else 1d6 + DMs clamped 0-9
+                int pcrRoll = Starhelper.diceRoll(6, 1, dice);
+                if (pcrRoll > aiw.PopulationCode)
+                {
+                    aiw.PCR = 9;
+                }
+                else
+                {
+                    int pcrDM = 0;
+                    if (size == 0 || size == 1) pcrDM += 2;
+                    else if (size == 2 || size == 3) pcrDM += 1;
+                    if (aiw.TechLevel <= 1) pcrDM -= 2;
+                    else if (aiw.TechLevel >= 2 && aiw.TechLevel <= 3) pcrDM -= 1;
+                    else if (aiw.TechLevel >= 4 && aiw.TechLevel <= 9) pcrDM += 1;
+                    if (aiw.PopulationCode == 8) pcrDM -= 1;
+                    else if (aiw.PopulationCode >= 9) pcrDM -= 2;
+                    if (aiw.GovernmentCode == 7) pcrDM -= 2;
+                    if (aiw.TradeCodes.Any(tc => tc.Code == "Fa")) pcrDM -= 2;
+                    aiw.PCR = Math.Clamp(Starhelper.diceRoll(6, 1, dice) + pcrDM, 0, 9);
+                }
+
+                DebugLogger.Log($"  {aiw.WorldDesignation}: TL={IntToEhex(aiw.TechLevel)}, LL={IntToEhex(aiw.LawLevel)}, PCR={aiw.PCR}, TradeCodes={string.Join(" ", aiw.TradeCodes.Select(tc => tc.Code))}");
+            }
+        }
+
+        // ─── Faction & Government Profile Generation ──────────────────────────────
+
+        private void DetermineFactions(Random dice)
+        {
+            if (mainworld == null || mainworld.Population == 0) return;
+
+            worldFactions.Clear();
+            factionRelationships.Clear();
+
+            int govCode = mainworld.Government;
+            int pcr = mainworld.PCR;
+            int popCode = mainworld.Population;
+
+            // World government profile
+            if (govCode == 0)
+            {
+                mainworld.GovernmentProfile = "0";
+            }
+            else if (govCode == 7)
+            {
+                mainworld.CentralisationCode = "n/a";
+                mainworld.AuthorityCode = "n/a";
+                mainworld.StructureCode = "n/a";
+                mainworld.GovernmentProfile = "See factions";
+            }
+            else
+            {
+                var worldGovData = GenerateGovernmentDetails(govCode, pcr, 0, dice);
+                mainworld.CentralisationCode = worldGovData.CentralisationCode;
+                mainworld.CentralisationType = worldGovData.CentralisationType;
+                mainworld.AuthorityCode = worldGovData.AuthorityCode;
+                mainworld.AuthorityType = worldGovData.AuthorityType;
+                mainworld.StructureCode = worldGovData.StructureCode;
+                mainworld.StructureType = worldGovData.StructureType;
+                mainworld.GovernmentProfile = worldGovData.Profile;
+            }
+
+            // Generate factions
+            worldFactions = GenerateFactionList(popCode, govCode, pcr, 0, 0, dice);
+            factionRelationships = GenerateFactionRelationships(worldFactions, govCode, dice);
+
+            // Generate nation law levels for all nations on Gov 7 mainworld
+            foreach (var faction in worldFactions)
+                foreach (var nation in faction.Nations)
+                {
+                    nation.LawLevel = Starhelper.diceRoll(6, 2, dice) - 7 + nation.Government.Code;
+                    if (nation.LawLevel < 0) nation.LawLevel = 0;
+                }
+
+            // For Gov 7 worlds, world LawLevel = first nation's LawLevel; rebuild UWP
+            if (govCode == 7 && worldFactions.Count > 0 && worldFactions[0].Nations.Count > 0)
+            {
+                mainworld.LawLevel = worldFactions[0].Nations[0].LawLevel;
+                mainworld.UWP = $"{mainworld.Starport}{IntToEhex(mainworld.Size)}{IntToEhex(mainworld.Atmosphere)}{IntToEhex(mainworld.Hydrographics)}{IntToEhex(mainworld.Population)}{IntToEhex(mainworld.Government)}{IntToEhex(mainworld.LawLevel)}-{IntToEhex(mainworld.TechLevel)}";
+                DebugLogger.Log($"  Gov 7 world LawLevel updated from first nation: {IntToEhex(mainworld.LawLevel)}");
+            }
+
+            DebugLogger.Log($"Factions generated: {worldFactions.Count}");
+        }
+
+        // ─── Judicial System Generation ───────────────────────────────────────────
+
+        private void DetermineJudicialSystems(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                mainworld.Judicial = GenerateJudicialData(
+                    mainworld.Government, mainworld.LawLevel, mainworld.TechLevel,
+                    mainworld.AuthorityCode, mainworld.CentralisationCode, dice);
+                DebugLogger.Log($"  Mainworld judicial: Gov={mainworld.Government}, LL={mainworld.LawLevel}, JS={mainworld.Judicial.JudicialSystemCode}, Profile={mainworld.Judicial.Profile}");
+
+                // Nations on Gov 7 mainworld
+                if (mainworld.Government == 7)
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                            nation.Judicial = GenerateJudicialData(
+                                nation.Government.Code, nation.LawLevel, mainworld.TechLevel,
+                                nation.Government.AuthorityCode, nation.Government.CentralisationCode, dice);
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.Judicial = GenerateJudicialData(
+                    aiw.GovernmentCode, aiw.LawLevel, aiw.TechLevel,
+                    aiw.AuthorityCode, aiw.CentralisationCode, dice);
+
+                // Nations on Gov 7 secondary worlds
+                if (aiw.GovernmentCode == 7)
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                            nation.Judicial = GenerateJudicialData(
+                                nation.Government.Code, nation.LawLevel, aiw.TechLevel,
+                                nation.Government.AuthorityCode, nation.Government.CentralisationCode, dice);
+            }
+        }
+
+        private void DetermineLawLevelDetails(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                mainworld.LawLevels = GenerateLawLevelData(
+                    mainworld.Government, mainworld.LawLevel, mainworld.PCR,
+                    mainworld.Judicial.JudicialSystemCode, dice);
+
+                // Nations on Gov 7 mainworld
+                if (mainworld.Government == 7)
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                            nation.LawLevels = GenerateLawLevelData(
+                                nation.Government.Code, nation.LawLevel, mainworld.PCR,
+                                nation.Judicial.JudicialSystemCode, dice);
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.LawLevels = GenerateLawLevelData(
+                    aiw.GovernmentCode, aiw.LawLevel, aiw.PCR,
+                    aiw.Judicial.JudicialSystemCode, dice);
+
+                // Nations on Gov 7 secondary worlds
+                if (aiw.GovernmentCode == 7)
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                            nation.LawLevels = GenerateLawLevelData(
+                                nation.Government.Code, nation.LawLevel, aiw.PCR,
+                                nation.Judicial.JudicialSystemCode, dice);
+            }
+        }
+
+        private JudicialData GenerateJudicialData(int govCode, int lawLevel, int techLevel,
+            string authorityCode, string centralisationCode, Random dice)
+        {
+            var jd = new JudicialData();
+
+            // 1. Judicial System
+            if (govCode == 0)
+            {
+                jd.JudicialSystemCode = "N"; jd.JudicialSystemType = "None";
+                jd.SecondarySystemCode = "N"; jd.SecondarySystemType = "None";
+            }
+            else
+            {
+                int dm = 0;
+                // Gov 1, 8-C (10-12), F (15): -2
+                if (govCode == 1 || (govCode >= 8 && govCode <= 12) || govCode == 15) dm -= 2;
+                // Gov D (13) or E (14): +4
+                if (govCode == 13 || govCode == 14) dm += 4;
+                // Law Level >= A (10): -4, unless Gov D or E
+                if (lawLevel >= 10 && govCode != 13 && govCode != 14) dm -= 4;
+                if (techLevel == 0) dm += 4;
+                else if (techLevel == 1 || techLevel == 2) dm += 2;
+                if (authorityCode == "J") dm -= 2;
+
+                int result = Starhelper.diceRoll(6, 2, dice) + dm;
+                if (result <= 5)      { jd.JudicialSystemCode = "I"; jd.JudicialSystemType = "Inquisitorial"; }
+                else if (result <= 8) { jd.JudicialSystemCode = "A"; jd.JudicialSystemType = "Adversarial"; }
+                else                  { jd.JudicialSystemCode = "T"; jd.JudicialSystemType = "Traditional"; }
+
+                // Secondary system: roll 2d6 + LawLevel if primary is A or T
+                if (jd.JudicialSystemCode == "A" || jd.JudicialSystemCode == "T")
+                {
+                    if (Starhelper.diceRoll(6, 2, dice) + lawLevel >= 12)
+                    { jd.SecondarySystemCode = "I"; jd.SecondarySystemType = "Inquisitorial"; }
+                    else
+                    { jd.SecondarySystemCode = jd.JudicialSystemCode; jd.SecondarySystemType = jd.JudicialSystemType; }
+                }
+                else  // Primary is I — no secondary
+                { jd.SecondarySystemCode = "I"; jd.SecondarySystemType = "Inquisitorial"; }
+            }
+
+            // 2. Law Uniformity
+            if (centralisationCode == "C")
+            {
+                jd.UniformityCode = "T"; jd.UniformityType = "Territorial";
+            }
+            else if (centralisationCode == "F")
+            {
+                if (Starhelper.diceRoll(6, 1, dice) <= 5) { jd.UniformityCode = "T"; jd.UniformityType = "Territorial"; }
+                else { jd.UniformityCode = "P"; jd.UniformityType = "Personal"; }
+            }
+            else
+            {
+                int dm = 0;
+                if (govCode == 3 || govCode == 5 || govCode >= 10) dm -= 1;
+                if (govCode == 2) dm += 1;
+                int result = Starhelper.diceRoll(6, 1, dice) + dm;
+                if (result <= 2)      { jd.UniformityCode = "P"; jd.UniformityType = "Personal"; }
+                else if (result == 3) { jd.UniformityCode = "T"; jd.UniformityType = "Territorial"; }
+                else                  { jd.UniformityCode = "U"; jd.UniformityType = "Universal"; }
+            }
+
+            // 3. Presumption of Innocence: 2d6 + DM >= 0
+            int poiDM = -lawLevel + (jd.JudicialSystemCode == "A" ? 2 : 0);
+            jd.PresumptionOfInnocence = (Starhelper.diceRoll(6, 2, dice) + poiDM >= 0);
+
+            // 4. Death Penalty: 2d6 + DM >= 8
+            int dpDM = (govCode == 0 ? -4 : 0) + (lawLevel >= 9 ? 4 : 0);
+            jd.DeathPenalty = (Starhelper.diceRoll(6, 2, dice) + dpDM >= 8);
+
+            // 5. Profile: PSU-I-D
+            jd.Profile = $"{jd.JudicialSystemCode}{jd.SecondarySystemCode}{jd.UniformityCode}" +
+                         $"-{(jd.PresumptionOfInnocence ? "Y" : "N")}" +
+                         $"-{(jd.DeathPenalty ? "Y" : "N")}";
+
+            return jd;
+        }
+
+        private LawLevelData GenerateLawLevelData(int govCode, int lawLevel, int pcr,
+            string judicialSystemCode, Random dice)
+        {
+            var lld = new LawLevelData();
+
+            // 1. Weapons & Armour: LL + 2d3 - 4 + DM, clamped 0-12
+            int wDM = (pcr <= 3 ? -1 : 0) + (pcr >= 8 ? 1 : 0);
+            lld.WeaponsLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + wDM, 0, 12);
+
+            // 2. Economic: LL + 2d3 - 4 + DM, clamped 0-12
+            int eDM = 0;
+            if (govCode == 0) eDM -= 2;
+            if (govCode == 1) eDM += 2;
+            if (govCode == 2) eDM -= 1;
+            if (govCode == 9) eDM += 1;
+            lld.EconomicLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + eDM, 0, 12);
+
+            // 3. Criminal: LL + 2d3 - 4 + DM, clamped 0-18
+            int cDM = (judicialSystemCode == "I" ? 1 : 0);
+            lld.CriminalLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + cDM, 0, 18);
+
+            // 4. Private: LL + 2d3 - 4 + DM, clamped 0-12
+            int pDM = (govCode == 3 || govCode == 5 || govCode == 12 ? -1 : 0);
+            lld.PrivateLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + pDM, 0, 12);
+
+            // 5. Personal Rights: LL + 2d3 - 4 + DM, clamped 0-12
+            int prDM = (govCode == 0 || govCode == 2 ? -1 : 0) + (govCode == 1 ? 2 : 0);
+            lld.PersonalRightsLevel = Math.Clamp(lawLevel + Starhelper.diceRoll(3, 2, dice) - 4 + prDM, 0, 12);
+
+            // 6. Profile: O-WECPR
+            lld.Profile = $"{IntToEhex(lawLevel)}-" +
+                          $"{IntToEhex(lld.WeaponsLevel)}{IntToEhex(lld.EconomicLevel)}" +
+                          $"{IntToEhexFull(lld.CriminalLevel)}{IntToEhex(lld.PrivateLevel)}{IntToEhex(lld.PersonalRightsLevel)}";
+
+            return lld;
+        }
+
+        // ─── Tech Level Subcategory Generation ────────────────────────────────────
+
+        internal static int RollTLM(Random dice) => Starhelper.diceRoll(6, 2, dice) switch
+        {
+            2  => -3,
+            3  => -2,
+            4  => -1,
+            10 => 1,
+            11 => 2,
+            12 => 3,
+            _  => 0
+        };
+
+        internal static int CalculateLowCommonTL(int highTL, int govCode, int popCode, int pcr, Random dice)
+        {
+            int dm = 0;
+            if (popCode >= 1 && popCode <= 5) dm += 1;
+            if (popCode >= 9)                 dm -= 1;
+            if (govCode == 0)                 dm -= 1;
+            if (govCode == 6)                 dm -= 1;
+            if (govCode == 13)                dm -= 1;   // D
+            if (govCode == 14)                dm -= 1;   // E
+            if (govCode == 5)                 dm += 1;
+            if (govCode == 7)                 dm -= 2;
+            if (pcr <= 2)                     dm -= 1;
+            if (pcr >= 7)                     dm += 1;
+            int lower = (int)(highTL / 2.0);
+            return Math.Clamp(highTL + RollTLM(dice) + dm, lower, highTL);
+        }
+
+        private int CalculateNationHighTL(int worldHighTL, int nationGovCode, Random dice)
+        {
+            int dm = 0;
+            if (nationGovCode == 5)                                                          dm += 2;
+            if (nationGovCode == 0 || nationGovCode == 6 || nationGovCode == 13 || nationGovCode == 14) dm -= 2;
+            return Math.Max(0, worldHighTL - 2 - RollTLM(dice) + dm);
+        }
+
+        private int CalculateNationLowTL(int worldLowTL, int nationGovCode, int pcr, int nationHighTL)
+        {
+            int dm = 0;
+            if (nationGovCode == 5)                                                          dm += 2;
+            if (nationGovCode == 0 || nationGovCode == 6 || nationGovCode == 13 || nationGovCode == 14) dm -= 2;
+            if (pcr >= 7) dm += 1;
+            // If nationHighTL < worldLowTL (very low-tech nation), cap both bounds at nationHighTL
+            int lowerBound = Math.Min(worldLowTL, nationHighTL);
+            return Math.Clamp(worldLowTL + dm, lowerBound, nationHighTL);
+        }
+
+        internal static TechLevelData GenerateTechLevelData(
+            int highCommonTL, int lowCommonTL, int govCode, int popCode,
+            int atmosphere, int hydrographics, int pcr, int habitabilityRating,
+            char starport, int lawLevel, int weaponsLawLevel, int worldSize,
+            bool hasIn, bool hasRi, bool hasPo, bool isOnBalkanisedWorld, Random dice)
+        {
+            var d = new TechLevelData { HighCommonTL = highCommonTL, LowCommonTL = lowCommonTL };
+
+            // a) Energy TL
+            int eDM = (popCode >= 9 ? 1 : 0) + (hasIn ? 1 : 0);
+            d.EnergyTL = Math.Clamp(highCommonTL + RollTLM(dice) + eDM,
+                (int)(highCommonTL / 2.0), (int)(highCommonTL * 1.2));
+
+            // b) Electronics TL
+            int elDM = (popCode >= 1 && popCode <= 5 ? 1 : 0) + (popCode >= 9 ? -1 : 0) + (hasIn ? 1 : 0);
+            d.ElectronicsTL = Math.Clamp(highCommonTL + RollTLM(dice) + elDM,
+                d.EnergyTL - 3, d.EnergyTL + 1);
+
+            // c) Manufacturing TL
+            int mDM = (popCode >= 1 && popCode <= 6 ? -1 : 0) + (popCode >= 8 ? 1 : 0) + (hasIn ? 1 : 0);
+            d.ManufacturingTL = Math.Clamp(highCommonTL + RollTLM(dice) + mDM,
+                d.ElectronicsTL - 2, Math.Max(d.EnergyTL, d.ElectronicsTL));
+
+            // d) Medical TL
+            int mdDM = (hasRi ? 1 : 0) + (hasPo ? -1 : 0);
+            int medLower = starport == 'A' ? 6 : starport == 'B' ? 4 : starport == 'C' ? 2 : 0;
+            d.MedicalTL = Math.Clamp(d.ElectronicsTL + RollTLM(dice) + mdDM,
+                Math.Min(medLower, d.ElectronicsTL), d.ElectronicsTL);
+
+            // e) Environmental TL
+            int envDM = habitabilityRating < 8 ? 8 - habitabilityRating : 0;
+            d.EnvironmentalTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + envDM,
+                d.EnergyTL - 5, d.EnergyTL);
+
+            // f) Land Transport TL
+            int ltDM = (hydrographics == 10 ? -1 : 0) + (pcr <= 2 ? 1 : 0);
+            d.LandTransportTL = Math.Clamp(d.EnergyTL + RollTLM(dice) + ltDM,
+                d.ElectronicsTL - 5, d.EnergyTL);
+
+            // g) Water Transport TL
+            int wtDM = (hydrographics == 0 ? -2 : 0)
+                     + (hydrographics == 8 ? 1 : 0)
+                     + (hydrographics >= 9 ? 2 : 0)
+                     + (pcr <= 2 ? 1 : 0);
+            int wtLower = hydrographics == 0 ? 0 : d.ElectronicsTL - 5;
+            d.WaterTransportTL = Math.Clamp(d.EnergyTL + RollTLM(dice) + wtDM,
+                wtLower, d.EnergyTL);
+
+            // h) Air Transport TL
+            if (atmosphere == 0 && highCommonTL <= 5)
+            {
+                d.AirTransportTL = 0;
+            }
+            else
+            {
+                int atDM = 0;
+                if ((atmosphere <= 3 || atmosphere == 14) && highCommonTL <= 7) atDM -= 2;
+                else if ((atmosphere == 4 || atmosphere == 5) && highCommonTL <= 7) atDM += 1;
+                d.AirTransportTL = Math.Max(0, d.EnergyTL + RollTLM(dice) + atDM);
+            }
+
+            // i) Space Transport TL
+            int stDM = (worldSize == 0 || worldSize == 1 ? 2 : 0)
+                     + (popCode >= 1 && popCode <= 5 ? -1 : 0)
+                     + (popCode >= 9 ? 1 : 0)
+                     + (starport == 'A' ? 2 : starport == 'B' ? 1 : 0);
+            int stBound = Math.Min(d.EnergyTL, d.ManufacturingTL);
+            d.SpaceTransportTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + stDM,
+                stBound - 3, stBound);
+
+            // j) Personal Military TL
+            // Gov 0 or world is balkanised: +2; law level 0 or >=D: +2; LL 1-4 or 9-C: +1
+            int pmGovDM = (govCode == 0 || isOnBalkanisedWorld ? 2 : 0);
+            int pmLawDM = (lawLevel == 0 || lawLevel >= 13 ? 2 : 0)
+                        + (((lawLevel >= 1 && lawLevel <= 4) || (lawLevel >= 9 && lawLevel <= 12)) ? 1 : 0);
+            int pmLower = weaponsLawLevel == 0 ? d.ManufacturingTL : 0;
+            d.PersonalMilitaryTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + pmGovDM + pmLawDM,
+                Math.Min(pmLower, d.ElectronicsTL), d.ElectronicsTL);
+
+            // k) Heavy Military TL
+            // Gov 7/A/B/F: +2 — also applies to all nations on a Gov 7 world
+            int hmGovDM = (isOnBalkanisedWorld || govCode == 7 || govCode == 10 || govCode == 11 || govCode == 15 ? 2 : 0);
+            int hmLawDM = lawLevel >= 13 ? 2 : 0;
+            int hmDM = (popCode >= 1 && popCode <= 6 ? -1 : 0)
+                     + (popCode >= 8 ? 1 : 0)
+                     + hmGovDM + hmLawDM
+                     + (hasIn ? 1 : 0);
+            d.HeavyMilitaryTL = Math.Clamp(d.ManufacturingTL + RollTLM(dice) + hmDM,
+                0, Math.Max(0, d.ManufacturingTL));
+
+            // l) Novelty TL — not yet defined
+            d.NoveltyTL = -1;
+
+            // Profile: H-L-abcde-fghi-jk-l
+            d.Profile = $"{IntToEhex(highCommonTL)}-{IntToEhex(lowCommonTL)}-" +
+                        $"{IntToEhex(d.EnergyTL)}{IntToEhex(d.ElectronicsTL)}{IntToEhex(d.ManufacturingTL)}{IntToEhex(d.MedicalTL)}{IntToEhex(d.EnvironmentalTL)}-" +
+                        $"{IntToEhex(d.LandTransportTL)}{IntToEhex(d.WaterTransportTL)}{IntToEhex(d.AirTransportTL)}{IntToEhex(d.SpaceTransportTL)}-" +
+                        $"{IntToEhex(d.PersonalMilitaryTL)}{IntToEhex(d.HeavyMilitaryTL)}-X";
+
+            return d;
+        }
+
+        private void DetermineTechLevelDetails(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                bool hasIn = mainworld.TradeCodes.Any(tc => tc.Code == "In");
+                bool hasRi = mainworld.TradeCodes.Any(tc => tc.Code == "Ri");
+                bool hasPo = mainworld.TradeCodes.Any(tc => tc.Code == "Po");
+
+                int worldHighTL = mainworld.TechLevel;
+                int worldLowTL  = CalculateLowCommonTL(worldHighTL, mainworld.Government, mainworld.Population, mainworld.PCR, dice);
+
+                int mwHabRating = 0;
+                if (mainworld.PlacedWorld is TerrestrialPlanet mwTp) mwHabRating = mwTp.HabitabilityRating;
+                else if (mainworld.PlacedWorld is Moon mwM) mwHabRating = mwM.HabitabilityRating;
+
+                mainworld.TechLevels = GenerateTechLevelData(
+                    worldHighTL, worldLowTL, mainworld.Government, mainworld.Population,
+                    mainworld.Atmosphere, mainworld.Hydrographics, mainworld.PCR,
+                    mwHabRating, mainworld.Starport,
+                    mainworld.LawLevel, mainworld.LawLevels.WeaponsLevel,
+                    mainworld.Size, hasIn, hasRi, hasPo, isOnBalkanisedWorld: false, dice);
+
+                if (mainworld.Government == 7)
+                {
+                    bool firstNation = true;
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            int nHigh = firstNation ? worldHighTL : CalculateNationHighTL(worldHighTL, nation.Government.Code, dice);
+                            int nLow  = firstNation ? worldLowTL  : CalculateNationLowTL(worldLowTL, nation.Government.Code, mainworld.PCR, nHigh);
+                            firstNation = false;
+                            nation.TechLevels = GenerateTechLevelData(
+                                nHigh, nLow, nation.Government.Code, mainworld.Population,
+                                mainworld.Atmosphere, mainworld.Hydrographics, mainworld.PCR,
+                                mwHabRating, mainworld.Starport,
+                                nation.LawLevel, nation.LawLevels.WeaponsLevel,
+                                mainworld.Size, hasIn, hasRi, hasPo, isOnBalkanisedWorld: true, dice);
+                        }
+                }
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                bool hasIn = aiw.TradeCodes.Any(tc => tc.Code == "In");
+                bool hasRi = aiw.TradeCodes.Any(tc => tc.Code == "Ri");
+                bool hasPo = aiw.TradeCodes.Any(tc => tc.Code == "Po");
+
+                int worldHighTL = aiw.TechLevel;
+                int worldLowTL  = CalculateLowCommonTL(worldHighTL, aiw.GovernmentCode, aiw.PopulationCode, aiw.PCR, dice);
+
+                int aiwSize = 0;
+                if (aiw.World is TerrestrialPlanet tp) aiwSize = (tp.Size == "S" || tp.Size == "R") ? 0 : FromEhex(tp.Size);
+                else if (aiw.World is Moon m)          aiwSize = (m.Size == "S" || m.Size == "R") ? 0 : FromEhex(m.Size);
+
+                aiw.TechLevels = GenerateTechLevelData(
+                    worldHighTL, worldLowTL, aiw.GovernmentCode, aiw.PopulationCode,
+                    aiw.Atmosphere, aiw.Hydrographics, aiw.PCR,
+                    aiw.HabitabilityRating, 'X',
+                    aiw.LawLevel, aiw.LawLevels.WeaponsLevel,
+                    aiwSize, hasIn, hasRi, hasPo, isOnBalkanisedWorld: false, dice);
+
+                if (aiw.GovernmentCode == 7)
+                {
+                    bool firstNation = true;
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            int nHigh = firstNation ? worldHighTL : CalculateNationHighTL(worldHighTL, nation.Government.Code, dice);
+                            int nLow  = firstNation ? worldLowTL  : CalculateNationLowTL(worldLowTL, nation.Government.Code, aiw.PCR, nHigh);
+                            firstNation = false;
+                            nation.TechLevels = GenerateTechLevelData(
+                                nHigh, nLow, nation.Government.Code, aiw.PopulationCode,
+                                aiw.Atmosphere, aiw.Hydrographics, aiw.PCR,
+                                aiw.HabitabilityRating, 'X',
+                                nation.LawLevel, nation.LawLevels.WeaponsLevel,
+                                aiwSize, hasIn, hasRi, hasPo, isOnBalkanisedWorld: true, dice);
+                        }
+                }
+            }
+        }
+
+        private CulturalData GenerateCulturalData(
+            int popCode, int govCode, int lawLevel, int pcr,
+            char starport, int techLevel, Random dice)
+        {
+            var c = new CulturalData();
+
+            // 1. Diversity
+            int divDM = 0;
+            if (popCode >= 1 && popCode <= 5) divDM -= 2;
+            if (popCode >= 9) divDM += 2;
+            if (govCode >= 0 && govCode <= 2) divDM += 1;
+            if (govCode == 7) divDM += 4;
+            if (govCode >= 13 && govCode <= 15) divDM -= 4;
+            if (lawLevel >= 0 && lawLevel <= 4) divDM += 1;
+            if (lawLevel >= 10) divDM -= 1;
+            if (pcr >= 0 && pcr <= 3) divDM += 1;
+            if (pcr >= 7) divDM -= 2;
+            c.Diversity = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + divDM);
+
+            // 2. Xenophilia
+            int xenoDM = 0;
+            if (popCode >= 1 && popCode <= 5) xenoDM -= 1;
+            if (popCode >= 9) xenoDM += 2;
+            if (govCode == 13 || govCode == 14) xenoDM -= 2;
+            if (lawLevel >= 10) xenoDM -= 2;
+            xenoDM += starport switch { 'A' => 2, 'B' => 1, 'D' => -1, 'E' => -2, 'X' => -4, _ => 0 };
+            if (c.Diversity >= 1 && c.Diversity <= 3) xenoDM -= 2;
+            if (c.Diversity >= 12) xenoDM += 1;
+            c.Xenophilia = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + xenoDM);
+
+            // 3. Uniqueness
+            int uniqDM = 0;
+            uniqDM += starport switch { 'A' => -2, 'B' => -1, 'D' => 1, 'E' => 2, 'X' => 4, _ => 0 };
+            if (c.Diversity >= 1 && c.Diversity <= 3) uniqDM += 2;
+            if (c.Xenophilia >= 9 && c.Xenophilia <= 11) uniqDM -= 1;
+            if (c.Xenophilia >= 12) uniqDM -= 2;
+            c.Uniqueness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + uniqDM);
+
+            // 4. Symbology
+            int symDM = 0;
+            if (govCode == 13 || govCode == 14) symDM += 2;
+            if (techLevel <= 1) symDM -= 3;
+            else if (techLevel <= 3) symDM -= 1;
+            if (techLevel >= 9 && techLevel <= 11) symDM += 2;
+            if (techLevel >= 12) symDM += 4;
+            if (c.Uniqueness >= 9 && c.Uniqueness <= 11) symDM += 1;
+            if (c.Uniqueness >= 12) symDM += 3;
+            c.Symbology = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + symDM);
+
+            // 5. Cohesion
+            int cohDM = 0;
+            if (govCode == 3 || govCode == 12) cohDM += 2;
+            if (govCode == 5 || govCode == 6 || govCode == 9) cohDM += 1;
+            if (lawLevel >= 0 && lawLevel <= 2) cohDM -= 2;
+            if (lawLevel >= 10) cohDM += 2;
+            if (pcr >= 0 && pcr <= 3) cohDM -= 2;
+            if (pcr >= 7) cohDM += 2;
+            if (c.Diversity >= 1 && c.Diversity <= 2) cohDM += 4;
+            else if (c.Diversity >= 3 && c.Diversity <= 5) cohDM += 2;
+            if (c.Diversity >= 9 && c.Diversity <= 11) cohDM -= 2;
+            if (c.Diversity >= 12) cohDM -= 4;
+            c.Cohesion = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + cohDM);
+
+            // 6. Progressiveness
+            int progDM = 0;
+            if (popCode >= 6 && popCode <= 8) progDM -= 1;
+            if (popCode >= 9) progDM -= 2;
+            if (govCode == 5) progDM += 1;
+            if (govCode == 11) progDM -= 2;
+            if (govCode == 13 || govCode == 14) progDM -= 6;
+            if (lawLevel >= 9 && lawLevel <= 11) progDM -= 1;
+            if (lawLevel >= 12) progDM -= 4;
+            if (c.Diversity >= 1 && c.Diversity <= 3) progDM -= 2;
+            if (c.Diversity >= 12) progDM += 1;
+            if (c.Xenophilia >= 1 && c.Xenophilia <= 5) progDM -= 1;
+            if (c.Xenophilia >= 9) progDM += 2;
+            if (c.Cohesion >= 1 && c.Cohesion <= 5) progDM += 2;
+            if (c.Cohesion >= 9) progDM -= 2;
+            c.Progressiveness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + progDM);
+
+            // 7. Expansionism
+            int expDM = 0;
+            if (govCode == 10 || govCode >= 12) expDM += 2;   // A or >= C
+            if (c.Diversity >= 1 && c.Diversity <= 3) expDM += 3;
+            if (c.Diversity >= 12) expDM -= 3;
+            if (c.Xenophilia >= 1 && c.Xenophilia <= 5) expDM += 1;
+            if (c.Xenophilia >= 9) expDM -= 2;
+            c.Expansionism = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + expDM);
+
+            // 8. Militancy
+            int milDM = 0;
+            if (govCode >= 10) milDM += 3;
+            if (lawLevel >= 9 && lawLevel <= 11) milDM += 1;
+            if (lawLevel >= 12) milDM += 2;
+            if (c.Xenophilia >= 1 && c.Xenophilia <= 5) milDM += 1;
+            if (c.Xenophilia >= 9) milDM -= 2;
+            if (c.Expansionism >= 1 && c.Expansionism <= 5) milDM -= 1;
+            if (c.Expansionism >= 9 && c.Expansionism <= 11) milDM += 1;
+            if (c.Expansionism >= 12) milDM += 2;
+            c.Militancy = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + milDM);
+
+            // Profile: DXUS-CPEM
+            c.Profile = $"{IntToEhex(c.Diversity)}{IntToEhex(c.Xenophilia)}{IntToEhex(c.Uniqueness)}{IntToEhex(c.Symbology)}-{IntToEhex(c.Cohesion)}{IntToEhex(c.Progressiveness)}{IntToEhex(c.Expansionism)}{IntToEhex(c.Militancy)}";
+
+            return c;
+        }
+
+        private void DetermineCulturalAttributes(Random dice)
+        {
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                mainworld.Culture = GenerateCulturalData(
+                    mainworld.Population, mainworld.Government, mainworld.LawLevel,
+                    mainworld.PCR, mainworld.Starport, mainworld.TechLevel, dice);
+
+                // For Gov 7 worlds with Diversity >= C (12): generate per-nation cultural data
+                if (mainworld.Government == 7 && mainworld.Culture.Diversity >= 12)
+                {
+                    foreach (var faction in worldFactions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            nation.Culture = GenerateCulturalData(
+                                mainworld.Population, nation.Government.Code, nation.LawLevel,
+                                mainworld.PCR, mainworld.Starport, nation.TechLevels.HighCommonTL, dice);
+                        }
+                }
+            }
+
+            // Secondary worlds
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                aiw.Culture = GenerateCulturalData(
+                    aiw.PopulationCode, aiw.GovernmentCode, aiw.LawLevel,
+                    aiw.PCR, 'X', aiw.TechLevel, dice);
+
+                if (!aiw.IsIndependent)
+                    AdjustCulturalAttributesForAuthority(aiw.Culture,
+                        aiw.PopulationCode, aiw.GovernmentCode, aiw.LawLevel,
+                        aiw.PCR, 'X', aiw.TechLevel, dice);
+
+                if (aiw.GovernmentCode == 7 && aiw.Culture.Diversity >= 12)
+                {
+                    foreach (var faction in aiw.Factions)
+                        foreach (var nation in faction.Nations)
+                        {
+                            nation.Culture = GenerateCulturalData(
+                                aiw.PopulationCode, nation.Government.Code, nation.LawLevel,
+                                aiw.PCR, 'X', nation.TechLevels.HighCommonTL, dice);
+                        }
+                }
+            }
+        }
+
+        private void AdjustCulturalAttributesForAuthority(
+            CulturalData c, int popCode, int govCode, int lawLevel, int pcr,
+            char starport, int techLevel, Random dice)
+        {
+            // Select up to 2 attributes for rerolling — each has a 1/3 chance
+            // 0=Diversity 1=Xenophilia 2=Uniqueness 3=Symbology
+            // 4=Cohesion  5=Progressiveness 6=Expansionism 7=Militancy
+            var toReroll = new HashSet<int>();
+            for (int i = 0; i <= 7 && toReroll.Count < 2; i++)
+            {
+                if (Starhelper.diceRoll(3, 1, dice) == 1)
+                    toReroll.Add(i);
+            }
+            if (toReroll.Count == 0) return;
+
+            // Save original values for delta computation
+            int oldDiv  = c.Diversity;
+            int oldXeno = c.Xenophilia;
+            int oldUniq = c.Uniqueness;
+            int oldSym  = c.Symbology;
+            int oldCoh  = c.Cohesion;
+            int oldProg = c.Progressiveness;
+            int oldExp  = c.Expansionism;
+            int oldMil  = c.Militancy;
+
+            // Reroll selected attributes in order (earlier rerolls feed later DMs)
+            if (toReroll.Contains(0)) // Diversity
+            {
+                int dm = 0;
+                if (popCode >= 1 && popCode <= 5) dm -= 2;
+                if (popCode >= 9) dm += 2;
+                if (govCode >= 0 && govCode <= 2) dm += 1;
+                if (govCode == 7) dm += 4;
+                if (govCode >= 13 && govCode <= 15) dm -= 4;
+                if (lawLevel >= 0 && lawLevel <= 4) dm += 1;
+                if (lawLevel >= 10) dm -= 1;
+                if (pcr >= 0 && pcr <= 3) dm += 1;
+                if (pcr >= 7) dm -= 2;
+                c.Diversity = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(1)) // Xenophilia
+            {
+                int dm = 0;
+                if (popCode >= 1 && popCode <= 5) dm -= 1;
+                if (popCode >= 9) dm += 2;
+                if (govCode == 13 || govCode == 14) dm -= 2;
+                if (lawLevel >= 10) dm -= 2;
+                dm += starport switch { 'A' => 2, 'B' => 1, 'D' => -1, 'E' => -2, 'X' => -4, _ => 0 };
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm -= 2;
+                if (c.Diversity >= 12) dm += 1;
+                c.Xenophilia = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(2)) // Uniqueness
+            {
+                int dm = 0;
+                dm += starport switch { 'A' => -2, 'B' => -1, 'D' => 1, 'E' => 2, 'X' => 4, _ => 0 };
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm += 2;
+                if (c.Xenophilia >= 9 && c.Xenophilia <= 11) dm -= 1;
+                if (c.Xenophilia >= 12) dm -= 2;
+                c.Uniqueness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(3)) // Symbology
+            {
+                int dm = 0;
+                if (govCode == 13 || govCode == 14) dm += 2;
+                if (techLevel <= 1) dm -= 3;
+                else if (techLevel <= 3) dm -= 1;
+                if (techLevel >= 9 && techLevel <= 11) dm += 2;
+                if (techLevel >= 12) dm += 4;
+                if (c.Uniqueness >= 9 && c.Uniqueness <= 11) dm += 1;
+                if (c.Uniqueness >= 12) dm += 3;
+                c.Symbology = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(4)) // Cohesion
+            {
+                int dm = 0;
+                if (govCode == 3 || govCode == 12) dm += 2;
+                if (govCode == 5 || govCode == 6 || govCode == 9) dm += 1;
+                if (lawLevel >= 0 && lawLevel <= 2) dm -= 2;
+                if (lawLevel >= 10) dm += 2;
+                if (pcr >= 0 && pcr <= 3) dm -= 2;
+                if (pcr >= 7) dm += 2;
+                if (c.Diversity >= 1 && c.Diversity <= 2) dm += 4;
+                else if (c.Diversity >= 3 && c.Diversity <= 5) dm += 2;
+                if (c.Diversity >= 9 && c.Diversity <= 11) dm -= 2;
+                if (c.Diversity >= 12) dm -= 4;
+                c.Cohesion = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(5)) // Progressiveness
+            {
+                int dm = 0;
+                if (popCode >= 1 && popCode <= 5) dm += 2;
+                if (popCode >= 6 && popCode <= 8) dm -= 1;
+                if (popCode >= 9) dm -= 2;
+                if (govCode == 5) dm += 1;
+                if (govCode == 11) dm -= 2;
+                if (govCode == 13 || govCode == 14) dm -= 6;
+                if (lawLevel >= 9 && lawLevel <= 11) dm -= 1;
+                if (lawLevel >= 12) dm -= 4;
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm -= 2;
+                if (c.Diversity >= 12) dm += 1;
+                if (c.Xenophilia >= 1 && c.Xenophilia <= 5) dm -= 1;
+                if (c.Xenophilia >= 9) dm += 2;
+                if (c.Cohesion >= 1 && c.Cohesion <= 5) dm += 2;
+                if (c.Cohesion >= 9) dm -= 2;
+                c.Progressiveness = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(6)) // Expansionism
+            {
+                int dm = 0;
+                if (govCode == 10 || govCode >= 12) dm += 2;
+                if (c.Diversity >= 1 && c.Diversity <= 3) dm += 3;
+                if (c.Diversity >= 12) dm -= 3;
+                if (c.Xenophilia >= 1 && c.Xenophilia <= 5) dm += 1;
+                if (c.Xenophilia >= 9) dm -= 2;
+                c.Expansionism = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            if (toReroll.Contains(7)) // Militancy
+            {
+                int dm = 0;
+                if (govCode >= 10) dm += 3;
+                if (lawLevel >= 9 && lawLevel <= 11) dm += 1;
+                if (lawLevel >= 12) dm += 2;
+                if (c.Xenophilia >= 1 && c.Xenophilia <= 5) dm += 1;
+                if (c.Xenophilia >= 9) dm -= 2;
+                if (c.Expansionism >= 1 && c.Expansionism <= 5) dm -= 1;
+                if (c.Expansionism >= 9 && c.Expansionism <= 11) dm += 1;
+                if (c.Expansionism >= 12) dm += 2;
+                c.Militancy = Math.Max(0, Starhelper.diceRoll(6, 2, dice) + dm);
+            }
+
+            // Capture post-reroll values for delta computation (before any propagation adjustments)
+            int newDiv  = c.Diversity;
+            int newXeno = c.Xenophilia;
+            int newUniq = c.Uniqueness;
+            int newCoh  = c.Cohesion;
+            int newExp  = c.Expansionism;
+
+            // DM contribution helpers (dependency contributions only)
+            static int DivToXenoDM(int d)  => d >= 1 && d <= 3 ? -2 : d >= 12 ? 1 : 0;
+            static int DivToUniqDM(int d)  => d >= 1 && d <= 3 ? 2 : 0;
+            static int XenoToUniqDM(int x) => x >= 9 && x <= 11 ? -1 : x >= 12 ? -2 : 0;
+            static int UniqToSymDM(int u)  => u >= 9 && u <= 11 ? 1 : u >= 12 ? 3 : 0;
+            static int DivToCohDM(int d)   => d >= 1 && d <= 2 ? 4 : d >= 3 && d <= 5 ? 2 : d >= 9 && d <= 11 ? -2 : d >= 12 ? -4 : 0;
+            static int DivToProgDM(int d)  => d >= 1 && d <= 3 ? -2 : d >= 12 ? 1 : 0;
+            static int XenoToProgDM(int x) => x >= 1 && x <= 5 ? -1 : x >= 9 ? 2 : 0;
+            static int CohToProgDM(int k)  => k >= 1 && k <= 5 ? 2 : k >= 9 ? -2 : 0;
+            static int DivToExpDM(int d)   => d >= 1 && d <= 3 ? 3 : d >= 12 ? -3 : 0;
+            static int XenoToExpDM(int x)  => x >= 1 && x <= 5 ? 1 : x >= 9 ? -2 : 0;
+            static int XenoToMilDM(int x)  => x >= 1 && x <= 5 ? 1 : x >= 9 ? -2 : 0;
+            static int ExpToMilDM(int e)   => e >= 1 && e <= 5 ? -1 : e >= 9 && e <= 11 ? 1 : e >= 12 ? 2 : 0;
+
+            // Propagate DM deltas from rerolled attrs to non-rerolled dependents (no cascading)
+            if (!toReroll.Contains(1))
+            {
+                int delta = toReroll.Contains(0) ? DivToXenoDM(newDiv) - DivToXenoDM(oldDiv) : 0;
+                if (delta != 0) c.Xenophilia = Math.Max(0, c.Xenophilia + delta);
+            }
+
+            if (!toReroll.Contains(2))
+            {
+                int delta = 0;
+                if (toReroll.Contains(0)) delta += DivToUniqDM(newDiv)  - DivToUniqDM(oldDiv);
+                if (toReroll.Contains(1)) delta += XenoToUniqDM(newXeno) - XenoToUniqDM(oldXeno);
+                if (delta != 0) c.Uniqueness = Math.Max(0, c.Uniqueness + delta);
+            }
+
+            if (!toReroll.Contains(3))
+            {
+                int delta = toReroll.Contains(2) ? UniqToSymDM(newUniq) - UniqToSymDM(oldUniq) : 0;
+                if (delta != 0) c.Symbology = Math.Max(0, c.Symbology + delta);
+            }
+
+            if (!toReroll.Contains(4))
+            {
+                int delta = toReroll.Contains(0) ? DivToCohDM(newDiv) - DivToCohDM(oldDiv) : 0;
+                if (delta != 0) c.Cohesion = Math.Max(0, c.Cohesion + delta);
+            }
+
+            if (!toReroll.Contains(5))
+            {
+                int delta = 0;
+                if (toReroll.Contains(0)) delta += DivToProgDM(newDiv)  - DivToProgDM(oldDiv);
+                if (toReroll.Contains(1)) delta += XenoToProgDM(newXeno) - XenoToProgDM(oldXeno);
+                if (toReroll.Contains(4)) delta += CohToProgDM(newCoh)   - CohToProgDM(oldCoh);
+                if (delta != 0) c.Progressiveness = Math.Max(0, c.Progressiveness + delta);
+            }
+
+            if (!toReroll.Contains(6))
+            {
+                int delta = 0;
+                if (toReroll.Contains(0)) delta += DivToExpDM(newDiv)  - DivToExpDM(oldDiv);
+                if (toReroll.Contains(1)) delta += XenoToExpDM(newXeno) - XenoToExpDM(oldXeno);
+                if (delta != 0) c.Expansionism = Math.Max(0, c.Expansionism + delta);
+            }
+
+            if (!toReroll.Contains(7))
+            {
+                int delta = 0;
+                if (toReroll.Contains(1)) delta += XenoToMilDM(newXeno) - XenoToMilDM(oldXeno);
+                if (toReroll.Contains(6)) delta += ExpToMilDM(newExp)    - ExpToMilDM(oldExp);
+                if (delta != 0) c.Militancy = Math.Max(0, c.Militancy + delta);
+            }
+
+            // Rebuild profile
+            c.Profile = $"{IntToEhex(c.Diversity)}{IntToEhex(c.Xenophilia)}{IntToEhex(c.Uniqueness)}{IntToEhex(c.Symbology)}-{IntToEhex(c.Cohesion)}{IntToEhex(c.Progressiveness)}{IntToEhex(c.Expansionism)}{IntToEhex(c.Militancy)}";
+        }
+
+        private void DetermineEconomics(Random dice)
+        {
+            int gg = this.GasGiantCount;
+            int pb = this.PlanetoidBeltCount;
+
+            // Mainworld
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                int imp = CalculateImportance(mainworld.Starport, mainworld.Population,
+                    mainworld.TechLevel, mainworld.TradeCodes,
+                    mainworld.HasNavalBase, mainworld.HasScoutBase,
+                    mainworld.HasMilitaryBase, mainworld.HasXBoatWaystation);
+                mainworld.Economics = CalculateWorldEconomics(
+                    mainworld.Population, mainworld.ActualPopulation,
+                    mainworld.Government, mainworld.LawLevel, mainworld.TechLevel,
+                    mainworld.PCR, mainworld.Starport, GetMainworldResourceRating(),
+                    imp, gg, pb, mainworld.TradeCodes, mainworld.Culture,
+                    isMainworld: true, mainworld.HasMilitaryBase,
+                    mainworld.HasNavalBase, mainworld.HasScoutBase,
+                    mainworld.HasXBoatWaystation, dice);
+                mainworld.Economics.Importance = imp;
+            }
+
+            int mainImp = mainworld?.Economics.Importance ?? 0;
+
+            // Secondary worlds (importance capped at mainworld importance)
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                char aiwSp = aiw.EquivalentStarportClass;
+                int imp = CalculateImportance(aiwSp, aiw.PopulationCode, aiw.TechLevel,
+                    aiw.TradeCodes, aiw.HasNavalBase, aiw.HasScoutBase, aiw.HasMilitaryBase, false);
+                imp = Math.Min(imp, mainImp);
+                aiw.Economics = CalculateWorldEconomics(
+                    aiw.PopulationCode, aiw.ActualPopulation,
+                    aiw.GovernmentCode, aiw.LawLevel, aiw.TechLevel,
+                    aiw.PCR, aiwSp, aiw.ResourceRating, imp,
+                    0, 0, aiw.TradeCodes, aiw.Culture,
+                    isMainworld: false, aiw.HasMilitaryBase,
+                    aiw.HasNavalBase, aiw.HasScoutBase, false, dice);
+                aiw.Economics.Importance = imp;
+            }
+        }
+
+        private EconomicsData CalculateWorldEconomics(
+            int popCode, long actualPopulation, int govCode, int lawLevel, int tl,
+            int pcr, char starport, int resourceRating, int importance,
+            int gasGiants, int planetoidBelts, List<TradeCode> tradeCodes,
+            CulturalData culture, bool isMainworld,
+            bool hasMilitary, bool hasNaval, bool hasScout, bool hasXBoat, Random dice)
+        {
+            var d = new EconomicsData { Importance = importance };
+            bool hasAg = tradeCodes.Any(tc => tc.Code == "Ag");
+            bool hasIn = tradeCodes.Any(tc => tc.Code == "In");
+            bool hasAs = tradeCodes.Any(tc => tc.Code == "As");
+            bool hasGa = tradeCodes.Any(tc => tc.Code == "Ga");
+            bool hasNi = tradeCodes.Any(tc => tc.Code == "Ni");
+            bool hasPo = tradeCodes.Any(tc => tc.Code == "Po");
+            bool hasRi = tradeCodes.Any(tc => tc.Code == "Ri");
+            bool hasFp = tradeCodes.Any(tc => tc.Code == "Fp");
+
+            // a) Resource Factor
+            d.ResourceFactor = resourceRating;
+            if (tl >= 8 && isMainworld)
+                d.ResourceFactor += gasGiants + planetoidBelts;
+            if (hasAg || hasIn)
+            {
+                d.ResourceFactor += 1 - Starhelper.diceRoll(6, 2, dice);   // always <= -1
+                if (d.ResourceFactor < 2)
+                    d.ResourceFactor = isMainworld ? 2 + gasGiants + planetoidBelts : 2;
+            }
+
+            // b) Labour Factor
+            d.LabourFactor = popCode - 1;
+
+            // c) Infrastructure Factor
+            d.InfrastructureFactor = importance;
+            if (popCode >= 4 && popCode <= 6) d.InfrastructureFactor += Starhelper.diceRoll(6, 1, dice);
+            if (popCode >= 7)                 d.InfrastructureFactor += Starhelper.diceRoll(6, 2, dice);
+            if (popCode == 0 || importance < 0) d.InfrastructureFactor = 0;
+
+            // d) Efficiency Factor
+            int efDM = 0;
+            if (govCode == 0 || govCode == 3 || govCode == 6 || govCode == 9 ||
+                govCode == 11 || govCode == 12 || govCode == 15) efDM -= 1;
+            if (govCode == 1 || govCode == 2 || govCode == 4 || govCode == 5 || govCode == 8) efDM += 1;
+            if (lawLevel >= 0 && lawLevel <= 4) efDM += 1;
+            if (lawLevel >= 10) efDM -= 1;
+            if (pcr >= 0 && pcr <= 3) efDM -= 1;
+            if (pcr >= 8) efDM += 1;
+            if (culture.Progressiveness >= 1 && culture.Progressiveness <= 3) efDM -= 1;
+            if (culture.Progressiveness >= 9) efDM += 1;
+            if (culture.Expansionism >= 1 && culture.Expansionism <= 3) efDM -= 1;
+            if (culture.Expansionism >= 9) efDM += 1;
+
+            int ef;
+            if (popCode == 0)
+                ef = -5;
+            else if (popCode <= 6)
+                ef = Starhelper.diceRoll(6, 2, dice) - 7 + efDM;
+            else
+                ef = Starhelper.diceRoll(3, 2, dice) - 4 + efDM;
+            ef = Math.Clamp(ef, -5, 5);
+            if (ef == 0) ef = 1;
+            d.EfficiencyFactor = ef;
+
+            // e) Resource Units (0 treated as 1 for calculation)
+            int rfRU  = d.ResourceFactor       == 0 ? 1 : d.ResourceFactor;
+            int lfRU  = d.LabourFactor         == 0 ? 1 : d.LabourFactor;
+            int infRU = d.InfrastructureFactor == 0 ? 1 : d.InfrastructureFactor;
+            d.ResourceUnits = rfRU * lfRU * infRU * ef;
+
+            // f) GWP
+            int baseValue = d.InfrastructureFactor + d.ResourceFactor;
+            double techMod = tl / 10.0;
+            double portMod = starport switch
+            {
+                'A' => 1.5, 'B' => 1.2, 'C' => 1.0, 'D' => 0.8, 'E' => 0.5,
+                'F' => 0.9, 'G' => 0.7, 'H' => 0.4, 'Y' => 0.2, _ => 0.2
+            };
+            double govMod = govCode switch
+            {
+                0  => 1.0, 1  => 1.5, 2  => 1.2, 3  => 0.8, 4  => 1.2,
+                5  => 1.3, 6  => 0.6, 7  => 1.0, 8  => 0.9, 9  => 0.8,
+                10 => 1.0, 11 => 0.7, 12 => 1.0, 13 => 0.6, 14 => 0.5,
+                15 => 0.8, _ => 1.0
+            };
+            double tradeMod = 1.0;
+            if (hasAg) tradeMod *= 0.9;
+            if (hasAs) tradeMod *= 1.2;
+            if (hasGa) tradeMod *= 1.2;
+            if (hasIn) tradeMod *= 1.1;
+            if (hasNi) tradeMod *= 0.9;
+            if (hasPo) tradeMod *= 0.8;
+            if (hasRi) tradeMod *= 1.2;
+            double totalMod = techMod * portMod * govMod * tradeMod;
+            double gwpPC;
+            if (ef > 0)
+                gwpPC = 1000.0 * baseValue * totalMod * ef;
+            else
+                gwpPC = 1000.0 * (baseValue * totalMod) / -(ef - 1);
+            gwpPC = Math.Max(0.05, gwpPC);
+            d.GWPPerCapita = gwpPC;
+            d.TotalGWPMCr  = gwpPC * actualPopulation / 1_000_000.0;
+
+            // g) World Trade Number
+            int wtnDM = 0;
+            if (tl <= 1) wtnDM -= 1;
+            if (tl >= 5 && tl <= 8)  wtnDM += 1;
+            if (tl >= 9 && tl <= 13) wtnDM += 2;
+            if (tl >= 15) wtnDM += 3;
+            int baseWTN = popCode + wtnDM;
+            d.WTNStarportModifier = isMainworld ? GetWTNStarportModifier(baseWTN, starport) : 0;
+            d.WorldTradeNumber = Math.Max(0, baseWTN + d.WTNStarportModifier);
+
+            // h) Inequality Rating
+            int iqDM = 0;
+            if (govCode == 6 || govCode == 11 || govCode == 15) iqDM += 10;
+            if (govCode == 0 || govCode == 1 || govCode == 3 || govCode == 9 || govCode == 12) iqDM += 5;
+            if (govCode == 4 || govCode == 8) iqDM -= 5;
+            if (govCode == 2) iqDM -= 10;
+            if (lawLevel >= 9) iqDM += (lawLevel - 8);
+            iqDM += pcr;
+            iqDM -= d.InfrastructureFactor;
+            d.InequalityRating = 50 - ef * 5 + (Starhelper.diceRoll(6, 2, dice) - 7) * 2 + iqDM;
+
+            // i) Development Score
+            d.DevelopmentScore = (d.GWPPerCapita / 1000.0) * (1.0 - d.InequalityRating / 100.0);
+
+            // j) Tariffs
+            int tariffDM = 0;
+            if (govCode == 0) tariffDM -= 7;
+            if (govCode == 2 || govCode == 4) tariffDM -= 4;
+            if (govCode == 9) tariffDM += 2;
+            if (lawLevel >= 9) tariffDM += 2;
+            if (hasFp) tariffDM -= 7;
+            if (culture.Xenophilia >= 1 && culture.Xenophilia <= 3) tariffDM += 2;
+            if (culture.Xenophilia >= 9) tariffDM -= 2;
+            tariffDM -= d.WTNStarportModifier;
+            d.Tariffs = RollTariffString(Starhelper.diceRoll(6, 2, dice) + tariffDM, dice);
+
+            return d;
+        }
+
+        private List<Faction> GenerateFactionList(int popCode, int parentGovCode, int pcr,
+            int cumulativeGovDM, int depth, Random dice)
+        {
+            // Step 1: Count
+            int numFactions = Starhelper.diceRoll(3, 1, dice);
+            if (parentGovCode == 0 || parentGovCode == 7) numFactions += 1;
+            if (parentGovCode >= 10) numFactions -= 1;
+            if (numFactions < 1) numFactions = 1;
+
+            var factions = new List<Faction>();
+            for (int i = 0; i < numFactions; i++)
+            {
+                factions.Add(new Faction { Number = i + 1 });
+            }
+
+            // Step 3: Faction strength
+            bool allG = (numFactions == 1 && parentGovCode != 0) || (parentGovCode == 7);
+            foreach (var f in factions)
+            {
+                if (allG)
+                {
+                    f.StrengthCode = "G";
+                    f.StrengthType = "Government";
+                }
+                else
+                {
+                    int roll = Starhelper.diceRoll(6, 2, dice);
+                    (f.StrengthCode, f.StrengthType) = roll switch
+                    {
+                        <= 3  => ("O", "Obscure Group"),
+                        <= 5  => ("F", "Fringe Group"),
+                        <= 7  => ("M", "Minor Group"),
+                        <= 9  => ("N", "Notable Group"),
+                        <= 11 => ("S", "Significant Group"),
+                        _     => ("P", "Overwhelming Popular Support")
+                    };
+                }
+            }
+
+            // Step 3: Faction government code and profile
+            int parentGovDM = GetGovCodeDM(parentGovCode);
+            foreach (var f in factions)
+            {
+                int popMod = f.StrengthCode == "O" ? -2 :
+                             (f.StrengthCode == "F" || f.StrengthCode == "M") ? -1 : 0;
+                int effectivePop = Math.Max(0, popCode + popMod);
+                int factionGovCode = Starhelper.diceRoll(6, 2, dice) - 7 + effectivePop;
+                factionGovCode = Math.Max(0, Math.Min(15, factionGovCode));
+
+                var govData = new GovernmentData
+                {
+                    Code = factionGovCode,
+                    Type = GetGovernmentType(factionGovCode)
+                };
+
+                if (factionGovCode == 0)
+                {
+                    govData.Profile = "0";
+                }
+                else if (factionGovCode == 7)
+                {
+                    govData.CentralisationCode = "n/a";
+                    govData.AuthorityCode = "n/a";
+                    govData.StructureCode = "n/a";
+                    govData.Profile = $"{IntToEhex(factionGovCode)}-n/a";
+                }
+                else
+                {
+                    var details = GenerateGovernmentDetails(factionGovCode, pcr,
+                        cumulativeGovDM + parentGovDM, dice);
+                    govData.CentralisationCode = details.CentralisationCode;
+                    govData.CentralisationType = details.CentralisationType;
+                    govData.AuthorityCode = details.AuthorityCode;
+                    govData.AuthorityType = details.AuthorityType;
+                    govData.StructureCode = details.StructureCode;
+                    govData.StructureType = details.StructureType;
+                    govData.Profile = details.Profile;
+                }
+
+                f.Government = govData;
+                f.Profile = $"{MajorCity.ToRoman(f.Number)}-{IntToEhex(factionGovCode)}-{f.StrengthCode}";
+
+                // Step 2: Nations (when parent world gov = 7)
+                if (parentGovCode == 7)
+                {
+                    GenerateNationsForFaction(f, popCode, pcr, parentGovCode, factionGovCode,
+                        cumulativeGovDM + parentGovDM, depth, dice);
+                }
+            }
+
+            return factions;
+        }
+
+        private void GenerateNationsForFaction(Faction faction, int popCode, int pcr,
+            int parentGovCode, int factionGovCode, int cumulativeGovDM, int depth, Random dice)
+        {
+            // Step 2: Nation count
+            int roll = Starhelper.diceRoll(6, 1, dice);
+            int nationCount;
+            bool applyVariance = false;
+
+            if (roll == 5)
+            {
+                nationCount = roll * (10 - pcr);
+                applyVariance = true;
+            }
+            else if (roll == 6)
+            {
+                int multiplier = Math.Max(2, popCode - Starhelper.diceRoll(3, 1, dice));
+                nationCount = roll * multiplier;
+                applyVariance = true;
+            }
+            else
+            {
+                nationCount = roll;
+            }
+
+            if (applyVariance)
+            {
+                int variancePercent = Starhelper.diceRoll(3, 1, dice) + 4; // 5-20%
+                int sign = dice.Next(2) == 0 ? 1 : -1;
+                nationCount = (int)Math.Round(nationCount * (1.0 + sign * variancePercent / 100.0));
+            }
+
+            nationCount = Math.Max(1, nationCount);
+
+            int factionGovDM = GetGovCodeDM(factionGovCode);
+
+            for (int i = 0; i < nationCount; i++)
+            {
+                var nation = new Nation { Number = i + 1 };
+
+                // Step 4: Nation government code (50% match faction, else roll)
+                int nationGovCode;
+                if (dice.Next(2) == 0)
+                {
+                    nationGovCode = factionGovCode;
+                }
+                else
+                {
+                    nationGovCode = Starhelper.diceRoll(6, 2, dice) - 7 + Math.Max(0, popCode - 1);
+                    nationGovCode = Math.Max(0, Math.Min(15, nationGovCode));
+                }
+
+                var nationGovData = new GovernmentData
+                {
+                    Code = nationGovCode,
+                    Type = GetGovernmentType(nationGovCode)
+                };
+
+                if (nationGovCode == 0)
+                {
+                    nationGovData.Profile = "0";
+                }
+                else if (nationGovCode == 7 && depth < 3)
+                {
+                    nationGovData.CentralisationCode = "n/a";
+                    nationGovData.AuthorityCode = "n/a";
+                    nationGovData.StructureCode = "n/a";
+                    nationGovData.Profile = $"{IntToEhex(nationGovCode)}-n/a";
+                    // Recursive sub-factions
+                    nation.SubFactions = GenerateFactionList(popCode - 1, nationGovCode, pcr,
+                        cumulativeGovDM + factionGovDM, depth + 1, dice);
+                    nation.SubFactionRelationships = GenerateFactionRelationships(
+                        nation.SubFactions, nationGovCode, dice);
+                }
+                else
+                {
+                    var details = GenerateGovernmentDetails(nationGovCode, pcr,
+                        cumulativeGovDM + factionGovDM, dice);
+                    nationGovData.CentralisationCode = details.CentralisationCode;
+                    nationGovData.CentralisationType = details.CentralisationType;
+                    nationGovData.AuthorityCode = details.AuthorityCode;
+                    nationGovData.AuthorityType = details.AuthorityType;
+                    nationGovData.StructureCode = details.StructureCode;
+                    nationGovData.StructureType = details.StructureType;
+                    nationGovData.Profile = details.Profile;
+                }
+
+                nation.Government = nationGovData;
+                faction.Nations.Add(nation);
+            }
+        }
+
+        private List<FactionRelationship> GenerateFactionRelationships(
+            List<Faction> factions, int parentGovCode, Random dice)
+        {
+            var relationships = new List<FactionRelationship>();
+            for (int i = 0; i < factions.Count; i++)
+            {
+                for (int j = i + 1; j < factions.Count; j++)
+                {
+                    var f1 = factions[i];
+                    var f2 = factions[j];
+                    int dm = 0;
+
+                    // Both Strength G: +1
+                    if (f1.StrengthCode == "G" && f2.StrengthCode == "G") dm += 1;
+
+                    // Non-Gov-7 world: one G vs one non-G: +1
+                    if (parentGovCode != 7 &&
+                        (f1.StrengthCode == "G") != (f2.StrengthCode == "G")) dm += 1;
+
+                    // Same faction government code: -1
+                    if (f1.Government.Code == f2.Government.Code) dm -= 1;
+
+                    int roll = Starhelper.diceRoll(6, 1, dice) + dm;
+                    roll = Math.Max(0, Math.Min(9, roll));
+
+                    string code = roll.ToString();
+                    string type = roll switch
+                    {
+                        0 => "Alliance",
+                        1 => "Cooperation",
+                        2 => "Truce",
+                        3 => "Competition",
+                        4 => "Resistance",
+                        5 => "Riots",
+                        6 => "Uprising",
+                        7 => "Insurgency",
+                        8 => "War",
+                        _ => "Total War"
+                    };
+
+                    relationships.Add(new FactionRelationship
+                    {
+                        Faction1Number = f1.Number,
+                        Faction2Number = f2.Number,
+                        Code = code,
+                        Type = type
+                    });
+                }
+            }
+            return relationships;
+        }
+
+        private GovernmentData GenerateGovernmentDetails(int govCode, int pcr,
+            int cumulativeDM, Random dice)
+        {
+            var data = new GovernmentData
+            {
+                Code = govCode,
+                Type = GetGovernmentType(govCode)
+            };
+
+            (data.CentralisationCode, data.CentralisationType) =
+                GenerateCentralisation(govCode, pcr, cumulativeDM, dice);
+            (data.AuthorityCode, data.AuthorityType) =
+                GenerateAuthority(govCode, data.CentralisationCode, dice);
+            (data.StructureCode, data.StructureType) =
+                GenerateStructure(govCode, data.AuthorityCode, dice);
+            data.Profile = $"{IntToEhex(govCode)}-{data.CentralisationCode}{data.AuthorityCode}{data.StructureCode}";
+            return data;
+        }
+
+        private (string code, string type) GenerateCentralisation(int govCode, int pcr,
+            int cumulativeDM, Random dice)
+        {
+            int dm = cumulativeDM + GetGovCodeDM(govCode);
+            if (pcr <= 3) dm -= 1;
+            else if (pcr >= 9) dm += 3;
+            else if (pcr >= 7) dm += 1;
+
+            int result = Starhelper.diceRoll(6, 2, dice) + dm;
+            if (result <= 5) return ("C", "Confederal");
+            if (result <= 8) return ("F", "Federal");
+            return ("U", "Unitary");
+        }
+
+        private (string code, string type) GenerateAuthority(int govCode,
+            string centralisationCode, Random dice)
+        {
+            int dm = govCode switch
+            {
+                1 or 6 or 10 or 13 or 14 => +6,
+                2 => -4,
+                3 or 5 or 12 => -2,
+                11 or 15 => +4,
+                _ => 0
+            };
+            if (centralisationCode == "C") dm -= 2;
+            if (centralisationCode == "U") dm += 2;
+
+            int result = Starhelper.diceRoll(6, 2, dice) + dm;
+            return result switch
+            {
+                <= 4  => ("L", "Legislative"),
+                5     => ("E", "Executive"),
+                6     => ("J", "Judicial"),
+                7     => ("B", "Balance"),
+                8     => ("L", "Legislative"),
+                9     => ("B", "Balance"),
+                10    => ("E", "Executive"),
+                11    => ("J", "Judicial"),
+                _     => ("E", "Executive")
+            };
+        }
+
+        private (string code, string type) GenerateStructure(int govCode,
+            string authorityCode, Random dice)
+        {
+            // Fixed mappings
+            if (govCode == 2) return ("D", "Demos");
+            if (govCode == 8 || govCode == 9) return ("M", "Multiple Councils");
+            if (govCode == 3 || govCode == 12 || govCode == 15)
+            {
+                int r = Starhelper.diceRoll(6, 1, dice);
+                return r <= 4 ? ("S", "Single Council") : ("M", "Multiple Councils");
+            }
+            if (govCode == 10 || govCode == 11 || govCode == 13 || govCode == 14)
+            {
+                int r = Starhelper.diceRoll(6, 1, dice);
+                return r <= 5 ? ("R", "Ruler") : ("S", "Single Council");
+            }
+
+            // Authority L special case
+            if (authorityCode == "L")
+            {
+                int r = Starhelper.diceRoll(6, 2, dice);
+                if (r <= 3) return ("D", "Demos");
+                if (r <= 8) return ("M", "Multiple Councils");
+                return ("S", "Single Council");
+            }
+
+            // Default table
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            return roll switch
+            {
+                <= 3  => ("D", "Demos"),
+                4     => ("S", "Single Council"),
+                5 or 6 => ("M", "Multiple Councils"),
+                7 or 8 => ("R", "Ruler"),
+                9     => ("M", "Multiple Councils"),
+                10    => ("S", "Single Council"),
+                11    => ("M", "Multiple Councils"),
+                _     => ("S", "Single Council")
+            };
+        }
+
+        private int GetGovCodeDM(int govCode)
+        {
+            return govCode switch
+            {
+                2 or 3 or 4 or 5 => -1,
+                6 or 7 or 8 or 9 or 10 or 11 => +1,
+                >= 12 => +2,
+                _ => 0
+            };
+        }
+
+        private string BuildGovernmentTooltip(int govCode, string govType,
+            string centralisationCode, string centralisationType,
+            string authorityCode, string authorityType,
+            string structureCode, string structureType)
+        {
+            return $"Gov: {IntToEhex(govCode)} {govType}&#10;Centralisation: {centralisationCode} {centralisationType}&#10;Authority: {authorityCode} {authorityType}&#10;Structure: {structureCode} {structureType}";
+        }
+
+        private string BuildFactionTooltip(Faction f)
+        {
+            string govLine = f.Government.Code == 0
+                ? $"Gov: 0 {f.Government.Type}"
+                : f.Government.Profile == $"{IntToEhex(f.Government.Code)}-n/a"
+                    ? $"Gov: {IntToEhex(f.Government.Code)} {f.Government.Type} (Balkanised)"
+                    : $"Gov: {IntToEhex(f.Government.Code)} {f.Government.Type}&#10;Centralisation: {f.Government.CentralisationCode} {f.Government.CentralisationType}&#10;Authority: {f.Government.AuthorityCode} {f.Government.AuthorityType}&#10;Structure: {f.Government.StructureCode} {f.Government.StructureType}";
+            return $"Faction {MajorCity.ToRoman(f.Number)}&#10;Strength: {f.StrengthCode} {f.StrengthType}&#10;{govLine}";
+        }
+
+        private string BuildRelationshipTooltip(FactionRelationship rel, List<Faction> factions)
+        {
+            string name1 = MajorCity.ToRoman(rel.Faction1Number);
+            string name2 = MajorCity.ToRoman(rel.Faction2Number);
+            return $"Faction {name1} vs Faction {name2}&#10;{rel.Type}";
+        }
+
+        private static string GetJudicialSystemTooltip(string code) => code switch
+        {
+            "I" => "Inquisitorial&#10;Also called civil law or an administrative legal system. Statutes and procedures take precedent. A judge or group of officials investigate and determine if a crime has occurred. The proceedings are based on evidence collected and the decisions of guilt are determined by the court officers.",
+            "A" => "Adversarial&#10;Also called common law. Precedents and interpretations of the law are paramount. The judicial court acts as a referee for a prosecutor and defendant who present evidence to determine guilt. Final determination may be by judicial court officials, a jury or some other method.",
+            "T" => "Traditional&#10;Often religious or tribal law but potentially any other cultural practices or idiosyncrasies of a dictator's whims. Guilt is determined by an expert in the tradition or a local official. Guilt is determined on interpretations of texts, local customs or potential other practices including divination, trial by ordeal or even trial by combat.",
+            "N" => "None&#10;No formal judicial system.",
+            _   => ""
+        };
+
+        private static string GetUniformityTooltip(string code) => code switch
+        {
+            "P" => "Personal&#10;Laws vary based on a person's status. This may refer to social status, profession, caste, religion, race or another factor. In such systems, distinct Law Levels may apply to different parts of society, some laws may not apply at all to some people, others only to certain groups. Some groups may receive a DM to determination of guilt and/or sentencing.",
+            "T" => "Territorial&#10;Within the world or nation's government, subdivisions or local governments are able to set specific laws that may not apply to the government as a whole. Often, such differing restrictions apply to only one or two subcategories of Law Level or may result in complications such as non-transferable contracts, licenses or permits.",
+            "U" => "Universal&#10;The same laws apply equally to all.",
+            _   => ""
+        };
+
+        private const string JudicialProfileTooltip =
+            "PSU-I-D format&#10;" +
+            "P: Primary Judicial System (I=Inquisitorial, A=Adversarial, T=Traditional, N=None)&#10;" +
+            "S: Secondary System (same as primary if none)&#10;" +
+            "U: Law Uniformity (P=Personal, T=Territorial, U=Universal)&#10;" +
+            "I: Presumption of Innocence (Y=Yes, N=No)&#10;" +
+            "D: Death Penalty (Y=Yes, N=No)";
+
+        // Ehex with full range (skips I to avoid confusion with 1): A-H=10-17, J=18
+        private static string IntToEhexFull(int value)
+        {
+            if (value < 10) return value.ToString();
+            const string ehex = "ABCDEFGHJ";  // index 0='A'=10 … index 8='J'=18
+            int idx = value - 10;
+            return (idx >= 0 && idx < ehex.Length) ? ehex[idx].ToString() : value.ToString();
+        }
+
+        private static string GetWeaponsTooltip(int wwll)
+        {
+            string[] table = {
+                "0: No restrictions",
+                "1: Poison gas, explosives, undetectable weapons, WMDs & battle dress",
+                "2: Portable energy and laser weapons, combat armour",
+                "3: Military weapons (portable heavy weapons), flak jackets & obvious armour",
+                "4: Light assault weapons & SMGs (all fully automatic weapons), cloth armour",
+                "5: Personal concealable ranged weapons (auto pistols/revolvers), mesh armour",
+                "6: All firearms except shotguns & stunners; carrying weapons discouraged",
+                "7: Shotguns and all other ranged firearms",
+                "8: All bladed weapons, stunners, all visible armour",
+                "9: All weapons, including knives >10cm, all armour",
+                "A(10): All weapons, violations treated as serious crimes",
+                "B(11): Random sweeps for weapons violations",
+                "C(12): Active monitoring for ownership violations"
+            };
+            if (wwll == 0) return table[0];
+            var sb = new System.Text.StringBuilder();
+            for (int i = 1; i <= Math.Min(wwll, 12); i++)
+            {
+                if (sb.Length > 0) sb.Append("&#10;");
+                sb.Append(table[i]);
+            }
+            return sb.ToString();
+        }
+
+        private static string GetEconomicTooltip(int ell) => Math.Clamp(ell, 0, 12) switch
+        {
+            0  => "No contract law or licenses required",
+            1  => "Optional registration of private agreements, claim registration",
+            2  => "Registration of corporations, enforcement of claims",
+            3  => "Basic permitting and zoning laws, required licensing of corporations and tax reporting, bankruptcy law",
+            4  => "Registration of professional licenses",
+            5  => "Required professional licenses for most skilled professions",
+            6  => "Moderate permitting and zoning laws, registration fees required for professional licenses",
+            7  => "Professional licenses required for all skilled labour, periodic auditing of major financial transactions",
+            8  => "Restrictive zoning and permitting laws",
+            9  => "Active auditing of all financial transactions",
+            10 => "Arduous permitting and zoning laws",
+            11 => "Continuous auditing of all financial transactions",
+            _  => "All economic regulation enforcement transferred to criminal justice system"
+        };
+
+        private static string GetCriminalTooltip(int cll) => Math.Clamp(cll, 0, 18) switch
+        {
+            0  => "No formal legal system",
+            1  => "Grave and serious crimes prosecuted",
+            2  => "Moderate crimes prosecuted",
+            3  => "Minor crimes prosecuted",
+            4  => "Petty crimes prosecuted",
+            5  => "Trivial crimes prosecuted",
+            6  => "Public surveillance",
+            7  => "Insignificant crimes prosecuted",
+            8  => "Indefinite detention allowed",
+            9  => "No effective right to counsel",
+            10 => "Pre-emptive detention allowed",
+            11 => "Arbitrary indefinite detention allowed",
+            12 => "Arbitrary verdicts without defendant participation",
+            13 => "Paramilitary law enforcement, thought crimes prosecuted",
+            14 => "Fully-fledged police state, arbitrary executions or 'disappearances'",
+            15 => "Rigid control of daily life, gulag state",
+            16 => "Thoughts controlled, disproportionate punishments",
+            17 => "Legalised oppression",
+            _  => "Routine oppression"
+        };
+
+        private static string GetPrivateTooltip(int pll) => Math.Clamp(pll, 0, 12) switch
+        {
+            0  => "No formal legal system",
+            1  => "Duelling restricted, contract law enforcement",
+            2  => "Duelling prohibited",
+            3  => "Private settlement of all crimes prohibited",
+            4  => "Private settlement of moderate crimes prohibited",
+            5  => "Public filings of all disputes and settlements",
+            6  => "Government venue required for all settlements",
+            7  => "Limits on all tort settlements",
+            8  => "Government review of all settlements",
+            9  => "Government approval of all settlements",
+            10 => "Government adjudicated arbitration required",
+            11 => "Arbitrary government adjudication, government approval of all contracts",
+            _  => "All civil proceedings transferred to criminal justice system"
+        };
+
+        private static string GetPersonalRightsTooltip(int prll) => Math.Clamp(prll, 0, 12) switch
+        {
+            0  => "No restrictions",
+            1  => "Speech risking physical harm (e.g. yelling fire in a crowded theatre) prohibited",
+            2  => "Registration of identity, libel prohibited",
+            3  => "Group-related regulations (e.g. drinking age)",
+            4  => "Hate speech prohibited",
+            5  => "Mandatory identification papers",
+            6  => "Public Surveillance",
+            7  => "'Offensive' speech prohibited",
+            8  => "No right to protect personal data",
+            9  => "'Subversive' speech prohibited",
+            10 => "Restrictions on movement and residency",
+            11 => "Warrantless searches, government control of all information, routine surveillance of private activities",
+            _  => "Unrestricted surveillance of private activities, group punishments"
+        };
+
+        private const string LawLevelProfileTooltip =
+            "O-WECPR format&#10;" +
+            "O: Overall Law Level&#10;" +
+            "W: Weapons & Armour Law Level&#10;" +
+            "E: Economic Law Level&#10;" +
+            "C: Criminal Law Level&#10;" +
+            "P: Private Law Level&#10;" +
+            "R: Personal Rights Law Level";
+
+        private const string TechLevelProfileTooltip =
+            "H-L-abcde-fghi-jk-l format&#10;" +
+            "H: High Common TL  L: Low Common TL&#10;" +
+            "a: Energy  b: Electronics  c: Manufacturing  d: Medical  e: Environmental&#10;" +
+            "f: Land Transport  g: Water Transport  h: Air Transport  i: Space Transport&#10;" +
+            "j: Personal Military  k: Heavy Military  l: Novelty";
+
+        private const string CulturalSectionTooltip =
+            "Cultural Trait Summary&#10;" +
+            "&#10;" +
+            "Trait            Code  Low Value        High Value&#10;" +
+            "Diversity        D     Monolithic       Multicultural&#10;" +
+            "Xenophilia       X     Xenophobic       Xenophilic&#10;" +
+            "Uniqueness       U     Normal           Obscure&#10;" +
+            "Symbology        S     Concrete         Abstract&#10;" +
+            "Cohesion         C     Individualistic  Collective&#10;" +
+            "Progressiveness  P     Reactionary      Radical&#10;" +
+            "Expansionism     E     Passive          Expansionistic&#10;" +
+            "Militancy        M     Peaceful         Militant";
+
+        private const string CulturalProfileTooltip =
+            "DXUS-CPEM format&#10;" +
+            "D: Diversity  X: Xenophilia  U: Uniqueness  S: Symbology&#10;" +
+            "C: Cohesion  P: Progressiveness  E: Expansionism  M: Militancy";
+
+        // ─────────────────────────────────────────────────────────────────────────
+
+        private void DetermineTradeCodes()
+        {
+            if (mainworld == null) return;
+
+            mainworld.TradeCodes.Clear();
+
+            // Agricultural (Ag): Atm 4-9, Hyd 4-8, Pop 5-7
+            if (mainworld.Atmosphere >= 4 && mainworld.Atmosphere <= 9 &&
+                mainworld.Hydrographics >= 4 && mainworld.Hydrographics <= 8 &&
+                mainworld.Population >= 5 && mainworld.Population <= 7)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Agricultural", "Ag"));
+            }
+
+            // Asteroid (As): Size 0, Atm 0, Hyd 0
+            if (mainworld.Size == 0 && mainworld.Atmosphere == 0 && mainworld.Hydrographics == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Asteroid", "As"));
+            }
+
+            // Barren (Ba): Pop 0, Gov 0, Law 0
+            if (mainworld.Population == 0 && mainworld.Government == 0 && mainworld.LawLevel == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Barren", "Ba"));
+            }
+
+            // Desert (De): Atm 2-9, Hyd 0
+            if (mainworld.Atmosphere >= 2 && mainworld.Atmosphere <= 9 && mainworld.Hydrographics == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Desert", "De"));
+            }
+
+            // Fluid Oceans (Fl): Atm >= A, Hyd >= 1
+            if (mainworld.Atmosphere >= 10 && mainworld.Hydrographics >= 1)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Fluid Oceans", "Fl"));
+            }
+
+            // Garden (Ga): Size 6-8, Atm 5/6/8, Hyd 5-7
+            if (mainworld.Size >= 6 && mainworld.Size <= 8 &&
+                (mainworld.Atmosphere == 5 || mainworld.Atmosphere == 6 || mainworld.Atmosphere == 8) &&
+                mainworld.Hydrographics >= 5 && mainworld.Hydrographics <= 7)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Garden", "Ga"));
+            }
+
+            // High Population (Hi): Pop >= 9
+            if (mainworld.Population >= 9)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("High Population", "Hi"));
+            }
+
+            // High Tech (Ht): TL >= C
+            if (mainworld.TechLevel >= 12)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("High Tech", "Ht"));
+            }
+
+            // Ice-Capped (Ic): Atm 0/1, Hyd >= 1
+            if ((mainworld.Atmosphere == 0 || mainworld.Atmosphere == 1) && mainworld.Hydrographics >= 1)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Ice-Capped", "Ic"));
+            }
+
+            // Industrial (In): Atm 0/1/2/4/7/9/A/B/C, Pop >= 9
+            if ((mainworld.Atmosphere == 0 || mainworld.Atmosphere == 1 || mainworld.Atmosphere == 2 ||
+                 mainworld.Atmosphere == 4 || mainworld.Atmosphere == 7 || mainworld.Atmosphere == 9 ||
+                 mainworld.Atmosphere == 10 || mainworld.Atmosphere == 11 || mainworld.Atmosphere == 12) &&
+                mainworld.Population >= 9)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Industrial", "In"));
+            }
+
+            // Low Population (Lo): Pop 1-3
+            if (mainworld.Population >= 1 && mainworld.Population <= 3)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Low Population", "Lo"));
+            }
+
+            // Low Tech (Lt): Pop >= 1, TL <= 5
+            if (mainworld.Population >= 1 && mainworld.TechLevel <= 5)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Low Tech", "Lt"));
+            }
+
+            // Non-Agricultural (Na): Atm 0-3, Hyd 0-3, Pop >= 6
+            if (mainworld.Atmosphere <= 3 && mainworld.Hydrographics <= 3 && mainworld.Population >= 6)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Non-Agricultural", "Na"));
+            }
+
+            // Non-Industrial (Ni): Pop 4-6
+            if (mainworld.Population >= 4 && mainworld.Population <= 6)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Non-Industrial", "Ni"));
+            }
+
+            // Poor (Po): Atm 2-5, Hyd 0-3
+            if (mainworld.Atmosphere >= 2 && mainworld.Atmosphere <= 5 &&
+                mainworld.Hydrographics <= 3)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Poor", "Po"));
+            }
+
+            // Rich (Ri): Atm 6/8, Pop 6-8, Gov 4-9
+            if ((mainworld.Atmosphere == 6 || mainworld.Atmosphere == 8) &&
+                mainworld.Population >= 6 && mainworld.Population <= 8 &&
+                mainworld.Government >= 4 && mainworld.Government <= 9)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Rich", "Ri"));
+            }
+
+            // Vacuum (Va): Atm 0
+            if (mainworld.Atmosphere == 0)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Vacuum", "Va"));
+            }
+
+            // Waterworld (Wa): Atm 3-9 or >= D, Hyd >= A
+            if (((mainworld.Atmosphere >= 3 && mainworld.Atmosphere <= 9) || mainworld.Atmosphere >= 13) &&
+                mainworld.Hydrographics >= 10)
+            {
+                mainworld.TradeCodes.Add(new TradeCode("Waterworld", "Wa"));
+            }
+        }
+
+        private void DeterminePCR(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Initial check: Roll 1d6, if result > Population Code, PCR = 9
+            int initialRoll = Starhelper.diceRoll(6, 1, dice);
+            if (initialRoll > mainworld.Population)
+            {
+                mainworld.PCR = 9;
+                mainworld.PCRDescription = "Extremely Concentrated";
+                return;
+            }
+
+            // Calculate PCR with DMs
+            int dm = 0;
+
+            // Size DMs
+            if (mainworld.Size == 1) dm += 2;
+            else if (mainworld.Size == 2 || mainworld.Size == 3) dm += 1;
+
+            // Tidal Lock DM - check if placed world is tidally locked
+            if (mainworld.PlacedWorld != null)
+            {
+                string tidalLockStatus = "";
+                if (mainworld.PlacedWorld is TerrestrialPlanet planet)
+                {
+                    tidalLockStatus = planet.TidalLockStatus;
+                }
+                else if (mainworld.PlacedWorld is Moon moon)
+                {
+                    tidalLockStatus = moon.TidalLockStatus;
+                }
+                // PlanetoidBelt doesn't have TidalLockStatus
+
+                if (tidalLockStatus.Contains("1:1"))
+                {
+                    dm += 2;
+                }
+            }
+
+            // Minimum Sustainable Tech Level DMs
+            int minSustainableTechLevel = GetMinimalSustainableTechLevel();
+            if (minSustainableTechLevel >= 8) dm += 3;
+            else if (minSustainableTechLevel >= 3 && minSustainableTechLevel <= 7) dm += 1;
+
+            // Population DMs
+            if (mainworld.Population == 8) dm -= 1;
+            else if (mainworld.Population >= 9) dm -= 2;
+
+            // Government DMs
+            if (mainworld.Government == 7) dm -= 2;
+
+            // Tech Level DMs
+            if (mainworld.TechLevel <= 1) dm -= 2;
+            else if (mainworld.TechLevel >= 2 && mainworld.TechLevel <= 3) dm -= 1;
+            else if (mainworld.TechLevel >= 4 && mainworld.TechLevel <= 9) dm += 1;
+
+            // Trade Code DMs
+            bool hasAgricultural = mainworld.TradeCodes.Any(tc => tc.Code == "Ag");
+            bool hasIndustrial = mainworld.TradeCodes.Any(tc => tc.Code == "In");
+            bool hasNonIndustrial = mainworld.TradeCodes.Any(tc => tc.Code == "Ni");
+            bool hasRich = mainworld.TradeCodes.Any(tc => tc.Code == "Ri");
+
+            if (hasAgricultural) dm -= 2;
+            if (hasIndustrial) dm += 1;
+            if (hasNonIndustrial) dm -= 1;
+            if (hasRich) dm += 1;
+
+            // Final roll with DMs
+            int finalRoll = Starhelper.diceRoll(6, 1, dice) + dm;
+
+            // Clamp to 0-9 range
+            mainworld.PCR = Math.Clamp(finalRoll, 0, 9);
+
+            // Set description
+            mainworld.PCRDescription = mainworld.PCR switch
+            {
+                0 => "Extremely Dispersed",
+                1 => "Highly Dispersed",
+                2 => "Moderately Dispersed",
+                3 => "Partially Dispersed",
+                4 => "Slightly Dispersed",
+                5 => "Slightly Concentrated",
+                6 => "Partially Concentrated",
+                7 => "Moderately Concentrated",
+                8 => "Highly Concentrated",
+                9 => "Extremely Concentrated",
+                _ => ""
+            };
+        }
+
+        private int GetMinimalSustainableTechLevel()
+        {
+            if (mainworld == null) return 0;
+
+            int minTech = 0;
+
+            // Atmosphere-based minimum tech level
+            switch (mainworld.Atmosphere)
+            {
+                case 0:
+                case 1:
+                case 10: // A
+                    minTech = Math.Max(minTech, 8);
+                    break;
+                case 2:
+                case 3:
+                case 13: // D
+                case 14: // E
+                    minTech = Math.Max(minTech, 5);
+                    break;
+                case 4:
+                case 7:
+                case 9:
+                    minTech = Math.Max(minTech, 3);
+                    break;
+                case 11: // B
+                    minTech = Math.Max(minTech, 9);
+                    break;
+                case 12: // C
+                case 15: // F
+                    minTech = Math.Max(minTech, 10); // A in hex
+                    break;
+                case 16: // G
+                case 17: // H
+                    minTech = Math.Max(minTech, 13); // D in hex
+                    break;
+            }
+
+            // Habitability Rating-based minimum tech level
+            int habitabilityRating = 0;
+            if (mainworld.PlacedWorld is TerrestrialPlanet planet)
+            {
+                habitabilityRating = planet.HabitabilityRating;
+            }
+            else if (mainworld.PlacedWorld is Moon moon)
+            {
+                habitabilityRating = moon.HabitabilityRating;
+            }
+            // PlanetoidBelt doesn't have HabitabilityRating, defaults to 0
+
+            if (habitabilityRating >= 3 && habitabilityRating <= 7)
+            {
+                minTech = Math.Max(minTech, 3);
+            }
+            else if (habitabilityRating >= 1 && habitabilityRating <= 2)
+            {
+                minTech = Math.Max(minTech, 5);
+            }
+            else if (habitabilityRating == 0)
+            {
+                minTech = Math.Max(minTech, 8);
+            }
+
+            return minTech;
+        }
+
+        private void DetermineUrbanisation(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Calculate DMs
+            int dm = 0;
+            int? maximumPercent = null;
+            int? minimumPercent = null;
+
+            // PCR DMs
+            if (mainworld.PCR <= 2)
+            {
+                dm += -3 + mainworld.PCR; // PCR 0 = -3, PCR 1 = -2, PCR 2 = -1
+            }
+            else if (mainworld.PCR >= 7)
+            {
+                dm += -6 + mainworld.PCR; // PCR 7 = +1, PCR 8 = +2, PCR 9 = +3
+            }
+
+            // Minimal Sustainable Tech Level DMs
+            int minSustainableTechLevel = GetMinimalSustainableTechLevel();
+            if (minSustainableTechLevel == 0 || minSustainableTechLevel == 1 || minSustainableTechLevel == 3)
+            {
+                dm -= 1;
+            }
+
+            // Size DMs
+            if (mainworld.Size == 0) dm += 2;
+
+            // Population DMs
+            if (mainworld.Population == 8)
+            {
+                dm += 1;
+            }
+            else if (mainworld.Population == 9)
+            {
+                dm += 2;
+                minimumPercent = 18 + Starhelper.diceRoll(6, 1, dice);
+            }
+            else if (mainworld.Population >= 10) // A or higher
+            {
+                dm += 4;
+                minimumPercent = 50 + Starhelper.diceRoll(6, 1, dice);
+            }
+
+            // Government DMs
+            if (mainworld.Government == 0) dm -= 2;
+
+            // Law Level DMs
+            if (mainworld.LawLevel >= 9) dm += 1;
+
+            // Tech Level DMs (with caps)
+            if (mainworld.TechLevel <= 2)
+            {
+                dm -= 2;
+                int cap = 20 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel == 3)
+            {
+                dm -= 1;
+                int cap = 30 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel == 4)
+            {
+                dm += 1;
+                int cap = 60 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel >= 5 && mainworld.TechLevel <= 9)
+            {
+                dm += 1;
+                int cap = 90 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            else if (mainworld.TechLevel >= 10) // A or higher
+            {
+                dm += 1;
+            }
+
+            // Trade Code DMs (with cap)
+            bool hasAgricultural = mainworld.TradeCodes.Any(tc => tc.Code == "Ag");
+            bool hasNonIndustrial = mainworld.TradeCodes.Any(tc => tc.Code == "Ni");
+
+            if (hasAgricultural)
+            {
+                dm -= 2;
+                int cap = 90 + Starhelper.diceRoll(6, 1, dice);
+                maximumPercent = maximumPercent.HasValue ? Math.Min(maximumPercent.Value, cap) : cap;
+            }
+            if (hasNonIndustrial) dm += 2;
+
+            // Roll 2d6 + DMs
+            int roll = Starhelper.diceRoll(6, 2, dice) + dm;
+
+            // Look up urbanisation % from table
+            int urbanisation = roll switch
+            {
+                <= 0 => 0,
+                1 => Starhelper.diceRoll(6, 1, dice),
+                2 => 6 + Starhelper.diceRoll(6, 1, dice),
+                3 => 12 + Starhelper.diceRoll(6, 1, dice),
+                4 => 18 + Starhelper.diceRoll(6, 1, dice),
+                5 => 22 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                6 => 34 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                7 => 46 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                8 => 58 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                9 => 70 + (Starhelper.diceRoll(6, 1, dice) * 2) + Starhelper.diceRoll(2, 1, dice),
+                10 => 84 + Starhelper.diceRoll(6, 1, dice),
+                11 => 90 + Starhelper.diceRoll(6, 1, dice),
+                12 => 96 + Starhelper.diceRoll(3, 1, dice),
+                >= 13 => 100
+            };
+
+            // Apply maximum cap first
+            if (maximumPercent.HasValue)
+            {
+                urbanisation = Math.Min(urbanisation, maximumPercent.Value);
+            }
+
+            // Then apply minimum
+            if (minimumPercent.HasValue)
+            {
+                urbanisation = Math.Max(urbanisation, minimumPercent.Value);
+            }
+
+            // Ensure result is in valid range 0-100
+            mainworld.UrbanisationPercent = Math.Clamp(urbanisation, 0, 100);
+
+            // Calculate total urban population
+            mainworld.TotalUrbanPopulation = (long)(mainworld.ActualPopulation * (mainworld.UrbanisationPercent / 100.0));
+        }
+
+        private void DetermineNumberOfMajorCities(Random dice)
+        {
+            if (mainworld == null) return;
+
+            // Case 1: PCR = 0 (Extremely Dispersed) - No major cities
+            if (mainworld.PCR == 0)
+            {
+                mainworld.NumberOfMajorCities = 0;
+                mainworld.MajorCityPopulation = 0;
+                return;
+            }
+
+            // Case 2: Population <= 5 AND PCR = 9 (Small world, Extremely Concentrated)
+            if (mainworld.Population <= 5 && mainworld.PCR == 9)
+            {
+                mainworld.NumberOfMajorCities = 1;
+                mainworld.MajorCityPopulation = mainworld.TotalUrbanPopulation;
+                return;
+            }
+
+            // Case 3: Population <= 5 AND PCR 1-8 (Small world, Moderately Concentrated)
+            if (mainworld.Population <= 5)
+            {
+                mainworld.NumberOfMajorCities = Math.Min(9 - mainworld.PCR, mainworld.Population);
+                mainworld.MajorCityPopulation = mainworld.TotalUrbanPopulation;
+                return;
+            }
+
+            // Case 4: Population >= 6 AND PCR = 9 (Large world, Extremely Concentrated)
+            if (mainworld.PCR == 9)
+            {
+                int roll = Starhelper.diceRoll(6, 2, dice);
+                mainworld.NumberOfMajorCities = Math.Max(mainworld.Population - roll, 1);
+                mainworld.MajorCityPopulation = mainworld.TotalUrbanPopulation;
+                return;
+            }
+
+            // Case 5: All other cases (Population >= 6 AND PCR 1-8)
+            // Number of Major Cities = (2d6) - PCR + ((Urbanisation% * 20) / PCR)
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            double calculation = diceRoll - mainworld.PCR + ((mainworld.UrbanisationPercent * 20.0) / mainworld.PCR);
+            mainworld.NumberOfMajorCities = (int)Math.Ceiling(calculation); // Round UP
+
+            // Ensure at least 1 major city
+            mainworld.NumberOfMajorCities = Math.Max(1, mainworld.NumberOfMajorCities);
+
+            // Cap at 31 major cities (per specification)
+            mainworld.NumberOfMajorCities = Math.Min(31, mainworld.NumberOfMajorCities);
+
+            // Cap at population code for small worlds
+            if (mainworld.Population < 6)
+            {
+                mainworld.NumberOfMajorCities = Math.Min(mainworld.NumberOfMajorCities, mainworld.Population);
+            }
+
+            // Major Cities Population = PCR / (1d6 + 7) * Total Urban Population
+            int divisor = Starhelper.diceRoll(6, 1, dice) + 7;
+            mainworld.MajorCityPopulation = (long)((mainworld.PCR / (double)divisor) * mainworld.TotalUrbanPopulation);
+        }
+
+        private void DistributeMajorCityPopulations(Random dice)
+        {
+            if (mainworld == null || mainworld.NumberOfMajorCities == 0) return;
+
+            mainworld.MajorCities.Clear();
+
+            // Special case: Single major city gets all the population
+            if (mainworld.NumberOfMajorCities == 1)
+            {
+                mainworld.MajorCities.Add(new MajorCity(1, mainworld.MajorCityPopulation, 100));
+                return;
+            }
+
+            // Cascade allocation algorithm for multiple cities
+            // Creates more realistic variance with larger cities significantly bigger than smaller ones
+
+            // Step A: Initialize each city with base 1%
+            double[] cityPercentages = new double[mainworld.NumberOfMajorCities];
+            for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
+            {
+                cityPercentages[i] = 1.0;
+            }
+
+            // Step B: Calculate remaining pool
+            double remainingPool = 100.0 - mainworld.NumberOfMajorCities;
+
+            // Step C: Cascade distribution with variance
+            // Allocate to cities in sequence, with each taking a percentage of the remaining pool
+            // This creates natural variance where earlier cities tend to be larger
+            for (int i = 0; i < mainworld.NumberOfMajorCities && remainingPool > 0; i++)
+            {
+                // Calculate base allocation percentage for this city
+                // Higher PCR = more concentrated (larger percentage for top cities)
+                // Lower PCR = more distributed (smaller percentage for top cities)
+                double baseAllocationPercent;
+
+                if (mainworld.PCR >= 7)
+                {
+                    // Very concentrated: First city gets 40-70% of remaining, others get less
+                    baseAllocationPercent = 55.0 - (i * 8.0);
+                }
+                else if (mainworld.PCR >= 4)
+                {
+                    // Moderately concentrated: First city gets 30-50% of remaining
+                    baseAllocationPercent = 40.0 - (i * 6.0);
+                }
+                else
+                {
+                    // More distributed: First city gets 20-40% of remaining
+                    baseAllocationPercent = 30.0 - (i * 5.0);
+                }
+
+                // Ensure minimum allocation
+                baseAllocationPercent = Math.Max(5.0, baseAllocationPercent);
+
+                // Add randomness: +/- (2d6-7) percent points
+                int variance = Starhelper.diceRoll(6, 2, dice) - 7;
+                double allocationPercent = baseAllocationPercent + variance;
+
+                // Clamp to reasonable range
+                allocationPercent = Math.Max(5.0, Math.Min(80.0, allocationPercent));
+
+                // Calculate actual allocation from remaining pool
+                double allocation = (remainingPool * allocationPercent) / 100.0;
+
+                // Don't allocate more than what's remaining
+                allocation = Math.Min(allocation, remainingPool);
+
+                // Add to this city's percentage
+                cityPercentages[i] += allocation;
+                remainingPool -= allocation;
+            }
+
+            // Step D: Distribute any remaining pool across all cities proportionally
+            if (remainingPool > 0.1) // If there's a meaningful amount left
+            {
+                double totalAllocated = 100.0 - mainworld.NumberOfMajorCities - remainingPool;
+                for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
+                {
+                    double proportion = (cityPercentages[i] - 1.0) / totalAllocated;
+                    cityPercentages[i] += remainingPool * proportion;
+                }
+            }
+
+            // Step H: Total percentages (already calculated in cityPercentages array)
+
+            // Step I: Calculate actual populations
+            long onePercent = mainworld.MajorCityPopulation / 100;
+            List<MajorCity> cities = new List<MajorCity>();
+
+            for (int i = 0; i < mainworld.NumberOfMajorCities; i++)
+            {
+                long population = (long)(onePercent * cityPercentages[i]);
+                cities.Add(new MajorCity(i + 1, population, cityPercentages[i]));
+            }
+
+            // Step J: Reorder by population (largest to smallest)
+            cities.Sort((a, b) => b.Population.CompareTo(a.Population));
+
+            // Reassign city numbers (I, II, III, etc.) based on size
+            for (int i = 0; i < cities.Count; i++)
+            {
+                mainworld.MajorCities.Add(new MajorCity(i + 1, cities[i].Population, cities[i].PercentOfMajorCityPop));
+            }
+        }
+
+        private string GetGovernmentType(int governmentCode)
+        {
+            return governmentCode switch
+            {
+                0 => "None",
+                1 => "Company / Corporation",
+                2 => "Participating Democracy",
+                3 => "Self-Perpetuating Oligarchy",
+                4 => "Representative Democracy",
+                5 => "Feudal Technocracy",
+                6 => "Captive Government",
+                7 => "Balkanisation",
+                8 => "Civil Service Bureaucracy",
+                9 => "Impersonal Bureaucracy",
+                10 => "Charismatic Dictatorship",
+                11 => "Non-Charismatic Dictatorship",
+                12 => "Charismatic Oligarchy",
+                13 => "Religious Dictatorship",
+                14 => "Religious Autocracy",
+                15 => "Totalitarian Oligarchy",
+                _ => "Unknown"
+            };
+        }
+
+        private string RollBerthingFees(char starport, Random dice)
+        {
+            return starport switch
+            {
+                'A' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 1000:N0}",
+                'B' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 500:N0}",
+                'C' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 100:N0}",
+                'D' => $"Cr {Starhelper.diceRoll(6, 1, dice) * 10:N0}",
+                _ => "None"
+            };
+        }
+
+        private string GetTotalDockingSpace(char starport)
+        {
+            return starport switch
+            {
+                'A' => "100,000 tons",
+                'B' => "50,000 tons",
+                'C' => "20,000 tons",
+                'D' => "400 tons",
+                _ => "-"
+            };
+        }
+
+        private string GetShipyardCapacity(char starport)
+        {
+            return starport switch
+            {
+                'A' => "25,000 tons",
+                'B' => "10,000 tons",
+                'C' => "200 tons",
+                _ => "-"
+            };
+        }
+
+        private int GetExpectedWeeklyTraffic(int imp) => imp switch
+        {
+            >= 6 => 2000,
+               5 => 1000,
+               4 => 150,
+               3 => 30,
+               2 => 20,
+               1 => 10,
+               0 => 5,
+              -1 => 5,
+              -2 => 2,
+               _  => 1
+        };
+
+        private int RoundToNearest100(double value) =>
+            (int)(Math.Round(value / 100.0) * 100);
+
+        private void DetermineMainworldBases(Random dice)
+        {
+            if (mainworld == null) return;
+            char sp  = mainworld.Starport;
+            int pop  = mainworld.Population;
+            int tl   = mainworld.TechLevel;
+            int ll   = mainworld.LawLevel;
+
+            // Highport
+            int highportDM = 0;
+            if (pop <= 6) highportDM -= 1;
+            if (pop >= 9) highportDM += 1;
+            if (tl >= 9 && tl <= 11) highportDM += 1;
+            if (tl >= 12) highportDM += 2;
+            int highportRoll = Starhelper.diceRoll(6, 2, dice) + highportDM;
+            mainworld.HasHighport = sp switch
+            {
+                'A' => highportRoll >= 6,
+                'B' => highportRoll >= 8,
+                'C' => highportRoll >= 10,
+                'D' => highportRoll >= 12,
+                _   => false
+            };
+
+            // Naval Base
+            int navalRoll = Starhelper.diceRoll(6, 2, dice);
+            mainworld.HasNavalBase = (sp == 'A' || sp == 'B') && navalRoll >= 8;
+
+            // Scout Base
+            int scoutRoll = Starhelper.diceRoll(6, 2, dice);
+            mainworld.HasScoutBase = sp switch
+            {
+                'A' => scoutRoll >= 10,
+                'B' => scoutRoll >= 9,
+                'C' => scoutRoll >= 9,
+                'D' => scoutRoll >= 8,
+                _   => false
+            };
+
+            // Military Base
+            int milRoll = Starhelper.diceRoll(6, 2, dice);
+            mainworld.HasMilitaryBase = sp switch
+            {
+                'A' => milRoll >= 8,
+                'B' => milRoll >= 8,
+                'C' => milRoll >= 10,
+                _   => false
+            };
+
+            // Corsair Base
+            int corsairDM = 0;
+            if (ll == 0) corsairDM += 2;
+            else if (ll >= 2) corsairDM -= 2;
+            int corsairRoll = Starhelper.diceRoll(6, 2, dice) + corsairDM;
+            mainworld.HasCorsairBase = sp switch
+            {
+                'D' => corsairRoll >= 12,
+                'E' => corsairRoll >= 10,
+                'X' => corsairRoll >= 10,
+                _   => false
+            };
+
+            // Berthing Fees (rolled once, stored)
+            mainworld.BerthingFees = RollBerthingFees(sp, dice);
+        }
+
+        private void DetermineStarportCapacity(Random dice)
+        {
+            if (mainworld == null) return;
+
+            char   sp    = mainworld.Starport;
+            int    pop   = mainworld.Population;
+            int    imp   = mainworld.Economics.Importance;
+            int    wtn   = mainworld.Economics.WorldTradeNumber;
+            int    ef    = mainworld.Economics.EfficiencyFactor;
+            int    inf   = mainworld.Economics.InfrastructureFactor;
+            double gwp   = mainworld.Economics.TotalGWPMCr;
+            int    tl    = mainworld.TechLevel;
+            bool   hasHP = mainworld.HasHighport;
+
+            // ── Traffic ──────────────────────────────────────────────────────
+            int impTraffic = imp;
+            if (wtn >= 10) impTraffic++;
+            if (wtn <= 4)  impTraffic--;
+            impTraffic = Math.Clamp(impTraffic, -3, 6);
+            mainworld.ExpectedWeeklyTraffic = GetExpectedWeeklyTraffic(impTraffic);
+
+            // ── Docking capacity ─────────────────────────────────────────────
+            int    impCap = Math.Max(1, imp);
+            int    weekly = mainworld.ExpectedWeeklyTraffic;
+
+            double AdditiveCapacity(int multiplier)
+            {
+                double factor = (1.0 + Starhelper.diceRoll(6, 1, dice) + ef) / 5.0;
+                return Math.Max(0.0, impCap * weekly * multiplier * pop * factor);
+            }
+
+            if (hasHP)
+            {
+                double hpBase = sp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, _ => 0 };
+                int    hpMult = sp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, _ => 0 };
+                mainworld.HighportTotalDocking = RoundToNearest100(hpBase + AdditiveCapacity(hpMult));
+
+                mainworld.DownportTotalDocking = RoundToNearest100(
+                    mainworld.HighportTotalDocking * 0.10 * Starhelper.diceRoll(6, 1, dice));
+            }
+            else
+            {
+                double dpBase = sp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, 'E' => 400, _ => 0 };
+                int    dpMult = sp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, 'E' => 100, _ => 0 };
+                mainworld.DownportTotalDocking = RoundToNearest100(dpBase + AdditiveCapacity(dpMult));
+            }
+
+            // Enforce minimum total capacity
+            int minCap = sp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 400, _ => 0 };
+            int total  = mainworld.HighportTotalDocking + mainworld.DownportTotalDocking;
+            if (total < minCap)
+                mainworld.DownportTotalDocking += minCap - total;
+
+            // ── Starport Build Capacity ──────────────────────────────────────
+            if (sp is not ('A' or 'B' or 'C'))
+            {
+                mainworld.StarportBuildCapacity = 0;
+            }
+            else
+            {
+                int buildDM = 0;
+                if (tl <= 8)              buildDM -= 4;
+                if (tl >= 12 && tl <= 14) buildDM += 2;
+                if (tl >= 15)             buildDM += 4;
+                if (mainworld.TradeCodes.Any(tc => tc.Code == "Ni")) buildDM -= 2;
+                if (mainworld.TradeCodes.Any(tc => tc.Code == "In")) buildDM += 2;
+
+                int    roll     = Starhelper.diceRoll(6, 1, dice);
+                double buildCap;
+
+                if (sp == 'A')
+                {
+                    buildCap = Math.Max(0, (ef + inf + roll + buildDM) * (gwp / 20_000.0));
+                    buildCap = RoundToNearest100(buildCap);
+                    if (buildCap < 9_000)
+                        buildCap = 9_000 + Starhelper.diceRoll(6, 1, dice) * 500;
+                }
+                else if (sp == 'B')
+                {
+                    buildCap = Math.Max(0, (ef + inf + roll + buildDM) * (gwp / 100_000.0));
+                    buildCap = RoundToNearest100(buildCap);
+                    if (buildCap < 5_000)
+                        buildCap = 4_000 + Starhelper.diceRoll(6, 2, dice) * 100;
+                }
+                else  // 'C'
+                {
+                    buildCap = Math.Max(0, (ef + inf + roll - 3 + buildDM) * (gwp / 15_000.0));
+                    buildCap = RoundToNearest100(buildCap);
+                }
+                mainworld.StarportBuildCapacity = (int)buildCap;
+            }
+
+            // ── Annual Shipyard Output ───────────────────────────────────────
+            if (mainworld.StarportBuildCapacity > 0)
+            {
+                double annual;
+                if (sp is 'A' or 'B')
+                    annual = imp >= 1
+                        ? mainworld.StarportBuildCapacity / (double)imp
+                        : mainworld.StarportBuildCapacity * (1.0 - imp);
+                else
+                    annual = 10.0 * mainworld.StarportBuildCapacity;
+
+                mainworld.AnnualShipyardOutput = RoundToNearest100(annual);
+            }
+
+            // ── AIW spaceport capacity ────────────────────────────────────────
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                char   aSp    = aiw.EquivalentStarportClass;
+                int    aPop   = aiw.PopulationCode;
+                int    aImp   = aiw.Economics.Importance;
+                int    aWtn   = aiw.Economics.WorldTradeNumber;
+                int    aEf    = aiw.Economics.EfficiencyFactor;
+                int    aInf   = aiw.Economics.InfrastructureFactor;
+                double aGwp   = aiw.Economics.TotalGWPMCr;
+                int    aTl    = aiw.TechLevel;
+                bool   aHasHP = aiw.HasHighport;
+
+                int aImpTraffic = aImp;
+                if (aWtn >= 10) aImpTraffic++;
+                if (aWtn <= 4)  aImpTraffic--;
+                aImpTraffic = Math.Clamp(aImpTraffic, -3, 6);
+                aiw.ExpectedWeeklyTraffic = GetExpectedWeeklyTraffic(aImpTraffic);
+
+                int    aImpCap = Math.Max(1, aImp);
+                int    aWeekly = aiw.ExpectedWeeklyTraffic;
+
+                double AdditiveAiw(int multiplier)
+                {
+                    double factor = (1.0 + Starhelper.diceRoll(6, 1, dice) + aEf) / 5.0;
+                    return Math.Max(0.0, aImpCap * aWeekly * multiplier * aPop * factor);
+                }
+
+                if (aHasHP)
+                {
+                    double hpBase = aSp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, _ => 0 };
+                    int    hpMult = aSp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, _ => 0 };
+                    aiw.HighportTotalDocking = RoundToNearest100(hpBase + AdditiveAiw(hpMult));
+                    aiw.DownportTotalDocking = RoundToNearest100(
+                        aiw.HighportTotalDocking * 0.10 * Starhelper.diceRoll(6, 1, dice));
+                }
+                else
+                {
+                    double dpBase = aSp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 500, 'E' => 400, _ => 0 };
+                    int    dpMult = aSp switch { 'A' => 500,     'B' => 500,    'C' => 200,    'D' => 100, 'E' => 100, _ => 0 };
+                    aiw.DownportTotalDocking = RoundToNearest100(dpBase + AdditiveAiw(dpMult));
+                }
+
+                int aMinCap = aSp switch { 'A' => 100_000, 'B' => 50_000, 'C' => 20_000, 'D' => 400, _ => 0 };
+                if (aiw.HighportTotalDocking + aiw.DownportTotalDocking < aMinCap)
+                    aiw.DownportTotalDocking += aMinCap - (aiw.HighportTotalDocking + aiw.DownportTotalDocking);
+
+                if (aSp is 'A' or 'B' or 'C')
+                {
+                    int buildDM = 0;
+                    if (aTl <= 8)              buildDM -= 4;
+                    if (aTl >= 12 && aTl <= 14) buildDM += 2;
+                    if (aTl >= 15)             buildDM += 4;
+                    if (aiw.TradeCodes.Any(tc => tc.Code == "Ni")) buildDM -= 2;
+                    if (aiw.TradeCodes.Any(tc => tc.Code == "In")) buildDM += 2;
+
+                    int    aRoll    = Starhelper.diceRoll(6, 1, dice);
+                    double aBuildCap;
+                    if (aSp == 'A')
+                    {
+                        aBuildCap = Math.Max(0, (aEf + aInf + aRoll + buildDM) * (aGwp / 20_000.0));
+                        aBuildCap = RoundToNearest100(aBuildCap);
+                        if (aBuildCap < 9_000) aBuildCap = 9_000 + Starhelper.diceRoll(6, 1, dice) * 500;
+                    }
+                    else if (aSp == 'B')
+                    {
+                        aBuildCap = Math.Max(0, (aEf + aInf + aRoll + buildDM) * (aGwp / 100_000.0));
+                        aBuildCap = RoundToNearest100(aBuildCap);
+                        if (aBuildCap < 5_000) aBuildCap = 4_000 + Starhelper.diceRoll(6, 2, dice) * 100;
+                    }
+                    else
+                    {
+                        aBuildCap = Math.Max(0, (aEf + aInf + aRoll - 3 + buildDM) * (aGwp / 15_000.0));
+                        aBuildCap = RoundToNearest100(aBuildCap);
+                    }
+                    aiw.StarportBuildCapacity = (int)aBuildCap;
+
+                    if (aiw.StarportBuildCapacity > 0)
+                    {
+                        double aAnnual = (aSp is 'A' or 'B')
+                            ? (aImp >= 1 ? aiw.StarportBuildCapacity / (double)aImp : aiw.StarportBuildCapacity * (1.0 - aImp))
+                            : 10.0 * aiw.StarportBuildCapacity;
+                        aiw.AnnualShipyardOutput = RoundToNearest100(aAnnual);
+                    }
+                }
+            }
+        }
+
+        // ─── Military ────────────────────────────────────────────────────────────
+
+        private static int MilitancyDM(int m) => m switch
+        {
+            <= 0   =>  0,
+            1 or 2 => -4,
+            3 or 4 => -1,
+            5      =>  0,
+            6 or 7 or 8 => +1,
+            9 or 10 or 11 => +2,   // 9, A, B
+            _      => +4           // >= C (12+)
+        };
+
+        private static int FactionRelDM(string code) => code switch
+        {
+            "5" => +1,
+            "6" => +1,
+            "7" => +2,
+            "8" => +3,
+            "9" => +4,
+            _   =>  0
+        };
+
+        private static int WorstFactionRelDM(List<FactionRelationship> rels)
+        {
+            int best = 0;
+            foreach (var r in rels)
+            {
+                int dm = FactionRelDM(r.Code);
+                if (dm > best) best = dm;
+            }
+            return best;
+        }
+
+        private static bool HasFactionalUprisings(List<Faction> factions, List<FactionRelationship> rels)
+        {
+            foreach (var rel in rels)
+            {
+                if (!int.TryParse(rel.Code, out int code) || code < 6) continue;
+                var f1 = factions.FirstOrDefault(f => f.Number == rel.Faction1Number);
+                var f2 = factions.FirstOrDefault(f => f.Number == rel.Faction2Number);
+                if (f1 == null || f2 == null) continue;
+                bool oneGov = (f1.StrengthCode == "G") != (f2.StrengthCode == "G");
+                if (oneGov) return true;
+            }
+            return false;
+        }
+
+        private static int StarportDM_SysDefNav(char starport) => starport switch
+        {
+            'A' => +4,
+            'B' => +2,
+            'C' => +1,
+            'E' => -2,
+            'X' => -8,
+            _   =>  0
+        };
+
+        internal static MilitaryData CalculateWorldMilitary(
+            int    popCode,
+            int    govCode,
+            int    lawLevel,
+            int    hydro,
+            int    atmosphere,
+            int    techLevel,
+            int    pcr,
+            char   starport,
+            bool   hasHighport,
+            bool   hasNavalBase,
+            bool   hasMilitaryBase,
+            bool   hasMilitaryBaseOnSubordinate,   // mainworld: any AIW under authority has mil base
+            int    militancy,
+            int    expansionism,
+            List<Faction> factions,
+            List<FactionRelationship> relationships,
+            bool   isUnderMainworldAuthority,
+            Random dice)
+        {
+            var mil = new MilitaryData();
+
+            int commonDM = MilitancyDM(militancy) + WorstFactionRelDM(relationships);
+            bool uprisings = HasFactionalUprisings(factions, relationships);
+
+            // ── Enforcement Branch ────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (govCode == 0)  dm -= 5;
+                if (govCode == 11) dm += 2;   // Gov B
+                if (lawLevel == 0) dm -= 4;
+                else if (lawLevel == 1) dm -= 2;
+                else if (lawLevel == 2) dm -= 1;
+                if (lawLevel >= 9 && lawLevel <= 11) dm += 2;
+                if (lawLevel >= 12) dm += 4;
+                if (pcr >= 0 && pcr <= 4) dm += 2;
+                if (uprisings) dm += 2;
+                mil.EnforcementBranch = 3 + dm;
+            }
+
+            // ── Militia Branch ────────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (govCode == 1) dm += 4;
+                if (govCode == 2) dm += 2;
+                if (govCode == 6) dm -= 6;
+                dm -= lawLevel;
+                if (pcr >= 0 && pcr <= 2) dm += 2;
+                else if (pcr >= 3 && pcr <= 4) dm += 1;
+                else if (pcr >= 6) dm -= 1;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.MilitiaBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Army Branch ───────────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (mil.MilitiaBranch > 0) dm -= 2;
+                if (govCode == 0) dm -= 6;
+                if (govCode == 7) dm += 4;
+                if (govCode >= 10) dm += 4;
+                if (techLevel >= 0 && techLevel <= 7) dm += 4;
+                else if (techLevel >= 8) dm -= 2;
+                if (hasMilitaryBase || hasMilitaryBaseOnSubordinate) dm += 6;
+                if (uprisings) dm += 2;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.ArmyBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Wet Navy Branch ───────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (hydro == 0) dm -= 20;
+                else if (hydro >= 1 && hydro <= 3) dm -= 5;
+                else if (hydro == 8) dm += 2;
+                else if (hydro == 9) dm += 4;
+                else if (hydro >= 10) dm += 8;
+                if (govCode == 7) dm += 4;
+                if (techLevel == 0) dm -= 8;
+                else if (techLevel >= 8 && techLevel <= 9) dm -= 2;
+                else if (techLevel >= 10) dm -= techLevel;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.WetNavyBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Air Force Branch ──────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (techLevel <= 8)
+                {
+                    if (atmosphere == 0 || atmosphere == 1) dm -= 20;
+                    else if (atmosphere == 2 || atmosphere == 3 || atmosphere == 14) dm -= 8;
+                    else if (atmosphere == 4 || atmosphere == 5) dm -= 2;
+                }
+                if (govCode == 7) dm += 4;
+                if (techLevel <= 2) dm -= 20;
+                else if (techLevel == 3) dm -= 10;
+                else if (techLevel >= 10 && techLevel <= 12) dm -= 4;
+                else if (techLevel >= 13) dm -= 6;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.AirForceBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── System Defence Branch ─────────────────────────────────────────────
+            if (isUnderMainworldAuthority)
+            {
+                mil.SystemDefenceBranch = 0;
+            }
+            else
+            {
+                int dm = commonDM;
+                if (popCode <= 3) dm -= 6;
+                else if (popCode <= 5) dm -= 2;
+                if (techLevel <= 5) dm -= 20;
+                else if (techLevel == 6) dm -= 8;
+                else if (techLevel == 7) dm -= 6;
+                else if (techLevel == 8) dm -= 2;
+                dm += StarportDM_SysDefNav(starport);
+                if (hasHighport) dm += 2;
+                if (hasNavalBase) dm += 4;
+                if (hasMilitaryBase) dm += 2;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.SystemDefenceBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Navy Branch ───────────────────────────────────────────────────────
+            if (isUnderMainworldAuthority)
+            {
+                mil.NavyBranch = 0;
+            }
+            else
+            {
+                int dm = commonDM;
+                if (popCode <= 3) dm -= 6;
+                else if (popCode <= 6) dm -= 3;
+                if (techLevel <= 5) dm -= 20;
+                else if (techLevel == 6) dm -= 12;
+                else if (techLevel == 7) dm -= 8;
+                else if (techLevel == 8) dm -= 6;
+                if (starport == 'A') dm += 4;
+                else if (starport == 'B') dm += 1;
+                else if (starport == 'E') dm -= 2;
+                else if (starport == 'X') dm -= 8;
+                if (hasHighport) dm += 2;
+                if (hasNavalBase) dm += 4;
+                if (hasMilitaryBase) dm += 2;
+                if (expansionism >= 1 && expansionism <= 5) dm -= 2;
+                else if (expansionism >= 9 && expansionism <= 11) dm += 2;
+                else if (expansionism >= 12) dm += 4;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.NavyBranch = raw < 4 ? 0 : raw;
+            }
+
+            // ── Marine Branch ─────────────────────────────────────────────────────
+            {
+                int dm = commonDM;
+                if (popCode <= 5) dm -= 4;
+                if (techLevel <= 8) dm -= 6;
+                if (hasNavalBase) dm += 2;
+                if (hasMilitaryBase) dm += 2;
+                if (mil.NavyBranch == 0) dm -= 6;
+                if (mil.SystemDefenceBranch == 0) dm -= 6;
+                if (expansionism >= 1 && expansionism <= 5) dm -= 4;
+                else if (expansionism >= 9 && expansionism <= 11) dm += 1;
+                else if (expansionism >= 12) dm += 2;
+                int raw = Starhelper.diceRoll(6, 2, dice) + dm;
+                mil.MarineBranch = raw < 4 ? 0 : raw;
+            }
+
+            return mil;
+        }
+
+        internal static int CalcBudgetDM(int govCode, int lawLevel,
+            bool hasNavalBase, bool hasMilitaryBase, int militancy, MilitaryData mil)
+        {
+            int dm = 0;
+            if (govCode == 0 || govCode == 2 || govCode == 4) dm -= 2;
+            else if (govCode == 5)  dm += 1;
+            else if (govCode == 9)  dm -= 1;
+            else if (govCode == 10 || govCode == 15) dm += 3;          // A or F
+            else if (govCode == 11 || govCode == 12 || govCode == 14) dm += 2; // B, C, or E
+            if (lawLevel >= 12) dm += 2;                                // >= C
+            if (hasNavalBase)   dm += 4;
+            if (hasMilitaryBase) dm += 2;
+            dm += militancy - 5;
+            int totalBranches = mil.EnforcementBranch + mil.MilitiaBranch + mil.ArmyBranch
+                              + mil.WetNavyBranch   + mil.AirForceBranch + mil.SystemDefenceBranch
+                              + mil.NavyBranch      + mil.MarineBranch;
+            dm += -4 + (totalBranches / 10);
+            return dm;
+        }
+
+        internal static double CalcBasicMilitaryBudget(int efficiencyFactor, int budgetDM, Random dice)
+        {
+            int roll = Math.Max(-9, Starhelper.diceRoll(6, 2, dice) - 7 + budgetDM);
+            return 2.0 * (1.0 + efficiencyFactor / 10.0) * (1.0 + roll / 10.0);
+        }
+
+        private void DetermineWorldMilitary(Random dice)
+        {
+            // ── Mainworld ─────────────────────────────────────────────────────────
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                // Army Branch: military base on any subordinate AIW also grants +6
+                bool subMilBase = additionalInhabitedWorlds.Any(a => !a.IsIndependent && a.HasMilitaryBase);
+
+                mainworld.Military = CalculateWorldMilitary(
+                    popCode:                       mainworld.Population,
+                    govCode:                       mainworld.Government,
+                    lawLevel:                      mainworld.LawLevel,
+                    hydro:                         mainworld.Hydrographics,
+                    atmosphere:                    mainworld.Atmosphere,
+                    techLevel:                     mainworld.TechLevel,
+                    pcr:                           mainworld.PCR,
+                    starport:                      mainworld.Starport,
+                    hasHighport:                   mainworld.HasHighport,
+                    hasNavalBase:                  mainworld.HasNavalBase,
+                    hasMilitaryBase:               mainworld.HasMilitaryBase,
+                    hasMilitaryBaseOnSubordinate:  subMilBase,
+                    militancy:                     mainworld.Culture.Militancy,
+                    expansionism:                  mainworld.Culture.Expansionism,
+                    factions:                      worldFactions,
+                    relationships:                 factionRelationships,
+                    isUnderMainworldAuthority:     false,
+                    dice:                          dice);
+
+                // Basic Military Budget for mainworld
+                mainworld.Military.BudgetDM = CalcBudgetDM(
+                    mainworld.Government, mainworld.LawLevel,
+                    mainworld.HasNavalBase, mainworld.HasMilitaryBase,
+                    mainworld.Culture.Militancy, mainworld.Military);
+                mainworld.Military.BasicMilitaryBudget = CalcBasicMilitaryBudget(
+                    mainworld.Economics.EfficiencyFactor, mainworld.Military.BudgetDM, dice);
+            }
+
+            // ── Additional Inhabited Worlds ───────────────────────────────────────
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                // Independent AIWs use their own equivalent starport class
+                char sp = aiw.IsIndependent ? aiw.EquivalentStarportClass : mainworld!.Starport;
+
+                aiw.Military = CalculateWorldMilitary(
+                    popCode:                       aiw.PopulationCode,
+                    govCode:                       aiw.GovernmentCode,
+                    lawLevel:                      aiw.LawLevel,
+                    hydro:                         aiw.Hydrographics,
+                    atmosphere:                    aiw.Atmosphere,
+                    techLevel:                     aiw.TechLevel,
+                    pcr:                           aiw.PCR,
+                    starport:                      sp,
+                    hasHighport:                   aiw.HasHighport,
+                    hasNavalBase:                  aiw.HasNavalBase,
+                    hasMilitaryBase:               aiw.HasMilitaryBase,
+                    hasMilitaryBaseOnSubordinate:  false,
+                    militancy:                     aiw.Culture.Militancy,
+                    expansionism:                  aiw.Culture.Expansionism,
+                    factions:                      aiw.Factions,
+                    relationships:                 aiw.FactionRelationships,
+                    isUnderMainworldAuthority:     !aiw.IsIndependent,
+                    dice:                          dice);
+
+                // Basic Military Budget for AIW
+                int aiwBudgetDM;
+                if (!aiw.IsIndependent && mainworld != null)
+                {
+                    // Subordinate: inherit mainworld DM, +6 if military base or penal colony
+                    bool hasPenalColony = aiw.TradeCodes.Any(tc => tc.Code == "Pe");
+                    aiwBudgetDM = mainworld.Military.BudgetDM
+                                + ((aiw.HasMilitaryBase || hasPenalColony) ? 6 : 0);
+                }
+                else
+                {
+                    aiwBudgetDM = CalcBudgetDM(
+                        aiw.GovernmentCode, aiw.LawLevel,
+                        aiw.HasNavalBase, aiw.HasMilitaryBase,
+                        aiw.Culture.Militancy, aiw.Military);
+                }
+                aiw.Military.BudgetDM = aiwBudgetDM;
+                aiw.Military.BasicMilitaryBudget = CalcBasicMilitaryBudget(
+                    aiw.Economics.EfficiencyFactor, aiwBudgetDM, dice);
+            }
+        }
+
+        private (char spaceportClass, char equivalentClass) RollSpaceportClass(int popCode, Random dice)
+        {
+            int dm = 0;
+            if (popCode >= 6) dm += 2;
+            if (popCode == 1) dm -= 1;
+            if (popCode == 0) dm -= 3;
+            int result = Starhelper.diceRoll(6, 1, dice) + dm;
+            return result switch
+            {
+                <= 2   => ('Y', 'X'),
+                   3   => ('H', 'E'),
+                4 or 5 => ('G', 'D'),
+                   6   => ('F', 'C'),
+                   7   => ('F', 'B'),
+                   _   => ('F', 'A')  // 8+
+            };
+        }
+
+        private void DetermineSpaceports(Random dice)
+        {
+            bool mainworldHasHighport = mainworld?.HasHighport ?? false;
+
+            // ── AIW spaceports ────────────────────────────────────────────────
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                (aiw.SpaceportClass, aiw.EquivalentStarportClass) = RollSpaceportClass(aiw.PopulationCode, dice);
+
+                // Highport: non-independent worlds blocked unless mainworld also has one
+                if (!aiw.IsIndependent && !mainworldHasHighport)
+                {
+                    aiw.HasHighport = false;
+                }
+                else
+                {
+                    int hpDM = 0;
+                    if (aiw.PopulationCode >= 9) hpDM += 1;
+                    if (aiw.TechLevel >= 9 && aiw.TechLevel <= 11) hpDM += 1;
+                    if (aiw.TechLevel >= 12) hpDM += 2;
+                    int hpRoll = Starhelper.diceRoll(6, 2, dice) + hpDM;
+                    aiw.HasHighport = aiw.EquivalentStarportClass switch
+                    {
+                        'A' => hpRoll >= 6,
+                        'B' => hpRoll >= 8,
+                        'C' => hpRoll >= 10,
+                        'D' => hpRoll >= 12,
+                        _   => false
+                    };
+                }
+
+                char eq = aiw.EquivalentStarportClass;
+
+                // Naval Base
+                int navalRoll = Starhelper.diceRoll(6, 2, dice);
+                aiw.HasNavalBase = (eq == 'A' || eq == 'B') && navalRoll >= 8;
+
+                // Scout Base
+                int scoutRoll = Starhelper.diceRoll(6, 2, dice);
+                aiw.HasScoutBase = eq switch
+                {
+                    'A' => scoutRoll >= 10,
+                    'B' => scoutRoll >= 9,
+                    'C' => scoutRoll >= 9,
+                    'D' => scoutRoll >= 8,
+                    _   => false
+                };
+
+                // Military Base (preserve Mb trade-code flag if already set)
+                if (!aiw.HasMilitaryBase)
+                {
+                    int milRoll = Starhelper.diceRoll(6, 2, dice);
+                    aiw.HasMilitaryBase = eq switch
+                    {
+                        'A' => milRoll >= 8,
+                        'B' => milRoll >= 8,
+                        'C' => milRoll >= 10,
+                        _   => false
+                    };
+                }
+
+                // Corsair Base
+                int corsairDM = 0;
+                if (aiw.LawLevel == 0) corsairDM += 2;
+                else if (aiw.LawLevel >= 2) corsairDM -= 2;
+                int corsairRoll = Starhelper.diceRoll(6, 2, dice) + corsairDM;
+                aiw.HasCorsairBase = eq switch
+                {
+                    'D' => corsairRoll >= 12,
+                    'E' => corsairRoll >= 10,
+                    'X' => corsairRoll >= 10,
+                    _   => false
+                };
+
+                // Berthing Fees
+                aiw.BerthingFees = RollBerthingFees(eq, dice);
+
+                // Update UWP first character from 'X' to actual spaceport class
+                if (aiw.UWP.Length > 0)
+                    aiw.UWP = $"{aiw.SpaceportClass}{aiw.UWP[1..]}";
+            }
+
+            // ── Non-mainworld, non-AIW TerrestrialPlanets and their moons ────
+            foreach (var (cobj, _) in GetAllCelestialBodiesOfType(CelestialBodyType.TerrestrialPlanet))
+            {
+                if (cobj.celestrialObject is not TerrestrialPlanet tp) continue;
+                if (mainworld?.PlacedWorld == tp) continue;
+                if (additionalInhabitedWorlds.Any(a => a.World == tp)) continue;
+
+                (tp.SpaceportClass, _) = RollSpaceportClass(0, dice);
+
+                foreach (var moon in tp.Moons)
+                {
+                    if (mainworld?.PlacedWorld == moon) continue;
+                    if (additionalInhabitedWorlds.Any(a => a.World == moon)) continue;
+                    (moon.SpaceportClass, _) = RollSpaceportClass(0, dice);
+                }
+            }
+
+            // ── Non-mainworld, non-AIW Moons of GasGiants ────────────────────
+            foreach (var (cobj, _) in GetAllCelestialBodiesOfType(CelestialBodyType.GasGiant))
+            {
+                if (cobj.celestrialObject is not GasGiant gg) continue;
+                foreach (var moon in gg.Moons)
+                {
+                    if (mainworld?.PlacedWorld == moon) continue;
+                    if (additionalInhabitedWorlds.Any(a => a.World == moon)) continue;
+                    (moon.SpaceportClass, _) = RollSpaceportClass(0, dice);
+                }
+            }
+        }
+
+        private char GetStarportClass(int result)
+        {
+            if (result <= 2) return 'X';
+            if (result <= 4) return 'E';
+            if (result <= 6) return 'D';
+            if (result <= 8) return 'C';
+            if (result <= 10) return 'B';
+            return 'A';
+        }
+
+        private int GetTechLevelDM(MainworldData mw)
+        {
+            int dm = 0;
+
+            // Starport DMs
+            if (mw.Starport == 'A') dm += 6;
+            else if (mw.Starport == 'B') dm += 4;
+            else if (mw.Starport == 'C') dm += 2;
+            else if (mw.Starport == 'X') dm -= 4;
+
+            // Size DMs
+            if (mw.Size == 0 || mw.Size == 1) dm += 2;
+            else if (mw.Size >= 2 && mw.Size <= 4) dm += 1;
+
+            // Atmosphere DMs
+            if (mw.Atmosphere <= 3 || mw.Atmosphere >= 10) dm += 1;
+
+            // Hydrographics DMs
+            if (mw.Hydrographics == 0) dm += 1;
+            else if (mw.Hydrographics == 9) dm += 1;
+            else if (mw.Hydrographics == 10) dm += 2;
+
+            // Population DMs
+            if (mw.Population >= 1 && mw.Population <= 5) dm += 1;
+            else if (mw.Population >= 8 && mw.Population <= 10) dm += 1;
+
+            // Government DMs
+            if (mw.Government == 0 || mw.Government == 5) dm += 1;
+            else if (mw.Government == 7) dm += 2;
+            else if (mw.Government == 13 || mw.Government == 14) dm -= 2;
+
+            return dm;
+        }
+
+        private int GetMinimumTechLevel(int atmosphere, int habitabilityRating)
+        {
+            int minTL = 0;
+
+            // Atmosphere-based minimums
+            if (atmosphere == 0 || atmosphere == 1 || atmosphere == 10) // 0, 1, or A
+                minTL = Math.Max(minTL, 8);
+            else if (atmosphere == 2 || atmosphere == 3 || atmosphere == 13 || atmosphere == 14) // 2, 3, D, E
+                minTL = Math.Max(minTL, 5);
+            else if (atmosphere == 4 || atmosphere == 7 || atmosphere == 9)
+                minTL = Math.Max(minTL, 3);
+            else if (atmosphere == 11) // B
+                minTL = Math.Max(minTL, 9);
+            else if (atmosphere == 12) // C
+                minTL = Math.Max(minTL, 10);
+            else if (atmosphere == 16 || atmosphere == 17) // G, H
+                minTL = Math.Max(minTL, 13);
+            else if (atmosphere == 15) // F
+                minTL = Math.Max(minTL, 10);
+
+            // Habitability-based minimums
+            if (habitabilityRating >= 3 && habitabilityRating <= 7)
+                minTL = Math.Max(minTL, 3);
+            else if (habitabilityRating >= 1 && habitabilityRating <= 2)
+                minTL = Math.Max(minTL, 5);
+            else if (habitabilityRating == 0)
+                minTL = Math.Max(minTL, 8);
+
+            return minTL;
+        }
+
+        internal static string IntToEhex(int value)
+        {
+            if (value < 10)
+                return value.ToString();
+            else
+                return ((char)('A' + value - 10)).ToString();
+        }
+
+        internal static int GetWTNStarportModifier(int baseWTN, char starport)
+        {
+            int row = baseWTN switch { <= 1 => 0, <= 3 => 1, <= 5 => 2, <= 7 => 3, <= 9 => 4, <= 11 => 5, <= 13 => 6, _ => 7 };
+            int col = starport switch { 'A' => 0, 'B' => 1, 'C' => 2, 'D' => 3, 'E' => 4, _ => 5 };
+            int[,] t =
+            {
+                {  3,  2,  2,  1,  1,  0 },
+                {  2,  2,  1,  1,  0,  0 },
+                {  2,  1,  1,  0,  0, -5 },
+                {  1,  1,  0,  0, -1, -6 },
+                {  1,  0,  0, -1, -2, -7 },
+                {  0,  0, -1, -2, -3, -8 },
+                {  0, -1, -2, -3, -4, -9 },
+                {  0, -2, -3, -4, -5,-10 },
+            };
+            return t[row, col];
+        }
+
+        private string RollTariffString(int tariffResult, Random dice)
+        {
+            if (tariffResult <= 3) return "Free Trade Zone, no tariffs";
+            if (tariffResult == 4)
+            {
+                int r = Starhelper.diceRoll(6, 1, dice);
+                if (r == 1) return $"{Starhelper.diceRoll(6, 1, dice)}% on all foreign polity goods";
+                if (r == 2) return $"{Starhelper.diceRoll(6, 2, dice)}% on all foreign polity goods";
+                if (r <= 4)  return "Varying tariffs, 1D6 x 1D6% for each trade goods type on all foreign polity goods";
+                return $"{Starhelper.diceRoll(6, 2, dice) * 5}% on all foreign polity goods";
+            }
+            if (tariffResult == 5)  return "Tariffs only apply on a class of goods on 8+ on 2D6";
+            if (tariffResult == 6)  return $"{Starhelper.diceRoll(6, 1, dice)}% on all inbound goods";
+            if (tariffResult == 7)  return $"{Starhelper.diceRoll(6, 2, dice)}% on all inbound goods";
+            if (tariffResult <= 9)  return "Varying tariffs, 1D6 x 1D6% for each trade goods type on all inbound goods";
+            if (tariffResult <= 11) return $"{Starhelper.diceRoll(6, 2, dice) * 5}% on all inbound goods";
+            if (tariffResult <= 13) return $"{Starhelper.diceRoll(6, 2, dice) * 10}% on all inbound goods";
+            return $"{Starhelper.diceRoll(6, 2, dice) * 20}% on all inbound goods";
+        }
+
+        private int GetMainworldResourceRating()
+        {
+            if (mainworld?.PlacedWorld is TerrestrialPlanet tp) return tp.ResourceRating;
+            if (mainworld?.PlacedWorld is Moon m)              return m.ResourceRating;
+            return 0;
+        }
+
+        private int CalculateImportance(char starport, int popCode, int tl,
+            List<TradeCode> codes, bool naval, bool scout, bool military, bool xboat)
+        {
+            int imp = 0;
+            if (starport == 'A' || starport == 'B') imp += 1;
+            if (starport == 'D' || starport == 'E' || starport == 'X') imp -= 1;
+            if (popCode <= 6) imp -= 1;
+            if (popCode >= 9) imp += 1;
+            if (tl <= 8) imp -= 1;
+            if (tl >= 10 && tl <= 15) imp += 1;   // A-F
+            if (tl >= 16) imp += 2;               // G+
+            if (codes.Any(tc => tc.Code == "Ag")) imp += 1;
+            if (codes.Any(tc => tc.Code == "In")) imp += 1;
+            if (codes.Any(tc => tc.Code == "Ri")) imp += 1;
+            int milBases = (naval ? 1 : 0) + (scout ? 1 : 0) + (military ? 1 : 0);
+            if (milBases >= 2) imp += 1;
+            if (xboat) imp += 1;
+            return imp;
+        }
+
+        private string DetermineTerrestrialSize(Random dice)
+        {
+            // First roll: 1d6
+            int firstRoll = Starhelper.diceRoll(6, 1, dice);
+            int size = 0;
+
+            DebugLogger.LogFormat("    First roll: {0}", firstRoll);
+
+            // Determine size based on first roll
+            if (firstRoll >= 1 && firstRoll <= 2)
+            {
+                // Roll 1d6, size range 1-6
+                size = Starhelper.diceRoll(6, 1, dice);
+                DebugLogger.LogFormat("    Second roll (1d6): {0}", size);
+            }
+            else if (firstRoll >= 3 && firstRoll <= 4)
+            {
+                // Roll 2d6, size range 2-12 (C)
+                size = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogFormat("    Second roll (2d6): {0}", size);
+            }
+            else // 5-6
+            {
+                // Roll 2d6+3, size range 5-15 (F)
+                size = Starhelper.diceRoll(6, 2, dice) + 3;
+                DebugLogger.LogFormat("    Second roll (2d6+3): {0}", size);
+            }
+
+            // Convert size to code (0, S, 1-9, A-F)
+            string sizeCode;
+            if (size == 0)
+                sizeCode = "0";
+            else if (size >= 1 && size <= 9)
+                sizeCode = size.ToString();
+            else if (size == 10)
+                sizeCode = "A";
+            else if (size == 11)
+                sizeCode = "B";
+            else if (size == 12)
+                sizeCode = "C";
+            else if (size == 13)
+                sizeCode = "D";
+            else if (size == 14)
+                sizeCode = "E";
+            else if (size == 15)
+                sizeCode = "F";
+            else
+                sizeCode = "0"; // Fallback
+
+            DebugLogger.LogFormat("    Size code: {0}", sizeCode);
+            return sizeCode;
+        }
+
+        private void PrintStar (Star star, float orbit, CelestrialObject Cobj, Random dice)
+        {
+            if (star.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                Console.WriteLine($"PRIMARY STAR ({star.Designation})");
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("{0} STAR ({1}):", star.starOrbitType.ToString().ToUpper(), star.Designation);
+            }
+            else
+            {
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                Console.WriteLine($"{star.starOrbitType.ToString().ToUpper()} COMPANION STAR ({star.Designation})");
+                Console.WriteLine("─────────────────────────────────────────────────────────────");
+                Console.WriteLine($"Orbital Position:    {orbit:F2} ({Cobj.orbitAU:F2} AU)");
+                Console.WriteLine($"Eccentricity:        {Cobj.orbitEccentricity:F3}");
+
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("{0} STAR ({1}):", star.starOrbitType.ToString().ToUpper(), star.Designation);
+                DebugLogger.LogFormat("  Orbit: {0:F2} ({1:F2} AU)", orbit, Cobj.orbitAU);
+                DebugLogger.LogFormat("  Eccentricity: {0:F3}", Cobj.orbitEccentricity);
+
+                if (Cobj.orbitEccentricity > 0)
+                {
+                    Console.WriteLine($"Max Separation:      {Cobj.orbitMaxSep:F2} AU");
+                    Console.WriteLine($"Min Separation:      {Cobj.orbitMinSep:F2} AU");
+                    DebugLogger.LogFormat("  Max Separation: {0:F2} AU", Cobj.orbitMaxSep);
+                    DebugLogger.LogFormat("  Min Separation: {0:F2} AU", Cobj.orbitMinSep);
+                }
+
+                // Display orbital period
+                if (Cobj.OrbitalPeriodYears > 0)
+                {
+                    string periodDisplay = FormatOrbitalPeriod(Cobj.OrbitalPeriodYears);
+                    Console.WriteLine($"Orbital Period:      {periodDisplay}");
+                    DebugLogger.LogFormat("  Orbital Period: {0}", periodDisplay);
+                }
+
+                Console.WriteLine();
+            }
+
+            // Star classification
+            if (star.type != "BD" && star.type != "D")
+            {
+                Console.WriteLine($"Classification:      {star.type}{star.subType} {star.starclass}");
+                DebugLogger.LogFormat("  Classification: {0}{1} {2}", star.type, star.subType, star.starclass);
+            }
+            else
+            {
+                string typeName = star.type == "BD" ? "Brown Dwarf" : "White Dwarf";
+                Console.WriteLine($"Classification:      {star.type} ({typeName})");
+                DebugLogger.LogFormat("  Classification: {0} ({1})", star.type, typeName);
+            }
+
+            Console.WriteLine($"Colour:              {star.colour}");
+            DebugLogger.LogFormat("  Colour: {0}", star.colour);
+
+            // Physical properties
+            Console.WriteLine($"Mass:                {star.mass:F3} solar masses");
+            Console.WriteLine($"Temperature:         {star.temperture:N0} K");
+            Console.WriteLine($"Diameter:            {star.diameter:F4} solar diameters");
+            Console.WriteLine($"Luminosity:          {star.luminosity:F6}");
+            Console.WriteLine($"Age:                 {star.age:F2} billion years");
+
+            // Minimum allowable orbit (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
+            {
+                Console.WriteLine($"Min Allowable Orbit: {star.MinAllowableOrbit:F3}");
+            }
+
+            // Maximum allowable orbit (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MaxAllowableOrbit > 0)
+            {
+                Console.WriteLine($"Max Allowable Orbit: {star.MaxAllowableOrbit:F3}");
+            }
+
+            // Unavailable orbit ranges
+            if (star.UnavailableOrbitRanges.Count > 0)
+            {
+                Console.WriteLine("Unavailable Orbits:");
+                foreach (var range in star.UnavailableOrbitRanges)
+                {
+                    Console.WriteLine($"  {range.min:F2} to {range.max:F2}");
+                }
+            }
+
+            // Total available orbits (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.TotalAvailableOrbits > 0)
+            {
+                Console.WriteLine($"Total Available Orbits: {star.TotalAvailableOrbits:F2}");
+            }
+
+            // Worlds assigned (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion)
+            {
+                Console.WriteLine($"Worlds Assigned:     {star.WorldsAssigned}");
+            }
+
+            // System Baseline Number and zone allocations (Primary star only)
+            if (star.starOrbitType == Starhelper.starOrbitType.Primary && star.WorldsAssigned > 0)
+            {
+                Console.WriteLine($"System Baseline #:   {star.SystemBaselineNumber}");
+
+                // Show inner/outer zone breakdown if applicable (Scenario A)
+                if (star.InnerZoneWorldCount > 0 || star.OuterZoneWorldCount > 0)
+                {
+                    Console.WriteLine($"  Inner Zone Worlds: {star.InnerZoneWorldCount}");
+                    Console.WriteLine($"  Outer Zone Worlds: {star.OuterZoneWorldCount}");
+                }
+
+                // Baseline orbit information
+                if (star.BaselineOrbit > 0)
+                {
+                    Console.WriteLine($"Baseline Orbit:      {star.BaselineOrbit:F4}");
+                    Console.WriteLine($"  Inside Baseline:   {star.InsideBaseline}");
+                    Console.WriteLine($"  Outside Baseline:  {star.OutsideBaseline}");
+                }
+
+                // Empty orbits (if any)
+                if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.EmptyOrbits > 0)
+                {
+                    Console.WriteLine($"Empty Orbits:        {star.EmptyOrbits}");
+                }
+
+                // System spread (Primary only)
+                if (star.starOrbitType == Starhelper.starOrbitType.Primary && star.SystemSpread > 0)
+                {
+                    Console.WriteLine($"System Spread:       {star.SystemSpread:F4}");
+                }
+            }
+
+            // Habitable zone (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion)
+            {
+                float hzMin = Math.Max(0, star.HZCO - 1);  // Clamp to 0
+                float hzMax = star.HZCO + 1;
+                Console.WriteLine($"Habitable Zone Center: {star.HZCO:F3}");
+                Console.WriteLine($"Habitable Zone:      {hzMin:F3} to {hzMax:F3}");
+            }
+
+            // Orbits list (if any objects placed) - for all stars
+            var celestialBodies = Cobj.celestrialObjectOrbits
+                .Where(o => o.celestrialObject is CelestialBody)
+                .OrderBy(o => o.orbit)
+                .ToList();
+
+            if (celestialBodies.Count > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Orbits:");
+                for (int i = 0; i < celestialBodies.Count; i++)
+                {
+                    var orbitObj = celestialBodies[i];
+                    CelestrialObject? nextOrbit = i < celestialBodies.Count - 1 ? celestialBodies[i + 1] : null;
+
+                    float mkm = orbitObj.orbitAU * 149.597870700f;
+                    string mkmFormat;
+
+                    // Dynamic precision based on AU distance
+                    if (orbitObj.orbitAU < 0.1f)
+                    {
+                        mkmFormat = $"{mkm:F2}"; // 2 decimal places for very small orbits
+                    }
+                    else if (orbitObj.orbitAU < 1.0f)
+                    {
+                        mkmFormat = $"{mkm:F1}"; // 1 decimal place for small orbits
+                    }
+                    else
+                    {
+                        mkmFormat = $"{mkm:F0}"; // Whole numbers for larger orbits
+                    }
+
+                    if (orbitObj.celestrialObject is CelestialBody cb)
+                    {
+                        // Skip Empty Orbits in output
+                        if (cb is EmptyOrbit)
+                            continue;
+
+                        // Build world type label
+                        string worldLabel = GetWorldTypeLabel(cb);
+
+                        // Build orbital properties string
+                        string orbitalProps = BuildOrbitalPropertiesString(orbitObj);
+
+                        // Build designation prefix
+                        string designationPrefix = string.IsNullOrEmpty(cb.Designation) ? "" : $"{cb.Designation}\t";
+
+                        // Handle Trojan special formatting
+                        if (IsTrojanPrimary(orbitObj, nextOrbit))
+                        {
+                            Console.WriteLine($"  {designationPrefix}{orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
+                            if (nextOrbit != null)
+                            {
+                                string trojanLabel = GetTrojanCompanionLabel(nextOrbit);
+                                string trojanPos = GetTrojanPosition(nextOrbit);
+
+                                // Get trojan designation if it has one
+                                if (nextOrbit.celestrialObject is CelestialBody trojanCb && !string.IsNullOrEmpty(trojanCb.Designation))
+                                {
+                                    Console.WriteLine($"  {trojanCb.Designation}\t                      {trojanLabel} (Trojan {trojanPos})");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"                              {trojanLabel} (Trojan {trojanPos})");
+                                }
+                            }
+                        }
+                        else if (!IsTrojanCompanion(orbitObj))
+                        {
+                            Console.WriteLine($"  {designationPrefix}{orbitObj.orbit:F3} ({orbitObj.orbitAU:F3} AU / {mkmFormat} Mkm) {worldLabel}{orbitalProps}");
+                        }
+                    }
+                }
+            }
+
+            DebugLogger.LogFormat("  Mass: {0:F2} solar masses", star.mass);
+            DebugLogger.LogFormat("  Temperature: {0} K", star.temperture);
+            DebugLogger.LogFormat("  Diameter: {0:F4} solar diameters", star.diameter);
+            DebugLogger.LogFormat("  Luminosity: {0:F6}", star.luminosity);
+            DebugLogger.LogFormat("  Age: {0:F2} billion years", star.age);
+
+            // Minimum allowable orbit (except for Companion orbit stars)
+            if (star.starOrbitType != Starhelper.starOrbitType.Companion && star.MinAllowableOrbit > 0)
+            {
+                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3} (orbit number)", star.MinAllowableOrbit);
+            }
+        }
+
+        private string GetWorldTypeLabel(CelestialBody? celestialObj)
+        {
+            if (celestialObj == null)
+                return "Unknown";
+
+            return celestialObj switch
+            {
+                GasGiant gg => gg.Type == CelestialBodyType.GasGiant ? "Gas Giant" : $"Gas Giant [{gg.Type}]",
+                TerrestrialPlanet tp => tp.Type == CelestialBodyType.TerrestrialPlanet ? "Terrestrial Planet" : $"Terrestrial Planet [{tp.Type}]",
+                PlanetoidBelt pb => pb.Type == CelestialBodyType.PlanetoidBelt ? "Planetoid Belt" : $"Planetoid Belt [{pb.Type}]",
+                EmptyOrbit _ => "Empty Orbit",
+                CelestialBody cb when cb.Type == CelestialBodyType.Filled => "Filled",
+                CelestialBody cb => $"Filled [{cb.Type}]",
+                _ => "Unknown"
+            };
+        }
+
+        private string BuildOrbitalPropertiesString(CelestrialObject cObj)
+        {
+            List<string> props = new List<string>();
+
+            if (cObj.orbitEccentricity > 0)
+                props.Add($"e:{cObj.orbitEccentricity:F3}");
+
+            if (cObj.celestrialObject is GasGiant gg && gg.Inclination.HasValue)
+                props.Add($"i:{gg.Inclination:F0}°");
+            else if (cObj.celestrialObject is TerrestrialPlanet tp && tp.Inclination.HasValue)
+                props.Add($"i:{tp.Inclination:F0}°");
+
+            if (cObj.OrbitalPeriodYears > 0)
+                props.Add($"P:{FormatOrbitalPeriod(cObj.OrbitalPeriodYears)}");
+
+            return props.Count > 0 ? $" [{string.Join(", ", props)}]" : "";
+        }
+
+        private bool IsTrojanPrimary(CelestrialObject cObj, CelestrialObject? nextObj)
+        {
+            if (nextObj == null)
+                return false;
+
+            // Check if next orbit is at same position and has Trojan position set
+            if (Math.Abs(cObj.orbit - nextObj.orbit) < 0.001f)
+            {
+                if (nextObj.celestrialObject is GasGiant gg && !string.IsNullOrEmpty(gg.TrojanPosition))
+                    return true;
+                if (nextObj.celestrialObject is TerrestrialPlanet tp && !string.IsNullOrEmpty(tp.TrojanPosition))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool IsTrojanCompanion(CelestrialObject cObj)
+        {
+            if (cObj.celestrialObject is GasGiant gg && !string.IsNullOrEmpty(gg.TrojanPosition))
+                return true;
+            if (cObj.celestrialObject is TerrestrialPlanet tp && !string.IsNullOrEmpty(tp.TrojanPosition))
+                return true;
+
+            return false;
+        }
+
+        private string GetTrojanCompanionLabel(CelestrialObject cObj)
+        {
+            return GetWorldTypeLabel(cObj.celestrialObject as CelestialBody);
+        }
+
+        private string GetTrojanPosition(CelestrialObject cObj)
+        {
+            if (cObj.celestrialObject is GasGiant gg && !string.IsNullOrEmpty(gg.TrojanPosition))
+                return gg.TrojanPosition;
+            if (cObj.celestrialObject is TerrestrialPlanet tp && !string.IsNullOrEmpty(tp.TrojanPosition))
+                return tp.TrojanPosition;
+
+            return "??";
+        }
+
+        private string GetProperty(Object? obj, string prop)
+        {
+            if (obj == null)
+                return "";
+
+            Type type = obj.GetType();
+            string rtn = "";
+            PropertyInfo? property = type.GetProperty(prop);
+            //if (property != null)
+            //return property.GetValue(obj, null).ToString();
+            //else return "";
+            try
+            {
+                rtn = property?.GetValue(obj, null)?.ToString() ?? "";
+            }
+            catch (NullReferenceException)
+            {
+                //Console.WriteLine("NullReferenceException");
+                rtn = "";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            return rtn;
+        }
+
+        private int CheckCompanionTypePresent (Starhelper.starOrbitType starOrbit, Random dice)
+        {
+            int starPresent = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogFormat("  Checking for {0} companion star - Base roll: {1}", starOrbit, starPresent);
+
+            if (starOrbit == Starhelper.starOrbitType.Close)
+            {
+                if (GetProperty(primaryObject.celestrialObject, "starclass") == "Ia" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "Ib" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "II" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "III")
+                {
+                    starPresent = 0;
+                    DebugLogger.Log("    Giant/Supergiant stars cannot have close companions - setting to 0");
+                }
+            }
+            else
+            {
+                if (GetProperty(primaryObject.celestrialObject, "starclass") == "Ia" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "Ib" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "II" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "III" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "IV" )
+                {
+                    starPresent++;
+                }
+                if ((GetProperty(primaryObject.celestrialObject, "starclass") == "V" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "VI" ) &&
+                    (GetProperty(primaryObject.celestrialObject, "type") == "O" ||
+                    GetProperty(primaryObject.celestrialObject, "type") == "B" ||
+                    GetProperty(primaryObject.celestrialObject, "type") == "A" ||
+                    GetProperty(primaryObject.celestrialObject, "type") == "F" ))
+                {
+                    starPresent++;
+                }
+                if (GetProperty(primaryObject.celestrialObject, "starclass") == "V" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "VI" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "M" )
+                {
+                    starPresent--;
+                }
+                if (GetProperty(primaryObject.celestrialObject, "starclass") == "D" ||
+                    GetProperty(primaryObject.celestrialObject, "starclass") == "BD" )
+                {
+                    starPresent--;
+                }
+            }
+
+            DebugLogger.LogFormat("  Final roll for {0} companion: {1} (need 10+)", starOrbit, starPresent);
+            return starPresent;
+        }
+
+        private int CheckCompanionTypePresentForStar(Star star, Random dice)
+        {
+            int starPresent = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogFormat("    Checking for Companion orbit companion - Base roll: {0}", starPresent);
+
+            // Apply modifiers based on the companion star's properties
+            // For Companion orbit companions (only checking for very close companions)
+            if (star.starclass == "Ia" ||
+                star.starclass == "Ib" ||
+                star.starclass == "II" ||
+                star.starclass == "III" ||
+                star.starclass == "IV")
+            {
+                starPresent++;
+                DebugLogger.Log("      Star is Class Ia/Ib/II/III/IV - adding +1");
+            }
+            if ((star.starclass == "V" || star.starclass == "VI") &&
+                (star.type == "O" || star.type == "B" || star.type == "A" || star.type == "F"))
+            {
+                starPresent++;
+                DebugLogger.Log("      Star is Class V/VI and type O/B/A/F - adding +1");
+            }
+            if (star.starclass == "V" || star.starclass == "VI" || star.type == "M")
+            {
+                starPresent--;
+                DebugLogger.Log("      Star is Class V/VI or M-type - subtracting 1");
+            }
+            if (star.type == "D" || star.type == "BD")
+            {
+                starPresent--;
+                DebugLogger.Log("      Star is D or BD - subtracting 1");
+            }
+
+            DebugLogger.LogFormat("    Final roll for Companion orbit companion: {0} (need 10+)", starPresent);
+            return starPresent;
+        }
+
+        private void GenerateAdditionalStars(CelestrialObject cObj, Random dice)
+        {
+
+            int closeStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Close, dice);
+            int nearStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Near, dice);
+            int farStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Far, dice);
+            int companionStarPresent = CheckCompanionTypePresent(Starhelper.starOrbitType.Companion, dice);
+
+            // Track companions that can have their own Companion orbit companions
+            List<CelestrialObject> companionsToCheck = new List<CelestrialObject>();
+
+            if (closeStarPresent >= 10)
+                {
+                Console.WriteLine("Close Star present");
+                DebugLogger.Log("CLOSE STAR DETECTED - Generating orbital position");
+                int baseOrb = Starhelper.diceRoll(6, 1, dice) - 1;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
+                float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Close);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
+                cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Close, dice);
+                // Add to list to check for Companion orbit companions
+                companionsToCheck.Add(cObj.celestrialObjectOrbits[cObj.celestrialObjectOrbits.Count - 1]);
+                }
+            if (nearStarPresent >= 10)
+            {
+                Console.WriteLine("Near Star present");
+                DebugLogger.Log("NEAR STAR DETECTED - Generating orbital position");
+                int baseOrb = Starhelper.diceRoll(6, 1, dice) + 5;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
+                float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Near);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
+                cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Near, dice);
+                // Add to list to check for Companion orbit companions
+                companionsToCheck.Add(cObj.celestrialObjectOrbits[cObj.celestrialObjectOrbits.Count - 1]);
+            }
+            if (farStarPresent >= 10)
+            {
+                Console.WriteLine("Far Star present");
+                DebugLogger.Log("FAR STAR DETECTED - Generating orbital position");
+                int baseOrb = Starhelper.diceRoll(6, 1, dice) + 11;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
+                float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Far);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
+                cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Far, dice);
+                // Add to list to check for Companion orbit companions
+                companionsToCheck.Add(cObj.celestrialObjectOrbits[cObj.celestrialObjectOrbits.Count - 1]);
+            }
+            if(companionStarPresent >= 10)
+            {
+                Console.WriteLine("Companion Star present");
+                DebugLogger.Log("COMPANION STAR DETECTED - Generating orbital position");
+                int baseOrb = Starhelper.diceRoll(6, 1, dice) / 10 + (Starhelper.diceRoll(6, 2, dice) - 7) / 100;
+                DebugLogger.LogFormat("  Base orbit: {0}", baseOrb);
+                float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
+                DebugLogger.LogFormat("  Fractional orbit: {0:F2}", fractionalOrbit);
+                cObj.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
+            }
+
+            // Check each Close/Near/Far companion for Companion orbit companions
+            foreach (CelestrialObject companion in companionsToCheck)
+            {
+                if (companion.celestrialObject is Star)
+                {
+                    Star companionStar = (Star)companion.celestrialObject;
+                    DebugLogger.Log("");
+                    DebugLogger.LogFormat("Checking if {0} companion has its own Companion orbit companion...", companionStar.starOrbitType);
+
+                    // Check for Companion orbit companion of this companion
+                    int subCompanionPresent = CheckCompanionTypePresentForStar(companionStar, dice);
+
+                    if (subCompanionPresent >= 10)
+                    {
+                        Console.WriteLine($"  {companionStar.starOrbitType} star has Companion orbit companion");
+                        DebugLogger.LogFormat("  {0} companion will have a Companion orbit companion", companionStar.starOrbitType);
+                        int baseOrb = Starhelper.diceRoll(6, 1, dice) / 10 + (Starhelper.diceRoll(6, 2, dice) - 7) / 100;
+                        DebugLogger.LogFormat("    Base orbit: {0}", baseOrb);
+                        float fractionalOrbit = FractionalOrbit(baseOrb, dice, Starhelper.starOrbitType.Companion);
+                        DebugLogger.LogFormat("    Fractional orbit: {0:F2}", fractionalOrbit);
+                        companion.AddStar(fractionalOrbit, Starhelper.starOrbitType.Companion, dice);
+                    }
+                    else
+                    {
+                        DebugLogger.LogFormat("  No Companion orbit companion for {0} companion", companionStar.starOrbitType);
+                    }
+                }
+            }
+
+        }
+
+        private float FractionalOrbit (float orbitNum, Random dice, Starhelper.starOrbitType orbitType)
+        {
+            float fractionalOrbit = 0;
+
+            // Close companions: if 1d6-1 = 0, orbit is exactly 0.5
+            if (orbitType == Starhelper.starOrbitType.Close && orbitNum <= 0)
+            {
+                return 0.5F;
+            }
+
+            int roll = Starhelper.diceRoll(10, 1, dice);
+            roll++; //so roll is 1-10
+
+            if (orbitNum != 0)
+            {
+                fractionalOrbit = orbitNum - 1 + 0.5F + (roll / 10);
+            }
+            else
+            {
+                fractionalOrbit = roll / 20 + ((Starhelper.diceRoll(10, 1, dice)) / 100);
+            }
+
+            return fractionalOrbit;
+        }
+
+        private float FractionalOrbit(float orbitNum, Random dice)
+        {
+            float fractionalOrbit = 0;
+            int roll = Starhelper.diceRoll(10, 1, dice);
+            roll++; //so roll is 1-10
+
+            if (orbitNum != 0)
+            {
+                fractionalOrbit = orbitNum - 1 + 0.5F + (roll / 10);
+            }
+            else
+            {
+                fractionalOrbit = roll / 20 + ((Starhelper.diceRoll(10, 1, dice)) / 100);
+            }
+
+            return fractionalOrbit;
+        }
+
+        private float CalculateTotalOrbitedMass(CelestrialObject orbitingObj, Star orbitingStar)
+        {
+            // Calculate M = total mass of stars being orbited
+            float totalMass = 0;
+
+            if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                // Companion orbits just its parent star
+                CelestrialObject? parent = FindParentObject(orbitingObj);
+                if (parent != null && parent.celestrialObject is Star)
+                {
+                    totalMass = ((Star)parent.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Companion orbit - orbiting parent star with mass {0:F3}", totalMass);
+                }
+            }
+            else if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Close orbits: primary + any companion of the primary
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass = ((Star)primaryObject.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Close orbit - primary mass: {0:F3}", totalMass);
+
+                    // Add any Companion orbit companion of the primary
+                    foreach (var obj in primaryObject.celestrialObjectOrbits)
+                    {
+                        if (obj.celestrialObject is Star)
+                        {
+                            Star s = (Star)obj.celestrialObject;
+                            if (s.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                totalMass += s.mass;
+                                DebugLogger.LogFormat("    Adding primary's companion mass: {0:F3}", s.mass);
+                            }
+                        }
+                    }
+                }
+            }
+            else if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Near)
+            {
+                // Near orbits: primary + any close companion + companion companions of either
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass = ((Star)primaryObject.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Near orbit - primary mass: {0:F3}", totalMass);
+
+                    foreach (var obj in primaryObject.celestrialObjectOrbits)
+                    {
+                        if (obj.celestrialObject is Star)
+                        {
+                            Star s = (Star)obj.celestrialObject;
+                            if (s.starOrbitType == Starhelper.starOrbitType.Close || s.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                totalMass += s.mass;
+                                DebugLogger.LogFormat("    Adding {0} companion mass: {1:F3}", s.starOrbitType, s.mass);
+
+                                // Add any Companion orbit companions
+                                foreach (var subObj in obj.celestrialObjectOrbits)
+                                {
+                                    if (subObj.celestrialObject is Star)
+                                    {
+                                        Star subStar = (Star)subObj.celestrialObject;
+                                        totalMass += subStar.mass;
+                                        DebugLogger.LogFormat("    Adding sub-companion mass: {0:F3}", subStar.mass);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (orbitingStar.starOrbitType == Starhelper.starOrbitType.Far)
+            {
+                // Far orbits: primary + close + near + all companion companions
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass = ((Star)primaryObject.celestrialObject).mass;
+                    DebugLogger.LogFormat("    Far orbit - primary mass: {0:F3}", totalMass);
+
+                    foreach (var obj in primaryObject.celestrialObjectOrbits)
+                    {
+                        if (obj.celestrialObject is Star)
+                        {
+                            Star s = (Star)obj.celestrialObject;
+                            if (s.starOrbitType == Starhelper.starOrbitType.Close ||
+                                s.starOrbitType == Starhelper.starOrbitType.Near ||
+                                s.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                totalMass += s.mass;
+                                DebugLogger.LogFormat("    Adding {0} companion mass: {1:F3}", s.starOrbitType, s.mass);
+
+                                // Add any Companion orbit companions
+                                foreach (var subObj in obj.celestrialObjectOrbits)
+                                {
+                                    if (subObj.celestrialObject is Star)
+                                    {
+                                        Star subStar = (Star)subObj.celestrialObject;
+                                        totalMass += subStar.mass;
+                                        DebugLogger.LogFormat("    Adding sub-companion mass: {0:F3}", subStar.mass);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return totalMass;
+        }
+
+        private CelestrialObject? FindParentObject(CelestrialObject childObj)
+        {
+            // Search through all celestial objects to find the parent of childObj
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObjectOrbits.Contains(childObj))
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        private void CalculateOrbitalPeriod(CelestrialObject cObj)
+        {
+            if (cObj.celestrialObject is Star)
+            {
+                Star star = (Star)cObj.celestrialObject;
+
+                // Primary stars don't have orbital periods
+                if (star.starOrbitType == Starhelper.starOrbitType.Primary)
+                    return;
+
+                DebugLogger.LogFormat("  Calculating orbital period for {0} companion...", star.starOrbitType);
+
+                // Calculate M (total orbited mass)
+                float M = CalculateTotalOrbitedMass(cObj, star);
+
+                // m = mass of the orbiting star
+                float m = star.mass;
+                DebugLogger.LogFormat("    Orbiting star mass (m): {0:F3}", m);
+
+                // orbital period = sqrt(orbit³ / M) - Kepler's 3rd law
+                float orbitAU = cObj.orbitAU;
+                float period = (float)Math.Sqrt((orbitAU * orbitAU * orbitAU) / M);
+
+                cObj.OrbitalPeriodYears = period;
+                DebugLogger.LogFormat("    Orbital period: {0:F6} years", period);
+            }
+            else if (cObj.celestrialObject is CelestialBody)
+            {
+                DebugLogger.Log("  Calculating orbital period for celestial body...");
+
+                // Calculate M (total mass of stars being orbited)
+                float M = CalculateTotalOrbitedMassForPlanet(cObj);
+
+                // orbital period = sqrt(orbit³ / M) - Kepler's 3rd law
+                float orbitAU = cObj.orbitAU;
+                float period = (float)Math.Sqrt((orbitAU * orbitAU * orbitAU) / M);
+
+                cObj.OrbitalPeriodYears = period;
+                DebugLogger.LogFormat("    Orbital period: {0:F6} years", period);
+            }
+        }
+
+        private float CalculateTotalOrbitedMassForPlanet(CelestrialObject planetCobj)
+        {
+            // Find which star this planet belongs to
+            Star? parentStar = FindStarForOrbit(planetCobj);
+
+            if (parentStar == null)
+            {
+                DebugLogger.Log("    WARNING: Could not find parent star for planet");
+                return 1.0f; // Default to 1 solar mass
+            }
+
+            DebugLogger.LogFormat("    Planet orbits {0} star", parentStar.starOrbitType);
+
+            // Calculate total mass based on parent star type
+            float totalMass = 0;
+
+            if (parentStar.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                // Primary star - just its mass
+                totalMass = parentStar.mass;
+                DebugLogger.LogFormat("    Primary star mass: {0:F3}", totalMass);
+            }
+            else if (parentStar.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                // Companion orbits another star - planet orbits just the companion
+                totalMass = parentStar.mass;
+                DebugLogger.LogFormat("    Companion star mass: {0:F3}", totalMass);
+            }
+            else if (parentStar.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Close orbit - planet may orbit primary + close companion together
+                totalMass = parentStar.mass;
+                if (primaryObject.celestrialObject is Star)
+                {
+                    totalMass += ((Star)primaryObject.celestrialObject).mass;
+                }
+                DebugLogger.LogFormat("    Close orbit total mass: {0:F3}", totalMass);
+            }
+            else
+            {
+                // Near/Far orbits - just the star's own mass for now (simplified)
+                totalMass = parentStar.mass;
+                DebugLogger.LogFormat("    {0} star mass: {1:F3}", parentStar.starOrbitType, totalMass);
+            }
+
+            return totalMass;
+        }
+
+        private Star? FindStarForOrbit(CelestrialObject planetCobj)
+        {
+            // Check primary star's orbits
+            if (primaryObject.celestrialObjectOrbits.Contains(planetCobj))
+            {
+                return primaryObject.celestrialObject as Star;
+            }
+
+            // Check companion stars' orbits
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star)
+                {
+                    if (companionObj.celestrialObjectOrbits.Contains(planetCobj))
+                    {
+                        return companionObj.celestrialObject as Star;
+                    }
+
+                    // Check sub-companions
+                    foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subCompanionObj.celestrialObject is Star)
+                        {
+                            if (subCompanionObj.celestrialObjectOrbits.Contains(planetCobj))
+                            {
+                                return subCompanionObj.celestrialObject as Star;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Default to primary if not found
+            return primaryObject.celestrialObject as Star;
+        }
+
+        private int CountStarsOrbitedByPlanet(Star parentStar)
+        {
+            // For most cases, planets orbit just their local star
+            if (parentStar.starOrbitType == Starhelper.starOrbitType.Primary ||
+                parentStar.starOrbitType == Starhelper.starOrbitType.Companion ||
+                parentStar.starOrbitType == Starhelper.starOrbitType.Near ||
+                parentStar.starOrbitType == Starhelper.starOrbitType.Far)
+            {
+                return 1;
+            }
+            else if (parentStar.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Close orbit - may orbit primary + close companion
+                return 2;
+            }
+
+            return 1;
+        }
+
+        private List<(CelestrialObject cobj, Star parentStar)> GetAllCelestialBodiesOfType(CelestialBodyType targetType)
+        {
+            List<(CelestrialObject, Star)> results = new List<(CelestrialObject, Star)>();
+
+            // Check primary star's orbits
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var cobj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (cobj.celestrialObject is CelestialBody cb && MatchesCelestialBodyType(cb, targetType))
+                    {
+                        results.Add((cobj, primaryStar));
+                    }
+                }
+            }
+
+            // Check companion stars' orbits
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var cobj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (cobj.celestrialObject is CelestialBody cb && MatchesCelestialBodyType(cb, targetType))
+                        {
+                            results.Add((cobj, companionStar));
+                        }
+                    }
+
+                    // Check sub-companions
+                    foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subCompanionObj.celestrialObject is Star subCompanionStar)
+                        {
+                            foreach (var cobj in subCompanionObj.celestrialObjectOrbits)
+                            {
+                                if (cobj.celestrialObject is CelestialBody cb && MatchesCelestialBodyType(cb, targetType))
+                                {
+                                    results.Add((cobj, subCompanionStar));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        private bool MatchesCelestialBodyType(CelestialBody cb, CelestialBodyType targetType)
+        {
+            // When looking for Filled, include all anomalous orbit types (they're still placeholders)
+            if (targetType == CelestialBodyType.Filled)
+            {
+                return cb.Type == CelestialBodyType.Filled ||
+                       cb.Type == CelestialBodyType.Random ||
+                       cb.Type == CelestialBodyType.Eccentric ||
+                       cb.Type == CelestialBodyType.Inclined ||
+                       cb.Type == CelestialBodyType.Retrograde ||
+                       cb.Type == CelestialBodyType.Trojan;
+            }
+
+            // For other types, exact match
+            return cb.Type == targetType;
+        }
+
+        private void AssignStarDesignations()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ASSIGNING STAR DESIGNATIONS");
+
+            // Primary star is always A (or Aa if it has a companion)
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                // Check if primary has a companion
+                bool hasCompanion = primaryObject.celestrialObjectOrbits
+                    .Any(obj => obj.celestrialObject is Star s && s.starOrbitType == Starhelper.starOrbitType.Companion);
+
+                if (hasCompanion)
+                {
+                    primaryStar.Designation = "Aa";
+                    DebugLogger.Log($"Primary star: Aa (has companion)");
+                }
+                else
+                {
+                    primaryStar.Designation = "A";
+                    DebugLogger.Log($"Primary star: A");
+                }
+            }
+
+            // Assign designations to Close, Near, Far stars (B, C, D, etc.)
+            char currentLetter = 'B';
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType == Starhelper.starOrbitType.Close ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Near ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Far)
+                    {
+                        // Check if this star has a companion
+                        bool hasSubCompanion = companionObj.celestrialObjectOrbits
+                            .Any(obj => obj.celestrialObject is Star s && s.starOrbitType == Starhelper.starOrbitType.Companion);
+
+                        if (hasSubCompanion)
+                        {
+                            companionStar.Designation = $"{currentLetter}a";
+                            DebugLogger.Log($"{companionStar.starOrbitType} star: {currentLetter}a (has companion)");
+                        }
+                        else
+                        {
+                            companionStar.Designation = $"{currentLetter}";
+                            DebugLogger.Log($"{companionStar.starOrbitType} star: {currentLetter}");
+                        }
+
+                        currentLetter++;
+                    }
+                    else if (companionStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                    {
+                        // Primary's companion is Ab
+                        companionStar.Designation = "Ab";
+                        DebugLogger.Log($"Primary's companion: Ab");
+                    }
+                }
+            }
+
+            // Assign designations to sub-companions (companions of Close/Near/Far stars)
+            currentLetter = 'B';
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType == Starhelper.starOrbitType.Close ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Near ||
+                        companionStar.starOrbitType == Starhelper.starOrbitType.Far)
+                    {
+                        // Check for sub-companions
+                        foreach (var subCompanionObj in companionObj.celestrialObjectOrbits)
+                        {
+                            if (subCompanionObj.celestrialObject is Star subCompanionStar &&
+                                subCompanionStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                            {
+                                subCompanionStar.Designation = $"{currentLetter}b";
+                                DebugLogger.Log($"{companionStar.Designation}'s companion: {currentLetter}b");
+                            }
+                        }
+
+                        currentLetter++;
+                    }
+                }
+            }
+
+            DebugLogger.Log("Star designation assignment complete");
+        }
+
+        private void AssignWorldDesignations()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ASSIGNING WORLD DESIGNATIONS");
+
+            // Check if single star system
+            bool isSingleStar = !primaryObject.celestrialObjectOrbits.Any(obj => obj.celestrialObject is Star);
+
+            // Get all companion stars sorted by orbit
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            // Assign designations to primary's worlds
+            AssignWorldDesignationsForStar(primaryObject, isSingleStar, companionStars);
+
+            // Assign designations to each companion star's worlds
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    AssignWorldDesignationsForStar(companionObj, false, new List<CelestrialObject>());
+                }
+            }
+
+            DebugLogger.Log("World designation assignment complete");
+        }
+
+        private void AssignWorldDesignationsForStar(CelestrialObject starCobj, bool isSingleStar, List<CelestrialObject> companionStars)
+        {
+            if (!(starCobj.celestrialObject is Star parentStar))
+                return;
+
+            DebugLogger.LogFormat("Assigning designations for {0} star's worlds", parentStar.Designation);
+
+            // Get all celestial bodies (not stars) sorted by orbit
+            var celestialBodies = starCobj.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is CelestialBody)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            string currentStarDesignation = "";
+            int planetCounter = 1;
+            int beltCounter = 1;
+
+            foreach (var bodyObj in celestialBodies)
+            {
+                if (!(bodyObj.celestrialObject is CelestialBody body))
+                    continue;
+
+                // Skip Empty Orbits
+                if (body is EmptyOrbit)
+                    continue;
+
+                // Determine which stars this world is orbiting
+                string starDesignation = DetermineStarDesignation(bodyObj, parentStar, companionStars, isSingleStar);
+
+                // Reset counters if star designation changed
+                if (starDesignation != currentStarDesignation)
+                {
+                    currentStarDesignation = starDesignation;
+                    planetCounter = 1;
+                    beltCounter = 1;
+                    DebugLogger.LogFormat("  Star designation changed to: {0}", starDesignation);
+                }
+
+                // Assign designation based on body type
+                if (body is PlanetoidBelt)
+                {
+                    string romanNumeral = ToRomanNumeral(beltCounter);
+                    body.Designation = $"{starDesignation} P{romanNumeral}";
+                    DebugLogger.LogFormat("    Belt at orbit {0:F3}: {1}", bodyObj.orbit, body.Designation);
+                    beltCounter++;
+                }
+                else // Gas Giant or Terrestrial Planet
+                {
+                    string romanNumeral = ToRomanNumeral(planetCounter);
+                    body.Designation = $"{starDesignation} {romanNumeral}";
+                    DebugLogger.LogFormat("    World at orbit {0:F3}: {1}", bodyObj.orbit, body.Designation);
+                    planetCounter++;
+                }
+            }
+        }
+
+        private string DeterminePrimaryDesignation(CelestrialObject worldObj, Star parentStar, List<CelestrialObject> companionStars)
+        {
+            // If this world belongs to a secondary star (not primary), return just that star's designation
+            if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
+            {
+                // Check if parent has a companion
+                if (parentStar.Designation.EndsWith("a"))
+                {
+                    // Parent is part of a companion pair, return combined (e.g., "Bab", "Cab")
+                    string baseLetter = parentStar.Designation.TrimEnd('a');
+                    return $"{baseLetter}ab";
+                }
+                return parentStar.Designation; // Just "B", "C", etc.
+            }
+
+            // World belongs to primary - determine combined designation
+            // Use existing DetermineStarDesignation logic
+            return DetermineStarDesignation(worldObj, parentStar, companionStars, false);
+        }
+
+        private string BuildNotesString(CelestrialObject worldObj, CelestialBody body, Star parentStar)
+        {
+            List<string> notes = new List<string>();
+
+            // Anomalous orbit types
+            if (body.Type == CelestialBodyType.Retrograde)
+                notes.Add("Retrograde orbit");
+            else if (body.Type == CelestialBodyType.Random)
+            {
+                // Random orbit indicator added to orbit number as (R), not to notes
+            }
+            else if (body.Type == CelestialBodyType.Eccentric)
+            {
+                float inclination = 0;
+                if (body is GasGiant gg)
+                    inclination = gg.Inclination ?? 0;
+                else if (body is TerrestrialPlanet tp)
+                    inclination = tp.Inclination ?? 0;
+
+                if (inclination > 0)
+                    notes.Add($"R02, i:{inclination:F0}°");
+                else
+                    notes.Add("R02");
+            }
+            else if (body.Type == CelestialBodyType.Inclined)
+                notes.Add("Inclined orbit");
+
+            // Trojan position
+            string? trojanPos = null;
+            if (body is GasGiant gasGiant)
+                trojanPos = gasGiant.TrojanPosition;
+            else if (body is TerrestrialPlanet terrestrial)
+                trojanPos = terrestrial.TrojanPosition;
+
+            if (!string.IsNullOrEmpty(trojanPos))
+                notes.Add($"Trojan {trojanPos}");
+
+            // Habitable zone check
+            // Orbits below 1.0 are treated as only 10% as large
+            if (parentStar.HZCO > 0)
+            {
+                float hzMin, hzMax;
+
+                // Calculate lower bound
+                if (parentStar.HZCO >= 2.0f)
+                {
+                    // Range doesn't cross below 1.0
+                    hzMin = parentStar.HZCO - 1.0f;
+                }
+                else if (parentStar.HZCO >= 1.0f)
+                {
+                    // Range crosses below 1.0
+                    // Distance from HZCO down to 1.0: (HZCO - 1.0) effective orbits
+                    // Remaining to cover below 1.0: 2.0 - HZCO effective orbits
+                    // Since orbits below 1.0 are 10% as large, we move (2.0 - HZCO) * 0.1 orbit numbers
+                    hzMin = 1.0f - (2.0f - parentStar.HZCO) * 0.1f;
+                }
+                else
+                {
+                    // HZCO is below 1.0, go down 0.1 orbit numbers (= 1.0 effective)
+                    hzMin = Math.Max(0, parentStar.HZCO - 0.1f);
+                }
+
+                // Calculate upper bound
+                if (parentStar.HZCO >= 1.0f)
+                {
+                    // Standard calculation
+                    hzMax = parentStar.HZCO + 1.0f;
+                }
+                else
+                {
+                    // HZCO is below 1.0
+                    // Distance to 1.0 in orbit numbers: (1.0 - HZCO)
+                    // Effective distance to 1.0: (1.0 - HZCO) / 0.1 = (1.0 - HZCO) * 10
+                    float effectiveDistToOne = (1.0f - parentStar.HZCO) * 10.0f;
+                    if (effectiveDistToOne >= 1.0f)
+                    {
+                        // We've used up all our 1.0 effective distance just getting to orbit 1.0
+                        hzMax = 1.0f;
+                    }
+                    else
+                    {
+                        // Remaining effective distance after reaching orbit 1.0
+                        float remaining = 1.0f - effectiveDistToOne;
+                        hzMax = 1.0f + remaining;
+                    }
+                }
+
+                if (worldObj.orbit >= hzMin && worldObj.orbit <= hzMax)
+                {
+                    // Add HZ first if it hasn't been added yet
+                    if (!notes.Contains("HZ"))
+                        notes.Insert(0, "HZ");
+                }
+            }
+
+            // Add belt profile to notes
+            if (body is PlanetoidBelt planetoidBelt && !string.IsNullOrEmpty(planetoidBelt.BeltProfile))
+            {
+                notes.Add(planetoidBelt.BeltProfile);
+            }
+
+            // Add AIW authority/trade code info
+            var aiw = GetAdditionalInhabitedWorld(body);
+            if (aiw != null)
+            {
+                if (aiw.IsIndependent)
+                    notes.Add("Ind");
+                else
+                    notes.Add($"Auth: {aiw.AuthorityDesignation}");
+                if (aiw.TradeCodes.Count > 0)
+                    notes.Add(string.Join(" ", aiw.TradeCodes.Select(tc => tc.Code)));
+            }
+
+            return string.Join(", ", notes);
+        }
+
+        private string DetermineStarDesignation(CelestrialObject worldObj, Star parentStar, List<CelestrialObject> companionStars, bool isSingleStar)
+        {
+            // If this world belongs to a secondary star (not primary), just return the star's designation
+            if (parentStar.starOrbitType != Starhelper.starOrbitType.Primary)
+            {
+                return parentStar.Designation;
+            }
+
+            // For primary star worlds, determine which stars are encompassed
+            List<string> orbitedStars = new List<string>();
+
+            // Check if primary has a companion (Aa/Ab case)
+            bool primaryHasCompanion = false;
+            if (primaryObject.celestrialObject is Star primaryStarCheck)
+            {
+                primaryHasCompanion = primaryStarCheck.Designation.EndsWith("a");
+            }
+
+            if (primaryHasCompanion)
+            {
+                orbitedStars.Add("Aab");
+            }
+            else
+            {
+                orbitedStars.Add("A");
+            }
+
+            // Check which companion stars have orbits less than this world's orbit
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    if (companionObj.orbit < worldObj.orbit)
+                    {
+                        // This world orbits beyond this companion star
+                        if (companionStar.Designation.EndsWith("a"))
+                        {
+                            // Companion has its own companion, use "Xab" notation
+                            string baseLetter = companionStar.Designation.TrimEnd('a');
+                            orbitedStars.Add($"{baseLetter}ab");
+                        }
+                        else
+                        {
+                            orbitedStars.Add(companionStar.Designation);
+                        }
+                    }
+                }
+            }
+
+            // Collapse the designation (e.g., Aab + B = AB, Aab + Bab = AB, etc.)
+            return CollapseStarDesignation(orbitedStars);
+        }
+
+        private string CollapseStarDesignation(List<string> orbitedStars)
+        {
+            if (orbitedStars.Count == 0)
+                return "";
+
+            if (orbitedStars.Count == 1)
+                return orbitedStars[0];
+
+            // Extract base letters and combine them
+            // "Aab" -> "A", "Bab" -> "B", etc.
+            List<char> baseLetters = new List<char>();
+            foreach (var designation in orbitedStars)
+            {
+                char baseLetter = designation[0]; // First character is always the base letter
+                if (!baseLetters.Contains(baseLetter))
+                {
+                    baseLetters.Add(baseLetter);
+                }
+            }
+
+            return string.Join("", baseLetters);
+        }
+
+        private string ToRomanNumeral(int number)
+        {
+            if (number < 1) return "";
+            if (number >= 4000) return number.ToString();
+
+            string[] thousands = { "", "M", "MM", "MMM" };
+            string[] hundreds = { "", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM" };
+            string[] tens = { "", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC" };
+            string[] ones = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" };
+
+            return thousands[number / 1000] +
+                   hundreds[(number % 1000) / 100] +
+                   tens[(number % 100) / 10] +
+                   ones[number % 10];
+        }
+
+        private string ToEhex(int number)
+        {
+            if (number < 0) return "0";
+            if (number >= 0 && number <= 9) return number.ToString();
+            if (number == 10) return "A";
+            if (number == 11) return "B";
+            if (number == 12) return "C";
+            if (number == 13) return "D";
+            if (number == 14) return "E";
+            if (number == 15) return "F";
+            if (number == 16) return "G";
+            if (number == 17) return "H";
+            if (number == 18) return "J";
+            return number.ToString(); // Fallback for larger numbers
+        }
+
+        private void CalculateAllOrbitalPeriods()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING ORBITAL PERIODS");
+
+            // Calculate for primary's companions
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                CalculateOrbitalPeriod(obj);
+
+                // Calculate for sub-companions
+                foreach (var subObj in obj.celestrialObjectOrbits)
+                {
+                    CalculateOrbitalPeriod(subObj);
+                }
+            }
+        }
+
+        private string FormatOrbitalPeriod(float years)
+        {
+            if (years < (1.0f / 8766))  // Less than 1 hour
+            {
+                float hours = years * 8766;
+                return $"{hours:F2}h";
+            }
+            else if (years < (1.0f / 365.25))  // Less than 1 day
+            {
+                float hours = years * 8766;
+                return $"{hours:F2}h";
+            }
+            else if (years < (5.0f / 365.25))  // Less than 5 days
+            {
+                float days = years * 365.25f;
+                float remainderHours = (days - (int)days) * 24;
+                return $"{(int)days}d {remainderHours:F1}h";
+            }
+            else if (years < 1.0f)  // Less than 1 year
+            {
+                float days = years * 365.25f;
+                return $"{days:F1}d";
+            }
+            else if (years < 5.0f)  // Less than 5 years
+            {
+                float remainderDays = (years - (int)years) * 365.25f;
+                return $"{(int)years}y {remainderDays:F0}d";
+            }
+            else  // 5+ years
+            {
+                return $"{years:F2}y";
+            }
+        }
+
+        private string FormatRotationPeriod(float hours)
+        {
+            if (hours <= 0)
+                return "";
+
+            if (hours < 24.0f)
+            {
+                // Less than 1 day - show in hours
+                return $"{hours:F2}h";
+            }
+            else if (hours < 168.0f) // Less than 1 week (7 days)
+            {
+                // Show in days and hours
+                float days = hours / 24.0f;
+                float remainderHours = hours - ((int)days * 24);
+                return $"{(int)days}d {remainderHours:F1}h";
+            }
+            else
+            {
+                // Show in days only
+                float days = hours / 24.0f;
+                return $"{days:F1}d";
+            }
+        }
+
+        private string FormatRotationPeriodDetailed(float hours)
+        {
+            if (hours <= 0)
+                return "";
+
+            // For periods >= 7 days (168 hours), show in days format
+            if (hours >= 168.0f)
+            {
+                float days = hours / 24.0f;
+                int wholeDays = (int)days;
+                float remainderHours = (days - wholeDays) * 24;
+                int wholeHours = (int)remainderHours;
+                float remainderMinutes = (remainderHours - wholeHours) * 60;
+                int minutes = (int)remainderMinutes;
+
+                return $"{wholeDays}d {wholeHours}h {minutes}m ({days:F2})";
+            }
+            else
+            {
+                int totalHours = (int)hours;
+                float remainderMinutes = (hours - totalHours) * 60;
+                int minutes = (int)remainderMinutes;
+                int seconds = (int)((remainderMinutes - minutes) * 60);
+
+                return $"{totalHours}h {minutes}m {seconds}s ({hours:F2})";
+            }
+        }
+
+        private string FormatAxialTiltDetailed(float degrees)
+        {
+            if (degrees <= 0)
+                return "";
+
+            int wholeDegrees = (int)degrees;
+            float remainderMinutes = (degrees - wholeDegrees) * 60;
+            int minutes = (int)remainderMinutes;
+
+            return $"{wholeDegrees}° {minutes}' ({degrees:F2}°)";
+        }
+
+        private string FormatMoonOrbitalPeriod(Moon moon)
+        {
+            float hours = moon.OrbitalPeriod;
+            string period;
+
+            if (hours < 24.0f)
+            {
+                // Less than 1 day - show in hours
+                period = $"{hours:F2}h";
+            }
+            else if (hours < 168.0f) // Less than 1 week (7 days)
+            {
+                // Show in days and hours
+                float days = hours / 24.0f;
+                float remainderHours = hours - ((int)days * 24);
+                period = $"{(int)days}d {remainderHours:F1}h";
+            }
+            else
+            {
+                // Show in days only
+                float days = hours / 24.0f;
+                period = $"{days:F1}d";
+            }
+
+            // Add retrograde indicator if applicable
+            if (moon.IsRetrograde)
+            {
+                period += " R";
+            }
+
+            return period;
+        }
+
+        private string FormatTidalForceDisplay(SurveyData data)
+        {
+            if (data.TotalTidalForce == 0 || data.TidalForceContributions.Count == 0)
+                return "";
+
+            // Sort contributions by magnitude (highest first)
+            var sortedContributions = data.TidalForceContributions
+                .OrderByDescending(c => c.TidalForce)
+                .ToList();
+
+            // Start with total
+            string display = $"Total: {data.TotalTidalForce:F1}m";
+
+            // Find primary star contribution (the star in PrimaryObject field)
+            var primaryContribution = sortedContributions.FirstOrDefault(c =>
+                c.SourceType == "Star" && data.PrimaryObject.Contains(c.SourceName));
+
+            if (primaryContribution != null && primaryContribution.TidalForce >= 0.1f)
+            {
+                display += $"; {primaryContribution.SourceName}: {primaryContribution.TidalForce:F1}m";
+            }
+
+            // Find next highest non-primary contribution
+            var nextHighest = sortedContributions.FirstOrDefault(c => c != primaryContribution && c.TidalForce >= 0.1f);
+            if (nextHighest != null)
+            {
+                display += $"; {nextHighest.SourceName}: {nextHighest.TidalForce:F1}m";
+            }
+
+            // Calculate "other stars" total (all stars except primary and next highest)
+            var otherStars = sortedContributions
+                .Where(c => c.SourceType == "Star" && c != primaryContribution && c != nextHighest)
+                .Sum(c => c.TidalForce);
+
+            if (otherStars >= 0.1f)
+            {
+                display += $"; Other stars: {otherStars:F1}m";
+            }
+
+            return display;
+        }
+
+        private int CountStarsInSystem()
+        {
+            int count = 1; // Primary star
+            count += primaryObject.celestrialObjectOrbits.Count;
+
+            // Count sub-companions
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                count += obj.celestrialObjectOrbits.Count;
+            }
+
+            return count;
+        }
+
+        private int CountAllStars()
+        {
+            int count = 1; // Primary star
+
+            // Count companion stars
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star)
+                {
+                    count++;
+
+                    // Count sub-companions
+                    foreach (var subObj in obj.celestrialObjectOrbits)
+                    {
+                        if (subObj.celestrialObject is Star)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        private List<StarDisplayData> CollectAllStarData()
+        {
+            List<StarDisplayData> starData = new List<StarDisplayData>();
+            int sortOrder = 0;
+
+            // Get primary star
+            Star? primaryStar = primaryObject.celestrialObject as Star;
+            if (primaryStar == null) return starData;
+
+            // Check if primary has a companion (Aa/Ab case)
+            bool primaryHasCompanion = primaryStar.Designation.EndsWith("a");
+            Star? primaryCompanion = null;
+            CelestrialObject? primaryCompanionObj = null;
+
+            if (primaryHasCompanion)
+            {
+                // Find Ab companion
+                foreach (var obj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (obj.celestrialObject is Star star && star.Designation == "Ab")
+                    {
+                        primaryCompanion = star;
+                        primaryCompanionObj = obj;
+                        break;
+                    }
+                }
+            }
+
+            // Add primary star (Aa or A)
+            starData.Add(new StarDisplayData
+            {
+                Component = primaryStar.Designation,
+                ParentDesignation = null,
+                Class = $"{primaryStar.type}{primaryStar.subType} {primaryStar.starclass}",
+                Mass = primaryStar.mass,
+                Temp = primaryStar.temperture,
+                Diameter = primaryStar.diameter,
+                Luminosity = primaryStar.luminosity,
+                Orbit = null,
+                AU = null,
+                Ecc = null,
+                Period = null,
+                MAO = primaryStar.MinAllowableOrbit,
+                HZCO = primaryStar.HZCO,
+                IsCombined = false,
+                SortOrder = sortOrder++
+            });
+
+            // Add primary companion (Ab) if exists
+            if (primaryCompanion != null && primaryCompanionObj != null)
+            {
+                starData.Add(new StarDisplayData
+                {
+                    Component = primaryCompanion.Designation,
+                    ParentDesignation = null,
+                    Class = $"{primaryCompanion.type}{primaryCompanion.subType} {primaryCompanion.starclass}",
+                    Mass = primaryCompanion.mass,
+                    Temp = primaryCompanion.temperture,
+                    Diameter = primaryCompanion.diameter,
+                    Luminosity = primaryCompanion.luminosity,
+                    Orbit = null,
+                    AU = null,
+                    Ecc = null,
+                    Period = null,
+                    MAO = primaryCompanion.MinAllowableOrbit,
+                    HZCO = primaryCompanion.HZCO,
+                    IsCombined = false,
+                    SortOrder = sortOrder++
+                });
+
+                // Add combined Aab
+                starData.Add(new StarDisplayData
+                {
+                    Component = "Aab",
+                    ParentDesignation = "A",
+                    Class = "—",
+                    Mass = primaryStar.mass + primaryCompanion.mass,
+                    Temp = 0,
+                    Diameter = 0,
+                    Luminosity = primaryStar.luminosity + primaryCompanion.luminosity,
+                    Orbit = primaryCompanionObj.orbit,
+                    AU = primaryCompanionObj.orbitAU,
+                    Ecc = primaryCompanionObj.orbitEccentricity,
+                    Period = FormatOrbitalPeriod(primaryCompanionObj.OrbitalPeriodYears),
+                    MAO = primaryStar.MinAllowableOrbit,
+                    HZCO = primaryStar.HZCO,
+                    IsCombined = true,
+                    SortOrder = sortOrder++
+                });
+            }
+
+            // Get all companion stars (B, C, etc.)
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            // Add secondary stars and their companions
+            foreach (var companionObj in companionStars)
+            {
+                if (!(companionObj.celestrialObject is Star companionStar)) continue;
+
+                // Skip Ab as we already added it
+                if (companionStar.Designation == "Ab") continue;
+
+                // Check if this companion has its own companion
+                bool companionHasCompanion = companionStar.Designation.EndsWith("a");
+                Star? subCompanion = null;
+                CelestrialObject? subCompanionObj = null;
+
+                if (companionHasCompanion)
+                {
+                    // Find the b companion
+                    foreach (var subObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (subObj.celestrialObject is Star star && star.Designation.EndsWith("b"))
+                        {
+                            subCompanion = star;
+                            subCompanionObj = subObj;
+                            break;
+                        }
+                    }
+                }
+
+                // Add main companion star (Ba, Ca, etc. or B, C, etc.)
+                starData.Add(new StarDisplayData
+                {
+                    Component = companionStar.Designation,
+                    ParentDesignation = null,
+                    Class = $"{companionStar.type}{companionStar.subType} {companionStar.starclass}",
+                    Mass = companionStar.mass,
+                    Temp = companionStar.temperture,
+                    Diameter = companionStar.diameter,
+                    Luminosity = companionStar.luminosity,
+                    Orbit = companionHasCompanion ? null : (float?)companionObj.orbit,
+                    AU = companionHasCompanion ? null : (float?)companionObj.orbitAU,
+                    Ecc = companionHasCompanion ? null : (float?)companionObj.orbitEccentricity,
+                    Period = companionHasCompanion ? null : FormatOrbitalPeriod(companionObj.OrbitalPeriodYears),
+                    MAO = companionStar.MinAllowableOrbit,
+                    HZCO = companionStar.HZCO,
+                    IsCombined = false,
+                    SortOrder = sortOrder++
+                });
+
+                // Add sub-companion if exists
+                if (subCompanion != null && subCompanionObj != null)
+                {
+                    starData.Add(new StarDisplayData
+                    {
+                        Component = subCompanion.Designation,
+                        ParentDesignation = null,
+                        Class = $"{subCompanion.type}{subCompanion.subType} {subCompanion.starclass}",
+                        Mass = subCompanion.mass,
+                        Temp = subCompanion.temperture,
+                        Diameter = subCompanion.diameter,
+                        Luminosity = subCompanion.luminosity,
+                        Orbit = null,
+                        AU = null,
+                        Ecc = null,
+                        Period = null,
+                        MAO = subCompanion.MinAllowableOrbit,
+                        HZCO = subCompanion.HZCO,
+                        IsCombined = false,
+                        SortOrder = sortOrder++
+                    });
+
+                    // Add combined (e.g., Bab, Cab)
+                    string baseLetter = companionStar.Designation.TrimEnd('a');
+                    starData.Add(new StarDisplayData
+                    {
+                        Component = $"{baseLetter}ab",
+                        ParentDesignation = baseLetter,
+                        Class = "—",
+                        Mass = companionStar.mass + subCompanion.mass,
+                        Temp = 0,
+                        Diameter = 0,
+                        Luminosity = companionStar.luminosity + subCompanion.luminosity,
+                        Orbit = companionObj.orbit,
+                        AU = companionObj.orbitAU,
+                        Ecc = companionObj.orbitEccentricity,
+                        Period = FormatOrbitalPeriod(companionObj.OrbitalPeriodYears),
+                        MAO = companionStar.MinAllowableOrbit,
+                        HZCO = companionStar.HZCO,
+                        IsCombined = true,
+                        SortOrder = sortOrder++
+                    });
+                }
+            }
+
+            // Add multi-star combinations (AB, ABC, etc.) - only if needed
+            // For now, we'll add them based on what worlds exist in CollectAllWorldData
+            // This is a simplified version - full implementation would check which combinations have worlds
+            if (companionStars.Count > 0)
+            {
+                List<string> starLetters = new List<string>();
+
+                // Add primary
+                if (primaryHasCompanion)
+                    starLetters.Add("A"); // Use base letter for combined
+                else
+                    starLetters.Add(primaryStar.Designation);
+
+                // Add companions
+                foreach (var companionObj in companionStars)
+                {
+                    if (companionObj.celestrialObject is Star star && star.Designation != "Ab")
+                    {
+                        string baseLetter = star.Designation.TrimEnd('a');
+                        if (!starLetters.Contains(baseLetter))
+                            starLetters.Add(baseLetter);
+                    }
+                }
+
+                // Add AB, ABC combinations if multiple stars
+                if (starLetters.Count >= 2)
+                {
+                    string abDesignation = string.Join("", starLetters.Take(2));
+                    float totalMass = 0;
+                    float totalLuminosity = 0;
+
+                    // Calculate combined properties for first two stars
+                    if (primaryHasCompanion && primaryCompanion != null)
+                    {
+                        totalMass += primaryStar.mass + primaryCompanion.mass;
+                        totalLuminosity += primaryStar.luminosity + primaryCompanion.luminosity;
+                    }
+                    else
+                    {
+                        totalMass += primaryStar.mass;
+                        totalLuminosity += primaryStar.luminosity;
+                    }
+
+                    // Add first companion's mass/luminosity
+                    var firstCompanionObj = companionStars[0];
+                    if (firstCompanionObj.celestrialObject is Star firstCompanion)
+                    {
+                        bool firstHasCompanion = firstCompanion.Designation.EndsWith("a");
+                        totalMass += firstCompanion.mass;
+                        totalLuminosity += firstCompanion.luminosity;
+
+                        if (firstHasCompanion)
+                        {
+                            // Add sub-companion mass/luminosity
+                            foreach (var subObj in firstCompanionObj.celestrialObjectOrbits)
+                            {
+                                if (subObj.celestrialObject is Star subStar)
+                                {
+                                    totalMass += subStar.mass;
+                                    totalLuminosity += subStar.luminosity;
+                                    break;
+                                }
+                            }
+                        }
+
+                        starData.Add(new StarDisplayData
+                        {
+                            Component = abDesignation,
+                            ParentDesignation = null,
+                            Class = "—",
+                            Mass = totalMass,
+                            Temp = 0,
+                            Diameter = 0,
+                            Luminosity = totalLuminosity,
+                            Orbit = firstCompanionObj.orbit,
+                            AU = firstCompanionObj.orbitAU,
+                            Ecc = firstCompanionObj.orbitEccentricity,
+                            Period = FormatOrbitalPeriod(firstCompanionObj.OrbitalPeriodYears),
+                            MAO = 0, // Combined stars don't have meaningful MAO
+                            HZCO = 0,
+                            IsCombined = true,
+                            SortOrder = sortOrder++
+                        });
+                    }
+                }
+
+                // Add ABC if three or more stars
+                if (starLetters.Count >= 3)
+                {
+                    string abcDesignation = string.Join("", starLetters.Take(3));
+                    float totalMass = 0;
+                    float totalLuminosity = 0;
+
+                    // Calculate combined properties for all three stars
+                    if (primaryHasCompanion && primaryCompanion != null)
+                    {
+                        totalMass += primaryStar.mass + primaryCompanion.mass;
+                        totalLuminosity += primaryStar.luminosity + primaryCompanion.luminosity;
+                    }
+                    else
+                    {
+                        totalMass += primaryStar.mass;
+                        totalLuminosity += primaryStar.luminosity;
+                    }
+
+                    // Add first two companions
+                    for (int i = 0; i < Math.Min(2, companionStars.Count); i++)
+                    {
+                        var companionObj = companionStars[i];
+                        if (companionObj.celestrialObject is Star companion)
+                        {
+                            bool companionHasCompanionInner = companion.Designation.EndsWith("a");
+                            totalMass += companion.mass;
+                            totalLuminosity += companion.luminosity;
+
+                            if (companionHasCompanionInner)
+                            {
+                                foreach (var subObj in companionObj.celestrialObjectOrbits)
+                                {
+                                    if (subObj.celestrialObject is Star subStar)
+                                    {
+                                        totalMass += subStar.mass;
+                                        totalLuminosity += subStar.luminosity;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    var secondCompanionObj = companionStars[1];
+                    starData.Add(new StarDisplayData
+                    {
+                        Component = abcDesignation,
+                        ParentDesignation = null,
+                        Class = "—",
+                        Mass = totalMass,
+                        Temp = 0,
+                        Diameter = 0,
+                        Luminosity = totalLuminosity,
+                        Orbit = secondCompanionObj.orbit,
+                        AU = secondCompanionObj.orbitAU,
+                        Ecc = secondCompanionObj.orbitEccentricity,
+                        Period = FormatOrbitalPeriod(secondCompanionObj.OrbitalPeriodYears),
+                        MAO = 0,
+                        HZCO = 0,
+                        IsCombined = true,
+                        SortOrder = sortOrder++
+                    });
+                }
+            }
+
+            return starData.OrderBy(s => s.SortOrder).ToList();
+        }
+
+        private List<WorldDisplayData> CollectAllWorldData()
+        {
+            List<WorldDisplayData> worldData = new List<WorldDisplayData>();
+
+            // Get all companion stars sorted by orbit
+            var companionStars = primaryObject.celestrialObjectOrbits
+                .Where(obj => obj.celestrialObject is Star)
+                .OrderBy(obj => obj.orbit)
+                .ToList();
+
+            // Collect worlds from primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is CelestialBody body && !(body is EmptyOrbit))
+                    {
+                        string primaryDesignation = DeterminePrimaryDesignation(bodyObj, primaryStar, companionStars);
+                        string notes = BuildNotesString(bodyObj, body, primaryStar);
+
+                        // Determine size and type based on body type
+                        string size = "";
+                        string type = "";
+                        string sub = "";
+                        int ringCount = 0;
+                        List<Moon> moons = new List<Moon>();
+
+                        if (body is TerrestrialPlanet tp)
+                        {
+                            type = "Terrestrial Planet";
+                            size = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                            moons = tp.Moons;
+                            // R-sized moons are rings
+                            ringCount = moons.Count(m => m.Size == "R");
+                            // If only R moons (rings), show "R", otherwise show count
+                            sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
+
+                            // Add mass to notes with ⊕ symbol (Earth symbol), but after HZ if present
+                            int massInEarths = (int)(tp.Mass * 332946); // Convert solar masses to Earth masses
+                            if (massInEarths > 0)
+                            {
+                                if (!string.IsNullOrEmpty(notes))
+                                {
+                                    if (notes.StartsWith("HZ"))
+                                        notes = $"HZ, {massInEarths:N0}⊕" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                    else
+                                        notes = $"{massInEarths:N0}⊕, {notes}";
+                                }
+                                else
+                                    notes = $"{massInEarths:N0}⊕";
+                            }
+                        }
+                        else if (body is GasGiant gg)
+                        {
+                            type = "Gas Giant";
+                            size = $"{gg.Size}{ToEhex(gg.Diameter)}";
+                            moons = gg.Moons;
+                            // R-sized moons are rings
+                            ringCount = moons.Count(m => m.Size == "R");
+                            // If only R moons (rings), show "R", otherwise show count
+                            sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
+
+                            // Add mass to notes with ME suffix, but after HZ if present
+                            if (!string.IsNullOrEmpty(notes))
+                            {
+                                if (notes.StartsWith("HZ"))
+                                    notes = $"HZ, {gg.GasGiantMass}ME" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                else
+                                    notes = $"{gg.GasGiantMass}ME, {notes}";
+                            }
+                            else
+                                notes = $"{gg.GasGiantMass}ME";
+                        }
+                        else if (body is PlanetoidBelt pb)
+                        {
+                            type = "Planetoid Belt";
+                            sub = "?";
+
+                            // Check if this belt contains the mainworld
+                            if (pb.ContainsMainworld && !string.IsNullOrEmpty(pb.MainworldUWP))
+                            {
+                                size = pb.MainworldUWP;
+                            }
+                        }
+
+                        // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                        // Also check if any moon is the mainworld and add it as a separate world entry
+                        // Track mainworld moon to add after parent gas giant
+                        WorldDisplayData? mainworldMoonData = null;
+
+                        if (moons.Count > 0)
+                        {
+                            List<string> moonInfo = new List<string>();
+
+                            // Count R-sized moons
+                            int rMoonCount = moons.Count(m => m.Size == "R");
+                            if (rMoonCount > 0)
+                                moonInfo.Add($"R0{rMoonCount}");
+
+                            // Add non-R moon sizes and check for mainworld moons
+                            foreach (var moon in moons)
+                            {
+                                if (moon.Size != "R")
+                                {
+                                    // Check if this moon is the mainworld
+                                    if (mainworld != null && moon == mainworld.PlacedWorld)
+                                    {
+                                        // This moon is the mainworld - save it to add AFTER parent gas giant
+                                        string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
+                                        string moonDesignation = $"{body.Designation} {moon.Designation}";
+
+                                        // Format orbit number with (R) suffix for Random orbit type
+                                        string moonOrbitString = body.Type == CelestialBodyType.Random
+                                            ? $"{bodyObj.orbit:F2}(R)"
+                                            : bodyObj.orbit.ToString("F2");
+
+                                        mainworldMoonData = new WorldDisplayData
+                                        {
+                                            Name = moonName,
+                                            Primary = primaryDesignation,
+                                            Object = moonDesignation + "*",
+                                            Type = "Moon",
+                                            Size = mainworld.UWP,
+                                            Orbit = moonOrbitString,
+                                            OrbitNumber = bodyObj.orbit,
+                                            AU = bodyObj.orbitAU,
+                                            Ecc = bodyObj.orbitEccentricity,
+                                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                            Sub = "0",
+                                            Notes = BuildNotesString(bodyObj, body, primaryStar),
+                                            Moons = new List<Moon>()
+                                        };
+
+                                        // Add moon's SAH code to parent's notes (not full UWP)
+                                        string moonSAH = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                        moonInfo.Add(moonSAH);
+                                    }
+                                    else
+                                    {
+                                        // Check if this moon is a sophont world
+                                        var sophontMoon = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == moon);
+                                        if (sophontMoon != null)
+                                        {
+                                            // Add sophont moon's UWP to parent's notes
+                                            moonInfo.Add(sophontMoon.UWP);
+                                        }
+                                        else
+                                        {
+                                            // Check if this moon is an additional inhabited world
+                                            var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                            if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP))
+                                                moonInfo.Add(moonAiw.UWP);
+                                            else if (moon.SpaceportClass != 'Y')
+                                                moonInfo.Add($"{moon.SpaceportClass}{moon.Size}");
+                                            else
+                                                moonInfo.Add(moon.Size);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (moonInfo.Count > 0)
+                            {
+                                string moonString = string.Join(", ", moonInfo);
+                                if (!string.IsNullOrEmpty(notes))
+                                    notes = $"{notes}, {moonString}";
+                                else
+                                    notes = moonString;
+                            }
+                        }
+
+                        // Check if this is the mainworld
+                        string name = "";
+                        if (mainworld != null && body == mainworld.PlacedWorld)
+                        {
+                            // Override size with mainworld UWP
+                            size = mainworld.UWP;
+                            // Set name if systemName is specified
+                            if (!string.IsNullOrEmpty(systemName))
+                                name = systemName;
+                        }
+
+                        // Check if this is a sophont world and has a UWP
+                        var sophontWorld = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == body);
+                        if (sophontWorld != null)
+                        {
+                            // Override size with sophont world UWP
+                            size = sophontWorld.UWP;
+                            // Add (alien species) to notes
+                            if (!string.IsNullOrEmpty(notes))
+                                notes = $"{notes}, (alien species)";
+                            else
+                                notes = "(alien species)";
+                        }
+
+                        // Check if this is an additional inhabited world (only if not mainworld or sophont world)
+                        if (mainworld?.PlacedWorld != body && !sophontWorlds.Any(sw => sw.PlacedWorld == body))
+                        {
+                            var aiwBody = GetAdditionalInhabitedWorld(body);
+                            if (aiwBody != null && !string.IsNullOrEmpty(aiwBody.UWP))
+                                size = aiwBody.UWP;
+                            else if (body is TerrestrialPlanet tpBody && tpBody.SpaceportClass != 'Y')
+                                size = $"{tpBody.SpaceportClass}{size}";
+                        }
+
+                        // Check if this body is the mainworld and add * marker
+                        string objectDesignation = body.Designation;
+                        if (mainworld != null && body == mainworld.PlacedWorld)
+                        {
+                            objectDesignation += "*";
+                        }
+
+                        // Format orbit number with (R) suffix for Random orbit type
+                        float orbitNumber = bodyObj.orbit;
+                        string orbitString = body.Type == CelestialBodyType.Random
+                            ? $"{orbitNumber:F2}(R)"
+                            : orbitNumber.ToString("F2");
+
+                        worldData.Add(new WorldDisplayData
+                        {
+                            Name = name,
+                            Primary = primaryDesignation,
+                            Object = objectDesignation,
+                            Type = type,
+                            Size = size,
+                            Orbit = orbitString,
+                            OrbitNumber = orbitNumber,
+                            AU = bodyObj.orbitAU,
+                            Ecc = bodyObj.orbitEccentricity,
+                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                            Sub = sub,
+                            Notes = notes,
+                            Moons = moons
+                        });
+
+                        // Add mainworld moon AFTER parent gas giant
+                        if (mainworldMoonData != null)
+                        {
+                            worldData.Add(mainworldMoonData);
+                        }
+                    }
+                }
+            }
+
+            // Collect worlds from companion stars
+            foreach (var companionObj in companionStars)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is CelestialBody body && !(body is EmptyOrbit))
+                        {
+                            string primaryDesignation = DeterminePrimaryDesignation(bodyObj, companionStar, new List<CelestrialObject>());
+                            string notes = BuildNotesString(bodyObj, body, companionStar);
+
+                            // Determine size and type based on body type
+                            string size = "";
+                            string type = "";
+                            string sub = "";
+                            int ringCount = 0;
+                            List<Moon> moons = new List<Moon>();
+
+                            if (body is TerrestrialPlanet tp)
+                            {
+                                type = "Terrestrial Planet";
+                                size = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                                moons = tp.Moons;
+                                // R-sized moons are rings
+                                ringCount = moons.Count(m => m.Size == "R");
+                                // If only R moons (rings), show "R", otherwise show count
+                                sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
+
+                                // Add mass to notes with ⊕ symbol (Earth symbol), but after HZ if present
+                                int massInEarths = (int)(tp.Mass * 332946); // Convert solar masses to Earth masses
+                                if (massInEarths > 0)
+                                {
+                                    if (!string.IsNullOrEmpty(notes))
+                                    {
+                                        if (notes.StartsWith("HZ"))
+                                            notes = $"HZ, {massInEarths:N0}⊕" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                        else
+                                            notes = $"{massInEarths:N0}⊕, {notes}";
+                                    }
+                                    else
+                                        notes = $"{massInEarths:N0}⊕";
+                                }
+                            }
+                            else if (body is GasGiant gg)
+                            {
+                                type = "Gas Giant";
+                                size = $"{gg.Size}{ToEhex(gg.Diameter)}";
+                                moons = gg.Moons;
+                                // R-sized moons are rings
+                                ringCount = moons.Count(m => m.Size == "R");
+                                // If only R moons (rings), show "R", otherwise show count
+                                sub = (moons.Count > 0 && moons.Count == ringCount) ? "R" : (moons.Count - ringCount).ToString();
+
+                                // Add mass to notes with ME suffix, but after HZ if present
+                                if (!string.IsNullOrEmpty(notes))
+                                {
+                                    if (notes.StartsWith("HZ"))
+                                        notes = $"HZ, {gg.GasGiantMass}ME" + (notes.Length > 2 ? ", " + notes.Substring(2).TrimStart(',', ' ') : "");
+                                    else
+                                        notes = $"{gg.GasGiantMass}ME, {notes}";
+                                }
+                                else
+                                    notes = $"{gg.GasGiantMass}ME";
+                            }
+                            else if (body is PlanetoidBelt pb)
+                            {
+                                type = "Planetoid Belt";
+                                sub = "?";
+
+                                // Check if this belt contains the mainworld
+                                if (pb.ContainsMainworld && !string.IsNullOrEmpty(pb.MainworldUWP))
+                                {
+                                    size = pb.MainworldUWP;
+                                }
+                            }
+
+                            // Track mainworld moon to add after parent gas giant
+                            WorldDisplayData? mainworldMoonDataCompanion = null;
+
+                            // Add R moon count and moon sizes to notes (R moons shown as count, not individually)
+                            // Also check if any moon is the mainworld and add it as a separate world entry
+                            if (moons.Count > 0)
+                            {
+                                List<string> moonInfo = new List<string>();
+
+                                // Count R-sized moons
+                                int rMoonCount = moons.Count(m => m.Size == "R");
+                                if (rMoonCount > 0)
+                                    moonInfo.Add($"R0{rMoonCount}");
+
+                                // Add non-R moon sizes and check for mainworld moons
+                                foreach (var moon in moons)
+                                {
+                                    if (moon.Size != "R")
+                                    {
+                                        // Check if this moon is the mainworld
+                                        if (mainworld != null && moon == mainworld.PlacedWorld)
+                                        {
+                                            // This moon is the mainworld - save it to add AFTER parent gas giant
+                                            string moonName = !string.IsNullOrEmpty(systemName) ? systemName : "";
+                                            string moonDesignation = $"{body.Designation} {moon.Designation}";
+
+                                            // Format orbit number with (R) suffix for Random orbit type
+                                            string moonOrbitStringCompanion = body.Type == CelestialBodyType.Random
+                                                ? $"{bodyObj.orbit:F2}(R)"
+                                                : bodyObj.orbit.ToString("F2");
+
+                                            mainworldMoonDataCompanion = new WorldDisplayData
+                                            {
+                                                Name = moonName,
+                                                Primary = primaryDesignation,
+                                                Object = moonDesignation + "*",
+                                                Type = "Moon",
+                                                Size = mainworld.UWP,
+                                                Orbit = moonOrbitStringCompanion,
+                                                OrbitNumber = bodyObj.orbit,
+                                                AU = bodyObj.orbitAU,
+                                                Ecc = bodyObj.orbitEccentricity,
+                                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                                Sub = "0",
+                                                Notes = BuildNotesString(bodyObj, body, companionStar),
+                                                Moons = new List<Moon>()
+                                            };
+
+                                            // Add mainworld UWP to parent's notes instead of just SAH
+                                            moonInfo.Add(mainworld.UWP);
+                                        }
+                                        else
+                                        {
+                                            // Check if this moon is a sophont world
+                                            var sophontMoon = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == moon);
+                                            if (sophontMoon != null)
+                                            {
+                                                // Add sophont moon's UWP to parent's notes
+                                                moonInfo.Add(sophontMoon.UWP);
+                                            }
+                                            else
+                                            {
+                                                // Check if this moon is an additional inhabited world
+                                                var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                                if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP))
+                                                    moonInfo.Add(moonAiw.UWP);
+                                                else
+                                                    moonInfo.Add(moon.Size);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (moonInfo.Count > 0)
+                                {
+                                    string moonString = string.Join(", ", moonInfo);
+                                    if (!string.IsNullOrEmpty(notes))
+                                        notes = $"{notes}, {moonString}";
+                                    else
+                                        notes = moonString;
+                                }
+                            }
+
+                            // Check if this is the mainworld
+                            string name = "";
+                            if (mainworld != null && body == mainworld.PlacedWorld)
+                            {
+                                // Override size with mainworld UWP
+                                size = mainworld.UWP;
+                                // Set name if systemName is specified
+                                if (!string.IsNullOrEmpty(systemName))
+                                    name = systemName;
+                            }
+
+                            // Check if this is a sophont world and has a UWP
+                            var sophontWorldCompanion = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == body);
+                            if (sophontWorldCompanion != null)
+                            {
+                                // Override size with sophont world UWP
+                                size = sophontWorldCompanion.UWP;
+                                // Add (alien species) to notes
+                                if (!string.IsNullOrEmpty(notes))
+                                    notes = $"{notes}, (alien species)";
+                                else
+                                    notes = "(alien species)";
+                            }
+
+                            // Check if this is an additional inhabited world (only if not mainworld or sophont world)
+                            if (mainworld?.PlacedWorld != body && !sophontWorlds.Any(sw => sw.PlacedWorld == body))
+                            {
+                                var aiwBody = GetAdditionalInhabitedWorld(body);
+                                if (aiwBody != null && !string.IsNullOrEmpty(aiwBody.UWP))
+                                    size = aiwBody.UWP;
+                            }
+
+                            // Check if this body is the mainworld and add * marker
+                            string objectDesignationCompanion = body.Designation;
+                            if (mainworld != null && body == mainworld.PlacedWorld)
+                            {
+                                objectDesignationCompanion += "*";
+                            }
+
+                            // Format orbit number with (R) suffix for Random orbit type
+                            float orbitNumberCompanion = bodyObj.orbit;
+                            string orbitStringCompanion = body.Type == CelestialBodyType.Random
+                                ? $"{orbitNumberCompanion:F2}(R)"
+                                : orbitNumberCompanion.ToString("F2");
+
+                            worldData.Add(new WorldDisplayData
+                            {
+                                Name = name,
+                                Primary = primaryDesignation,
+                                Object = objectDesignationCompanion,
+                                Type = type,
+                                Size = size,
+                                Orbit = orbitStringCompanion,
+                                OrbitNumber = orbitNumberCompanion,
+                                AU = bodyObj.orbitAU,
+                                Ecc = bodyObj.orbitEccentricity,
+                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Sub = sub,
+                                Notes = notes,
+                                Moons = moons
+                            });
+
+                            // Add mainworld moon AFTER parent gas giant
+                            if (mainworldMoonDataCompanion != null)
+                            {
+                                worldData.Add(mainworldMoonDataCompanion);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return worldData;
+        }
+
+        private void PrintStellarSummary()
+        {
+            int starCount = CountAllStars();
+
+            Console.WriteLine("STELLAR");
+            Console.WriteLine($"  Stars: {starCount}");
+            Console.WriteLine($"  Gas Giants: {GasGiantCount}");
+            Console.WriteLine($"  Planetoid Belts: {PlanetoidBeltCount}");
+            Console.WriteLine($"  Terrestrials: {TerrestrialPlanetCount}");
+            Console.WriteLine();
+        }
+
+        private void PrintStarsTable(List<StarDisplayData> starData)
+        {
+            if (starData.Count == 0) return;
+
+            Console.WriteLine("STARS");
+
+            // Calculate column widths dynamically based on data
+            int compWidth = Math.Max("Component".Length, starData.Max(s => s.Component.Length + (s.ParentDesignation != null ? 4 : 0)));
+            int classWidth = Math.Max("Class".Length, starData.Max(s => s.Class.Length));
+            int massWidth = Math.Max("Mass".Length, starData.Max(s => s.Mass.ToString("F3").Length));
+            int tempWidth = Math.Max("Temp".Length, starData.Max(s => s.Temp > 0 ? s.Temp.ToString("F0").Length : 1));
+            int diamWidth = Math.Max("Diam".Length, starData.Max(s => s.Diameter > 0 ? s.Diameter.ToString("F3").Length : 1));
+            int luminWidth = Math.Max("Lumin".Length, starData.Max(s => s.Luminosity.ToString("F4").Length));
+            int orbitWidth = Math.Max("Orbit#".Length, starData.Max(s => s.Orbit.HasValue ? s.Orbit.Value.ToString("F2").Length : 1));
+            int auWidth = Math.Max("AU".Length, starData.Max(s => s.AU.HasValue ? s.AU.Value.ToString("F2").Length : 1));
+            int eccWidth = Math.Max("Ecc".Length, starData.Max(s => s.Ecc.HasValue ? s.Ecc.Value.ToString("F2").Length : 1));
+            int periodWidth = Math.Max("Period".Length, starData.Max(s => s.Period != null ? s.Period.Length : 1));
+            int maoWidth = Math.Max("MAO".Length, starData.Max(s => s.MAO > 0 ? s.MAO.ToString("F2").Length : 1));
+            int hzcoWidth = Math.Max("HZCO".Length, starData.Max(s => s.HZCO > 0 ? s.HZCO.ToString("F2").Length : 1));
+
+            // Print header
+            Console.WriteLine($"{"Component".PadRight(compWidth)} {"Class".PadRight(classWidth)} {"Mass".PadLeft(massWidth)} {"Temp".PadLeft(tempWidth)} {"Diam".PadLeft(diamWidth)} {"Lumin".PadLeft(luminWidth)} {"Orbit#".PadLeft(orbitWidth)} {"AU".PadLeft(auWidth)} {"Ecc".PadLeft(eccWidth)} {"Period".PadRight(periodWidth)} {"MAO".PadLeft(maoWidth)} {"HZCO".PadLeft(hzcoWidth)}");
+
+            // Print each star
+            foreach (var star in starData)
+            {
+                string component = star.Component;
+                if (star.ParentDesignation != null)
+                    component += $" ({star.ParentDesignation})";
+
+                string mass = star.Mass.ToString("F3");
+                string temp = star.Temp > 0 ? star.Temp.ToString("F0") : "—";
+                string diam = star.Diameter > 0 ? star.Diameter.ToString("F3") : "—";
+                string lumin = star.Luminosity.ToString("F4");
+                string orbit = star.Orbit.HasValue ? star.Orbit.Value.ToString("F2") : "—";
+                string au = star.AU.HasValue ? star.AU.Value.ToString("F2") : "—";
+                string ecc = star.Ecc.HasValue ? star.Ecc.Value.ToString("F2") : "—";
+                string period = star.Period ?? "—";
+                string mao = star.MAO > 0 ? star.MAO.ToString("F2") : "—";
+                string hzco = star.HZCO > 0 ? star.HZCO.ToString("F2") : "—";
+
+                Console.WriteLine($"{component.PadRight(compWidth)} {star.Class.PadRight(classWidth)} {mass.PadLeft(massWidth)} {temp.PadLeft(tempWidth)} {diam.PadLeft(diamWidth)} {lumin.PadLeft(luminWidth)} {orbit.PadLeft(orbitWidth)} {au.PadLeft(auWidth)} {ecc.PadLeft(eccWidth)} {period.PadRight(periodWidth)} {mao.PadLeft(maoWidth)} {hzco.PadLeft(hzcoWidth)}");
+            }
+
+            Console.WriteLine();
+        }
+
+        private void PrintObjectsTable(List<WorldDisplayData> worldData)
+        {
+            if (worldData.Count == 0)
+            {
+                Console.WriteLine("OBJECTS");
+                Console.WriteLine("  No worlds generated in this system");
+                Console.WriteLine();
+                return;
+            }
+
+            Console.WriteLine("OBJECTS");
+
+            // Check if any world has a name
+            bool hasName = worldData.Any(w => !string.IsNullOrEmpty(w.Name));
+
+            // Calculate column widths dynamically based on data
+            int nameWidth = hasName ? Math.Max("Name".Length, worldData.Max(w => w.Name.Length)) : 0;
+            int primaryWidth = Math.Max("Primary".Length, worldData.Max(w => w.Primary.Length));
+            int objectWidth = Math.Max("Object".Length, worldData.Max(w => w.Object.Length));
+            int typeWidth = Math.Max("Type".Length, worldData.Max(w => w.Type.Length));
+            int sizeWidth = worldData.Any(w => w.Size.Length > 0) ? Math.Max("SAH/UWP".Length, worldData.Max(w => w.Size.Length)) : "SAH/UWP".Length;
+            // Calculate orbit width based on numeric part only (excluding (R) suffix)
+            // All numeric parts will be right-aligned, then (R) or spaces added
+            int maxOrbitNumericWidth = worldData.Max(w => w.Orbit.Replace("(R)", "").Length);
+            int orbitNumericWidth = Math.Max("Orbit#".Length, maxOrbitNumericWidth);
+            int orbitWidth = orbitNumericWidth + 3; // Add 3 for potential "(R)" suffix
+            int auWidth = Math.Max("AU".Length, worldData.Max(w => w.AU.ToString("F2").Length));
+            int eccWidth = Math.Max("Ecc".Length, worldData.Max(w => w.Ecc.ToString("F3").Length));
+            int periodWidth = Math.Max("Period".Length, worldData.Max(w => w.Period.Length));
+            int subWidth = Math.Max("Sub".Length, worldData.Any(w => w.Sub.Length > 0) ? worldData.Max(w => w.Sub.Length) : 1);
+            int notesWidth = worldData.Any(w => w.Notes.Length > 0) ? Math.Max("Notes".Length, worldData.Max(w => w.Notes.Length)) : "Notes".Length;
+
+            // Print header - with optional Name column, moved Size after Period, changed heading to SAH/UWP, added Sub column, added extra spacing
+            if (hasName)
+            {
+                Console.WriteLine($"{"Name".PadRight(nameWidth)} {"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Type".PadRight(typeWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            }
+            else
+            {
+                Console.WriteLine($"{"Primary".PadRight(primaryWidth)} {"Object".PadRight(objectWidth)} {"Type".PadRight(typeWidth)}  {"Orbit#".PadLeft(orbitWidth)}  {"AU".PadLeft(auWidth)}  {"Ecc".PadLeft(eccWidth)}  {"Period".PadRight(periodWidth)} {"SAH/UWP".PadRight(sizeWidth)} {"Sub".PadLeft(subWidth)} {"Notes".PadRight(notesWidth)}");
+            }
+
+            // Group by primary and print
+            var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
+            foreach (var group in groupedWorlds)
+            {
+                foreach (var world in group.OrderBy(w => w.OrbitNumber))
+                {
+                    // Handle orbit alignment: right-align numeric part, append (R) or spaces
+                    string orbitDisplay;
+                    if (world.Orbit.EndsWith("(R)"))
+                    {
+                        string numericPart = world.Orbit.Substring(0, world.Orbit.Length - 3);
+                        // Pad numeric part, then add (R) - total width = orbitNumericWidth + 3
+                        orbitDisplay = numericPart.PadLeft(orbitNumericWidth) + "(R)";
+                    }
+                    else
+                    {
+                        // Pad numeric part, then add 3 spaces to match width of entries with (R)
+                        orbitDisplay = world.Orbit.PadLeft(orbitNumericWidth) + "   ";
+                    }
+
+                    string au = world.AU.ToString("F2");
+                    string ecc = world.Ecc.ToString("F3");
+
+                    if (hasName)
+                    {
+                        Console.WriteLine($"{world.Name.PadRight(nameWidth)} {world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbitDisplay}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{world.Primary.PadRight(primaryWidth)} {world.Object.PadRight(objectWidth)} {world.Type.PadRight(typeWidth)}  {orbitDisplay}  {au.PadLeft(auWidth)}  {ecc.PadLeft(eccWidth)}  {world.Period.PadRight(periodWidth)} {world.Size.PadRight(sizeWidth)} {world.Sub.PadLeft(subWidth)} {world.Notes}");
+                    }
+                }
+            }
+
+            Console.WriteLine();
+        }
+
+        private string AddMoonLinksToNotes(string notes, string parentWorldDesignation, List<Moon> moons)
+        {
+            if (string.IsNullOrEmpty(notes))
+                return notes;
+
+            // Split notes by comma and space
+            string[] parts = notes.Split(new[] { ", " }, StringSplitOptions.None);
+            List<string> processedParts = new List<string>();
+
+            // Get list of non-R moons (only these have survey forms)
+            List<Moon> nonRMoons = moons.Where(m => m.Size != "R").ToList();
+            int moonIndex = 0;
+
+            foreach (string part in parts)
+            {
+                // Check if this is a moon size code (single character: 0-9, A-F, S, or single letter a-z for designation)
+                // Moon sizes are: R, S, 0, 1-9, A-F, GS, GM
+                // But we need to exclude things like "HZ", "ME", "R01", "R02", "R×n", etc.
+                bool isMoonSize = false;
+                if (part.Length == 1)
+                {
+                    char c = part[0];
+                    if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || c == 'S' || c == 'B')
+                        isMoonSize = true;
+                }
+
+                if (isMoonSize && moonIndex < nonRMoons.Count)
+                {
+                    // Use the actual moon's designation from the moon list
+                    Moon moon = nonRMoons[moonIndex];
+                    string moonFilename = $"{parentWorldDesignation.Replace(" ", "_").Replace("*", "")}_{moon.Designation}";
+                    string linkedPart = $"<a href=\"surveys/{moonFilename}.html\">{part}</a>";
+                    processedParts.Add(linkedPart);
+                    moonIndex++;
+                }
+                else
+                {
+                    processedParts.Add(part);
+                }
+            }
+
+            return string.Join(", ", processedParts);
+        }
+
+        private string AddBeltProfileTooltip(string notes)
+        {
+            // Planetoid belt profile format: S-Cm.Cs.Cc.Co-B-R-#-s
+            // Where S = Belt Span (AU), Cm = Main Type, Cs = Secondary Type, Cc = Composition Code, Co = Other
+            // B = Bulk, R = Resource Rating, # = Size 1 Bodies, s = Size S Bodies (last 4 can be negative or ehex)
+
+            // Match the belt profile pattern (e.g., "1.1-02.17.70.11-7-B-3-C" or "1.0-65.30.01.04--3-1-0-0")
+            // Pattern: decimal-digit.digit.digit.digit-value-value-value-value
+            // Values can be negative numbers or single ehex characters
+            System.Text.RegularExpressions.Regex beltPattern = new System.Text.RegularExpressions.Regex(
+                @"(\d+\.\d+)-(\d{2})\.(\d{2})\.(\d{2})\.(\d{2})-(-?[0-9A-Z]+)-(-?[0-9A-Z]+)-(-?[0-9A-Z]+)-(-?[0-9A-Z]+)"
+            );
+
+            var match = beltPattern.Match(notes);
+            if (match.Success)
+            {
+                string beltCode = match.Value;
+                string span = match.Groups[1].Value;
+                string mType = match.Groups[2].Value;
+                string sType = match.Groups[3].Value;
+                string cType = match.Groups[4].Value;
+                string other = match.Groups[5].Value;
+                string bulk = match.Groups[6].Value;
+                string resource = match.Groups[7].Value;
+                string size1 = match.Groups[8].Value;
+                string sizeS = match.Groups[9].Value;
+
+                // Format tooltip with line breaks for better readability
+                string tooltip = $"Profile:&#10;" +
+                                $"{beltCode}&#10;" +
+                                $"Span: {span} AU&#10;" +
+                                $"Composition:&#10;" +
+                                $"  Metallic: {mType}%&#10;" +
+                                $"  Stony: {sType}%&#10;" +
+                                $"  Carbonaceous: {cType}%&#10;" +
+                                $"  Other: {other}%&#10;" +
+                                $"Bulk Density: {bulk}&#10;" +
+                                $"Resource Rating: {resource}&#10;" +
+                                $"Bodies: {size1} size-1, {sizeS} size-S";
+
+                // Replace the belt code with a span that has a CSS tooltip (larger font, better styling)
+                string replacement = $"<span class=\"belt-tooltip\" data-tooltip=\"{tooltip}\">{beltCode}</span>";
+                return notes.Replace(beltCode, replacement);
+            }
+
+            return notes;
+        }
+
+        private void GenerateHtmlOutput(List<StarDisplayData> starData, List<WorldDisplayData> worldData)
+        {
+            StringBuilder html = new StringBuilder();
+
+            // HTML header and CSS
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"favicon.ico\" type=\"image/x-icon\">");
+            html.AppendLine($"    <title>Traveller Star System - Seed {Seed}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body {");
+            html.AppendLine("            font-family: 'Courier New', monospace;");
+            html.AppendLine("            margin: 20px;");
+            html.AppendLine("            background-color: #f5f5f5;");
+            html.AppendLine("        }");
+            html.AppendLine("        .container {");
+            html.AppendLine("            max-width: 1800px;");
+            html.AppendLine("            width: 95%;");
+            html.AppendLine("            margin: 0 auto;");
+            html.AppendLine("            background-color: white;");
+            html.AppendLine("            padding: 20px;");
+            html.AppendLine("            border: 1px solid #ccc;");
+            html.AppendLine("        }");
+            html.AppendLine("        .table-scroll {");
+            html.AppendLine("            overflow-x: auto;");
+            html.AppendLine("        }");
+            html.AppendLine("        @media (max-width: 768px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            table { font-size: 10px; }");
+            html.AppendLine("            th, td { padding: 3px; }");
+            html.AppendLine("        }");
+            html.AppendLine("        h1 {");
+            html.AppendLine("            text-align: center;");
+            html.AppendLine("            font-size: 28px;");
+            html.AppendLine("            margin-bottom: 20px;");
+            html.AppendLine("        }");
+            html.AppendLine("        h2 {");
+            html.AppendLine("            font-size: 21px;");
+            html.AppendLine("            font-weight: bold;");
+            html.AppendLine("            margin-top: 20px;");
+            html.AppendLine("            margin-bottom: 10px;");
+            html.AppendLine("        }");
+            html.AppendLine("        table {");
+            html.AppendLine("            width: 100%;");
+            html.AppendLine("            border-collapse: collapse;");
+            html.AppendLine("            margin-bottom: 20px;");
+            html.AppendLine("            font-size: 18px;");
+            html.AppendLine("        }");
+            html.AppendLine("        th, td {");
+            html.AppendLine("            border: 1px solid #000;");
+            html.AppendLine("            padding: 6px;");
+            html.AppendLine("            text-align: left;");
+            html.AppendLine("        }");
+            html.AppendLine("        th {");
+            html.AppendLine("            background-color: #e0e0e0;");
+            html.AppendLine("            font-weight: bold;");
+            html.AppendLine("        }");
+            html.AppendLine("        .numeric {");
+            html.AppendLine("            text-align: right;");
+            html.AppendLine("        }");
+            html.AppendLine("        .center {");
+            html.AppendLine("            text-align: center;");
+            html.AppendLine("        }");
+            html.AppendLine("        .stellar-table {");
+            html.AppendLine("            width: auto;");
+            html.AppendLine("        }");
+            html.AppendLine("        .stellar-table td {");
+            html.AppendLine("            padding: 4px 12px;");
+            html.AppendLine("        }");
+            html.AppendLine("        .notes, .comments {");
+            html.AppendLine("            margin-top: 10px;");
+            html.AppendLine("            font-size: 18px;");
+            html.AppendLine("        }");
+            html.AppendLine("        .italic {");
+            html.AppendLine("            font-style: italic;");
+            html.AppendLine("        }");
+            html.AppendLine("        .belt-tooltip {");
+            html.AppendLine("            position: relative;");
+            html.AppendLine("            cursor: help;");
+            html.AppendLine("            border-bottom: 1px dotted #666;");
+            html.AppendLine("        }");
+            html.AppendLine("        .belt-tooltip:hover::after {");
+            html.AppendLine("            content: attr(data-tooltip);");
+            html.AppendLine("            position: absolute;");
+            html.AppendLine("            left: 0;");
+            html.AppendLine("            bottom: 100%;");
+            html.AppendLine("            z-index: 1000;");
+            html.AppendLine("            background-color: #333;");
+            html.AppendLine("            color: white;");
+            html.AppendLine("            padding: 10px 15px;");
+            html.AppendLine("            border-radius: 4px;");
+            html.AppendLine("            white-space: pre-line;");
+            html.AppendLine("            font-size: 16px;");
+            html.AppendLine("            box-shadow: 0 2px 8px rgba(0,0,0,0.3);");
+            html.AppendLine("            margin-bottom: 5px;");
+            html.AppendLine("            min-width: 300px;");
+            html.AppendLine("        }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+            html.AppendLine($"        <h1>TRAVELLER STAR SYSTEM GENERATION<br>Version {Version.VersionString}<br>Seed: {Seed}</h1>");
+
+            // STELLAR summary
+            int starCount = primaryObject?.celestrialObject != null
+                ? CountAllStars()
+                : starData.Count(s => !s.IsCombined);
+            html.AppendLine("        <h2>Stellar</h2>");
+            html.AppendLine("        <table class=\"stellar-table\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Stellar</th>");
+            html.AppendLine("                <th>Gas Giants</th>");
+            html.AppendLine("                <th>Planetoid Belts</th>");
+            html.AppendLine("                <th>Terrestrials</th>");
+            html.AppendLine("                <th>Class III Status?</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td class=\"center\">{starCount}</td>");
+            html.AppendLine($"                <td class=\"center\">{GasGiantCount}</td>");
+            html.AppendLine($"                <td class=\"center\">{PlanetoidBeltCount}</td>");
+            html.AppendLine($"                <td class=\"center\">{TerrestrialPlanetCount}</td>");
+
+            // Determine Class III status (placeholder - always "Yes" for now)
+            string classIIIStatus = "Yes";
+            html.AppendLine($"                <td class=\"center\">{classIIIStatus}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // STARS table
+            if (starData.Count > 0)
+            {
+                html.AppendLine("        <h2>Stars</h2>");
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Component</th>");
+                html.AppendLine("                <th>Class</th>");
+                html.AppendLine("                <th>Mass</th>");
+                html.AppendLine("                <th>Temp</th>");
+                html.AppendLine("                <th>Diameter</th>");
+                html.AppendLine("                <th>Luminosity</th>");
+                html.AppendLine("                <th>Orbit#</th>");
+                html.AppendLine("                <th>AU</th>");
+                html.AppendLine("                <th>Ecc</th>");
+                html.AppendLine("                <th>Period</th>");
+                html.AppendLine("                <th>MAO</th>");
+                html.AppendLine("                <th>HZCO</th>");
+                html.AppendLine("            </tr>");
+
+                foreach (var star in starData)
+                {
+                    string component = star.Component;
+                    if (star.ParentDesignation != null)
+                        component += $" ({star.ParentDesignation})";
+
+                    string mass = star.Mass.ToString("F3");
+                    string temp = star.Temp > 0 ? star.Temp.ToString("N0") : "—";
+                    string diam = star.Diameter > 0 ? star.Diameter.ToString("F3") : "—";
+                    string lumin = star.Luminosity.ToString("F4");
+                    string orbit = star.Orbit.HasValue ? star.Orbit.Value.ToString("F2") : "—";
+                    string au = star.AU.HasValue ? star.AU.Value.ToString("F2") : "—";
+                    string ecc = star.Ecc.HasValue ? star.Ecc.Value.ToString("F2") : "—";
+                    string period = star.Period ?? "—";
+                    string mao = star.MAO > 0 ? star.MAO.ToString("F2") : "—";
+                    string hzco = star.HZCO > 0 ? star.HZCO.ToString("F2") : "—";
+
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td>{component}</td>");
+                    html.AppendLine($"                <td class=\"center\">{star.Class}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{mass}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{temp}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{diam}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{lumin}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{au}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
+                    html.AppendLine($"                <td>{period}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{mao}</td>");
+                    html.AppendLine($"                <td class=\"numeric\">{hzco}</td>");
+                    html.AppendLine("            </tr>");
+                }
+
+                html.AppendLine("        </table>");
+            }
+
+            // OBJECTS table
+            if (worldData.Count > 0)
+            {
+                // Check if any world has a name
+                bool hasName = worldData.Any(w => !string.IsNullOrEmpty(w.Name));
+
+                html.AppendLine("        <h2>Objects</h2>");
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+
+                // Add Name column if any world has a name
+                if (hasName)
+                    html.AppendLine("                <th>Name</th>");
+
+                html.AppendLine("                <th>Primary</th>");
+                html.AppendLine("                <th>Object</th>");
+                html.AppendLine("                <th>Type</th>");
+                html.AppendLine("                <th>Orbit#</th>");
+                html.AppendLine("                <th>AU</th>");
+                html.AppendLine("                <th>Ecc</th>");
+                html.AppendLine("                <th>Period</th>");
+                html.AppendLine("                <th>SAH/UWP</th>");
+                html.AppendLine("                <th>Sub</th>");
+                html.AppendLine("                <th>Notes</th>");
+                html.AppendLine("            </tr>");
+
+                var groupedWorlds = worldData.GroupBy(w => w.Primary).OrderBy(g => g.Key);
+                foreach (var group in groupedWorlds)
+                {
+                    foreach (var world in group.OrderBy(w => w.OrbitNumber))
+                    {
+                        string orbit = world.Orbit; // Already formatted
+                        string au = world.AU.ToString("F2");
+                        string ecc = world.Ecc.ToString("F3");
+
+                        // Add clickable link for terrestrial planets (3-char SAH/UWP, not gas giant, or mainworld UWP with dash)
+                        // Exclude planetoid belts (Sub == "?") even if they contain mainworld
+                        string objectCell = world.Object;
+                        if ((world.Size.Length == 3 && !world.Size.StartsWith("G")) || (world.Size.Contains("-") && world.Sub != "?"))
+                        {
+                            // Remove asterisk from filename (mainworld marker shouldn't be in filename)
+                            string surveyFilename = world.Object.Replace(" ", "_").Replace("*", "");
+                            objectCell = $"<a href=\"surveys/{surveyFilename}.html\">{world.Object}</a>";
+                        }
+
+                        // Add clickable links for moons in Notes field
+                        string notesCell = AddMoonLinksToNotes(world.Notes, world.Object, world.Moons);
+
+                        // Add tooltip for planetoid belt profile codes
+                        if (world.Type == "Planetoid Belt" && !string.IsNullOrEmpty(notesCell))
+                        {
+                            notesCell = AddBeltProfileTooltip(notesCell);
+                        }
+
+                        html.AppendLine("            <tr>");
+
+                        // Add Name cell if any world has a name
+                        if (hasName)
+                            html.AppendLine($"                <td>{world.Name}</td>");
+
+                        html.AppendLine($"                <td>{world.Primary}</td>");
+                        html.AppendLine($"                <td>{objectCell}</td>");
+                        html.AppendLine($"                <td>{world.Type}</td>");
+                        html.AppendLine($"                <td class=\"numeric\">{orbit}</td>");
+                        html.AppendLine($"                <td class=\"numeric\">{au}</td>");
+                        html.AppendLine($"                <td class=\"numeric\">{ecc}</td>");
+                        html.AppendLine($"                <td>{world.Period}</td>");
+
+                        // Add link to Population Details form for mainworld with population
+                        string sizeCell = world.Size;
+                        if (world.Object.Contains("*") && mainworld != null && mainworld.Population > 0 && world.Size.Contains("-"))
+                        {
+                            sizeCell = $"<a href=\"surveys/PopulatedWorldDetails.html\">{world.Size}</a>";
+                        }
+                        // Add link to inhabited world form for secondary worlds (UWP starts with X = secondary world starport)
+                        else if (world.Size.Length >= 9 && world.Size[7] == '-' && world.Sub != "?")
+                        {
+                            string surveyFilename = world.Object.Replace(" ", "_").Replace("*", "");
+                            sizeCell = $"<a href=\"surveys/{surveyFilename}_inhabited.html\">{world.Size}</a>";
+                        }
+
+                        html.AppendLine($"                <td class=\"center\">{sizeCell}</td>");
+                        html.AppendLine($"                <td class=\"center\">{world.Sub}</td>");
+                        html.AppendLine($"                <td>{notesCell}</td>");
+                        html.AppendLine("            </tr>");
+                    }
+                }
+
+                html.AppendLine("        </table>");
+            }
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            // Copy favicon.ico to output directory so HTML pages can reference it
+            try
+            {
+                string exeDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? ".";
+                string icoSrc = System.IO.Path.Combine(exeDir, "TravellerGenesis.ico");
+                if (System.IO.File.Exists(icoSrc))
+                    System.IO.File.Copy(icoSrc, "favicon.ico", overwrite: true);
+            }
+            catch { /* best-effort */ }
+
+            // Save HTML file
+            string filename = uniqueHtmlFilename ? $"StarSystem_{Seed}.html" : "StarSystem.html";
+            try
+            {
+                System.IO.File.WriteAllText(filename, html.ToString());
+                Console.WriteLine($"\nHTML output saved to: {filename}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\nError saving HTML file: {ex.Message}");
+                DebugLogger.Log($"ERROR: Failed to save HTML file - {ex.Message}");
+            }
+        }
+
+        private string GenerateSurveyFormHtml(SurveyData data)
+        {
+            StringBuilder html = new StringBuilder();
+
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"../favicon.ico\" type=\"image/x-icon\">");
+            html.AppendLine($"    <title>IISS Class IV Survey - {data.WorldName}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 10px; border: 1px solid #000; }");
+            html.AppendLine("        .section { margin-bottom: 15px; border: 1px solid #000; padding: 10px; }");
+            html.AppendLine("        .section-title { font-weight: bold; background-color: #d3d3d3; padding: 5px; margin: -10px -10px 10px -10px; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 5px; text-align: left; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; }");
+            html.AppendLine("        .field-label { font-weight: bold; width: 150px; }");
+            html.AppendLine("        .field-value { }");
+            html.AppendLine("        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }");
+            html.AppendLine("        @media (max-width: 900px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            .two-column { grid-template-columns: 1fr; }");
+            html.AppendLine("        }");
+            html.AppendLine("        .back-link { margin-bottom: 10px; }");
+            html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("        .gov-tooltip { border-bottom: 1px dotted #666; cursor: help; position: relative; }");
+            html.AppendLine("        .gov-tooltip::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; white-space: pre; background: #333; color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 1em; visibility: hidden; opacity: 0; transition: opacity 0.2s; z-index: 100; min-width: 200px; }");
+            html.AppendLine("        .gov-tooltip:hover::after { visibility: visible; opacity: 1; }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+
+            // Back link
+            html.AppendLine("        <div class=\"back-link\">");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
+
+            // Add link to Population Details if this is a mainworld with population
+            // Mainworlds have full UWP (contains dash), non-mainworlds have 3-char SAH
+            if (data.SAH_UWP.Contains("-"))
+            {
+                // Extract population code (5th character in UWP like "CCGA300-D")
+                if (data.SAH_UWP.Length >= 5)
+                {
+                    char popChar = data.SAH_UWP[4];
+                    if (popChar != '0')
+                    {
+                        html.AppendLine("            | <a href=\"PopulatedWorldDetails.html\">Population Details &rarr;</a>");
+                    }
+                }
+            }
+
+            html.AppendLine("        </div>");
+
+            // Title
+            html.AppendLine("        <div class=\"header\" style=\"text-align: center;\">");
+            html.AppendLine("            <h1 style=\"margin: 0;\">IISS CLASS IV SURVEY</h1>");
+            html.AppendLine("            <h2 style=\"margin: 5px 0;\">FORM 0407F-IV PART P</h2>");
+            html.AppendLine("        </div>");
+
+            // World and SAH/UWP
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th style=\"width: 80%;\">WORLD</th>");
+            html.AppendLine($"                <th>SAH/UWP</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{data.WorldName}</td>");
+            html.AppendLine($"                <td>{data.SAH_UWP}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Sector/Location and Survey Info
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">SECTOR | LOCATION</th>");
+            html.AppendLine("                <th>Initial Survey</th>");
+            html.AppendLine("                <th>Last Updated</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Primary Object and System Info
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">PRIMARY OBJECT(S)</th>");
+            html.AppendLine("                <th>System Age (Gyr)</th>");
+            html.AppendLine("                <th>Travel Zone</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td colspan=\"2\">{data.PrimaryObject}</td>");
+            html.AppendLine($"                <td>{data.SystemAge}</td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Orbit Information
+            // Detect if this is a moon (WorldName contains space + lowercase letter like "A IX a")
+            bool isMoon = data.WorldName.Contains(" ") &&
+                          data.WorldName.Length > 0 &&
+                          char.IsLower(data.WorldName[data.WorldName.Length - 1]);
+
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>ORBIT</th>");
+            html.AppendLine("                <th>O#</th>");
+
+            // For moons, show "Distance" instead of "AU"
+            if (isMoon)
+            {
+                html.AppendLine("                <th colspan=\"2\">Distance</th>");
+            }
+            else
+            {
+                html.AppendLine("                <th colspan=\"2\">AU</th>");
+            }
+
+            html.AppendLine("                <th>Eccentricity</th>");
+            html.AppendLine("                <th colspan=\"2\">Period</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td><strong>Notes:</strong></td>");
+            html.AppendLine($"                <td>{data.OrbitNumber:F2}</td>");
+
+            // For moons, show distance in km or Mkm; for planets, show AU
+            if (isMoon)
+            {
+                // data.AU contains km value for moons
+                float distanceKm = data.AU;
+                if (distanceKm >= 1000000)
+                {
+                    float distanceMkm = distanceKm / 1000000.0f;
+                    html.AppendLine($"                <td colspan=\"2\">{distanceMkm:F2} Mkm</td>");
+                }
+                else
+                {
+                    html.AppendLine($"                <td colspan=\"2\">{distanceKm:F0} km</td>");
+                }
+            }
+            else
+            {
+                html.AppendLine($"                <td colspan=\"2\">{data.AU:F2}</td>");
+            }
+
+            html.AppendLine($"                <td>{data.Eccentricity:F3}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.Period}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"7\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Size Information
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>SIZE</th>");
+            html.AppendLine("                <th>Diameter(km)</th>");
+            html.AppendLine("                <th>Composition</th>");
+            html.AppendLine("                <th>Density</th>");
+            html.AppendLine("                <th>Gravity</th>");
+            html.AppendLine("                <th>Mass</th>");
+            html.AppendLine("                <th>Esc v (kps)</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td style=\"background-color: #d3d3d3; border-top: none;\"></td>");
+            html.AppendLine($"                <td>{data.Diameter:N0}</td>");
+            html.AppendLine($"                <td>{data.Composition}</td>");
+            html.AppendLine($"                <td>{data.Density:F2}</td>");
+            html.AppendLine($"                <td>{data.Gravity:F2}</td>");
+            html.AppendLine($"                <td>{data.Mass:F2}</td>");
+            html.AppendLine($"                <td>{data.EscapeVelocity:F2}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"7\"><strong>Notes:</strong></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Atmosphere
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"2\">ATMOSPHERE</th>");
+            html.AppendLine("                <th>Pressure (bar)</th>");
+            html.AppendLine($"                <td>{(data.AtmosphericPressure > 0 ? data.AtmosphericPressure.ToString("F2") : "")}</td>");
+            html.AppendLine("                <th>Composition</th>");
+            html.AppendLine($"                <td colspan=\"2\">{data.AtmosphereComposition}</td>");
+            html.AppendLine("                <th>O<sub>2</sub> (bar)</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Taints</th>");
+            html.AppendLine($"                <td colspan=\"4\">{data.AtmosphericTaint}</td>");
+            html.AppendLine("                <th>Scale Height</th>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td colspan=\"8\"><strong>Notes:</strong></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Hydrographics
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"2\">HYDROGRAPHICS</th>");
+            html.AppendLine("                <th colspan=\"2\">Coverage (%)</th>");
+            html.AppendLine("                <th colspan=\"2\">Composition</th>");
+            html.AppendLine("                <th colspan=\"2\">Distribution</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td colspan=\"2\">{(data.HydrographicsCoverage > 0 ? data.HydrographicsCoverage.ToString("F1") + "%" : "")}</td>");
+            html.AppendLine("                <td colspan=\"2\"></td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.SurfaceDistribution}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Major bodies</th>");
+            html.AppendLine("                <td colspan=\"3\"></td>");
+            html.AppendLine("                <th>Minor bodies</th>");
+            html.AppendLine("                <th>Other</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("                <td colspan=\"6\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Rotation
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"2\">ROTATION</th>");
+            html.AppendLine("                <th>Sidereal</th>");
+            html.AppendLine("                <td style=\"background-color: white;\">" + FormatRotationPeriodDetailed(data.BasicRotationRateHours) + "</td>");
+            html.AppendLine("                <th>Solar</th>");
+            html.AppendLine("                <td style=\"background-color: white;\">" + FormatRotationPeriodDetailed(data.SolarDayHours) + "</td>");
+            html.AppendLine("                <th>Solar days/year</th>");
+            html.AppendLine($"                <td style=\"background-color: white;\">{(data.SolarDaysInLocalYear > 0 ? data.SolarDaysInLocalYear.ToString("F4") : "")}</td>");
+            html.AppendLine("                <th>Axial Tilt</th>");
+            html.AppendLine($"                <td style=\"background-color: white;\">{FormatAxialTiltDetailed(data.AxialTilt)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Tidal lock?</th>");
+            // Show "1:1" or "3:2" for resonance locks, "No" for all others
+            string tidalLockDisplay = "No";
+            if (!string.IsNullOrEmpty(data.TidalLockStatus))
+            {
+                if (data.TidalLockStatus.Contains("1:1"))
+                    tidalLockDisplay = "1:1";
+                else if (data.TidalLockStatus.Contains("3:2"))
+                    tidalLockDisplay = "3:2";
+            }
+            html.AppendLine($"                <td style=\"background-color: white;\">{tidalLockDisplay}</td>");
+            html.AppendLine("                <th>Tides</th>");
+            html.AppendLine($"                <td colspan=\"5\" style=\"background-color: white;\">{FormatTidalForceDisplay(data)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{data.TidalLockStatus}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Temperature
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th rowspan=\"3\">TEMPERATURE</th>");
+            html.AppendLine("                <th>High</th>");
+            html.AppendLine($"                <td>{(data.HighTemperatureK > 0 ? $"{data.HighTemperatureK}K ({data.HighTemperatureC}°C)" : "")}</td>");
+            html.AppendLine("                <th colspan=\"2\">Luminosity</th>");
+            html.AppendLine("                <th colspan=\"2\"><strong>Notes:</strong></th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Mean</th>");
+            html.AppendLine($"                <td>{(data.MeanTemperatureK > 0 ? $"{data.MeanTemperatureK}K ({data.MeanTemperatureC}°C)" : "")}</td>");
+            html.AppendLine("                <th colspan=\"2\">Albedo</th>");
+            html.AppendLine($"                <td colspan=\"2\">{data.Albedo.ToString("F2")}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Low</th>");
+            html.AppendLine($"                <td>{(data.LowTemperatureK > 0 ? $"{data.LowTemperatureK}K ({data.LowTemperatureC}°C)" : "")}</td>");
+            html.AppendLine("                <th colspan=\"2\">Greenhouse</th>");
+            html.AppendLine($"                <td colspan=\"2\">{data.Greenhouse.ToString("F2")}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Seismic Stress
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Seismic Stress</th>");
+            html.AppendLine("                <th>Residual Stress</th>");
+            html.AppendLine("                <th>Tidal Stress</th>");
+            html.AppendLine("                <th colspan=\"2\">Tidal Heating</th>");
+            html.AppendLine("                <th>Major Tectonic Plates</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{data.TotalSeismicStress.ToString("F1")}</td>");
+            html.AppendLine($"                <td>{data.ResidualSeismicStress.ToString("F1")}</td>");
+            html.AppendLine($"                <td>{data.TidalStressFactor.ToString("F1")}</td>");
+            html.AppendLine($"                <td colspan=\"2\">{data.TidalHeatingEffects.ToString("F1")}</td>");
+            html.AppendLine($"                <td>{data.NumberOfMajorTectonicPlates}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Life
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>LIFE</th>");
+            html.AppendLine("                <th>Biomass</th>");
+            html.AppendLine("                <th>Biocomplexity</th>");
+            html.AppendLine("                <th>Sophonts?</th>");
+            html.AppendLine("                <th>Biodiversity</th>");
+            html.AppendLine("                <th>Compatibility</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Notes</th>");
+            html.AppendLine($"                <td>{data.BiomassRating}</td>");
+            html.AppendLine($"                <td>{data.BiocomplexityRating}</td>");
+            html.AppendLine($"                <td>{data.CurrentNativeSophont}</td>");
+            html.AppendLine($"                <td>{data.BiodiversityRating}</td>");
+            html.AppendLine($"                <td>{data.CompatibilityRating}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            string lifeNotes = data.BiocomplexityDescription + (data.ExtinctNativeSophont ? "; Evidence of extinct native sophont species." : "");
+            if (data.CurrentNativeSophont == "Yes")
+            {
+                lifeNotes += (string.IsNullOrEmpty(lifeNotes) ? "" : "; ") + "(alien species)";
+            }
+            html.AppendLine($"                <td colspan=\"6\">{lifeNotes}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Resources
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>RESOURCES</th>");
+            html.AppendLine("                <th>Rating</th>");
+            html.AppendLine("                <th colspan=\"4\">Notes</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.ResourceRating}</td>");
+            html.AppendLine("                <td colspan=\"4\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Habitability
+            html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>HABITABILITY</th>");
+            html.AppendLine("                <th>Rating</th>");
+            html.AppendLine("                <th colspan=\"4\">Notes</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine($"                <td>{data.HabitabilityRating}</td>");
+            html.AppendLine("                <td colspan=\"4\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Subordinates (Moons)
+            if (data.Moons.Count > 0)
+            {
+                html.AppendLine("        <table style=\"margin-bottom: 10px;\">");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>SUBORDINATES</th>");
+                html.AppendLine("                <th>SAH/UWP</th>");
+                html.AppendLine("                <th>Orbit (PD)</th>");
+                html.AppendLine("                <th>Orbit (km)</th>");
+                html.AppendLine("                <th>Ecc</th>");
+                html.AppendLine("                <th>Diameter</th>");
+                html.AppendLine("                <th>Density</th>");
+                html.AppendLine("                <th>Mass</th>");
+                html.AppendLine("                <th>Period (h)</th>");
+                html.AppendLine("                <th>Size(°)</th>");
+                html.AppendLine("            </tr>");
+
+                foreach (var moon in data.Moons.Where(m => m.Size != "R"))
+                {
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><a href=\"{data.Filename.Replace(".html", "")}_{moon.Designation}.html\">{data.WorldName} {moon.Designation}</a></td>");
+                    html.AppendLine($"                <td>{moon.Size}</td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine($"                <td>{moon.Diameter:N0}</td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("                <td></td>");
+                    html.AppendLine("            </tr>");
+                }
+
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Notes</th>");
+                html.AppendLine("                <td colspan=\"9\"></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // Comments
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>COMMENTS</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td style=\"height: 100px;\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // AIW STATUS section (only for Additional Inhabited Worlds)
+            if (data.AIWData != null)
+            {
+                var aiw = data.AIWData;
+                string govCodeStr = IntToEhex(aiw.GovernmentCode);
+                string govTypeDisplay = (aiw.GovernmentCode == 6 && !aiw.IsIndependent)
+                    ? $"6 - Captive Government (under {aiw.AuthorityDesignation})"
+                    : $"{govCodeStr} - {aiw.GovernmentType}";
+                string authStr = aiw.IsIndependent
+                    ? "Independent World"
+                    : $"Under the authority of {aiw.AuthorityDesignation}";
+
+                html.AppendLine("        <table style=\"margin-top: 10px;\">");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th colspan=\"2\">SECONDARY WORLD STATUS</th>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Authority</th>");
+                html.AppendLine($"                <td>{authStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Government</th>");
+                html.AppendLine($"                <td>{govTypeDisplay}</td>");
+                html.AppendLine("            </tr>");
+                if (aiw.GovernmentCode != 0 && aiw.GovernmentCode != 7 && !string.IsNullOrEmpty(aiw.GovernmentProfile))
+                {
+                    string govTooltip = BuildGovernmentTooltip(aiw.GovernmentCode, aiw.GovernmentType,
+                        aiw.CentralisationCode, aiw.CentralisationType,
+                        aiw.AuthorityCode, aiw.AuthorityType,
+                        aiw.StructureCode, aiw.StructureType);
+                    html.AppendLine("            <tr>");
+                    html.AppendLine("                <th>Gov Profile</th>");
+                    html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{aiw.GovernmentProfile}</span></td>");
+                    html.AppendLine("            </tr>");
+                }
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Tech Level</th>");
+                html.AppendLine($"                <td>{IntToEhex(aiw.TechLevel)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>Law Level</th>");
+                html.AppendLine($"                <td>{IntToEhex(aiw.LawLevel)}</td>");
+                html.AppendLine("            </tr>");
+                if (aiw.TradeCodes.Count > 0)
+                {
+                    html.AppendLine("            <tr>");
+                    html.AppendLine("                <th>Trade Code(s)</th>");
+                    html.AppendLine($"                <td>{FormatTradeCodesWithTooltips(aiw.TradeCodes)}</td>");
+                    html.AppendLine("            </tr>");
+                }
+                html.AppendLine("        </table>");
+            }
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private string GetCityClass(long population)
+        {
+            // City class based on population
+            if (population >= 10000000000) return "A"; // 10+ billion
+            if (population >= 1000000000) return "B";  // 1+ billion
+            if (population >= 100000000) return "C";   // 100+ million
+            if (population >= 10000000) return "D";    // 10+ million
+            if (population >= 1000000) return "E";     // 1+ million
+            if (population >= 100000) return "F";      // 100,000+
+            if (population >= 10000) return "G";       // 10,000+
+            if (population >= 1000) return "H";        // 1,000+
+            return "X";                                 // < 1,000
+        }
+
+        private string GenerateInhabitedWorldFormHtml(AdditionalInhabitedWorld aiw)
+        {
+            string designation = aiw.WorldDesignation;
+            string surveyLink = designation.Replace(" ", "_") + ".html";
+
+            string govCodeStr = IntToEhex(aiw.GovernmentCode);
+            string govTypeDisplay = (aiw.GovernmentCode == 6 && !aiw.IsIndependent)
+                ? $"6 - Captive Government (under {aiw.AuthorityDesignation})"
+                : $"{govCodeStr} - {aiw.GovernmentType}";
+            string authStr = aiw.IsIndependent
+                ? "Independent World"
+                : $"Under the authority of {aiw.AuthorityDesignation}";
+
+            StringBuilder html = new StringBuilder();
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"../favicon.ico\" type=\"image/x-icon\">");
+            html.AppendLine($"    <title>Inhabited World - {designation}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 6px; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }");
+            html.AppendLine("        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }");
+            html.AppendLine("        @media (max-width: 900px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            .label { width: 120px; }");
+            html.AppendLine("        }");
+            html.AppendLine("        .back-link { margin-bottom: 10px; }");
+            html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("        .header-tooltip { position: relative; }");
+            html.AppendLine("        .header-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre; font-family: monospace; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 300px; }");
+            html.AppendLine("        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }");
+            html.AppendLine("        .grid-2col table { margin-bottom: 0; }");
+            html.AppendLine("        .empty-field { background-color: #f9f9f9; }");
+            html.AppendLine("        @media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr; } }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+
+            // Navigation
+            html.AppendLine("        <div class=\"back-link\">");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
+            html.AppendLine($"            &nbsp;|&nbsp; <a href=\"{surveyLink}\">IISS Class IV Survey</a>");
+            html.AppendLine("        </div>");
+
+            // Title
+            html.AppendLine("        <div class=\"header\">");
+            html.AppendLine("            <h2 style=\"margin: 0;\">INHABITED WORLD</h2>");
+            html.AppendLine("        </div>");
+
+            // World and UWP
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th style=\"width: 60%;\">World</th>");
+            html.AppendLine("                <th style=\"width: 40%;\">UWP</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{designation}</td>");
+            html.AppendLine($"                <td>{aiw.UWP}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Authority
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">AUTHORITY</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Status:</td>");
+            html.AppendLine($"                <td>{authStr}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Population
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">POPULATION</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Population Code:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.PopulationCode)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Total:</td>");
+            html.AppendLine($"                <td>{aiw.ActualPopulation:N0}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Demographics:</td>");
+            html.AppendLine("                <td></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Government
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">GOVERNMENT</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Type:</td>");
+            html.AppendLine($"                <td>{govTypeDisplay}</td>");
+            html.AppendLine("            </tr>");
+            if (aiw.GovernmentCode != 0 && aiw.GovernmentCode != 7 && !string.IsNullOrEmpty(aiw.GovernmentProfile))
+            {
+                string govTooltip = BuildGovernmentTooltip(aiw.GovernmentCode, aiw.GovernmentType,
+                    aiw.CentralisationCode, aiw.CentralisationType,
+                    aiw.AuthorityCode, aiw.AuthorityType,
+                    aiw.StructureCode, aiw.StructureType);
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Gov Profile:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{aiw.GovernmentProfile}</span></td>");
+                html.AppendLine("            </tr>");
+            }
+            html.AppendLine("        </table>");
+
+            // Tech Level
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">TECH LEVEL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Tech Level (UWP):</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.TechLevel)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">High Common TL:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.TechLevels.HighCommonTL)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Low Common TL:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.TechLevels.LowCommonTL)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Tech Level Profile:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{TechLevelProfileTooltip}\">{aiw.TechLevels.Profile}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Energy:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Power generation, storage and distribution technology\">{IntToEhex(aiw.TechLevels.EnergyTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Electronics:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Computing, communications and sensor technology\">{IntToEhex(aiw.TechLevels.ElectronicsTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Manufacturing:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Industrial production and materials technology\">{IntToEhex(aiw.TechLevels.ManufacturingTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Medical:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Healthcare, biology and pharmaceutical technology\">{IntToEhex(aiw.TechLevels.MedicalTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Environmental:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Life support, terraforming and habitat technology\">{IntToEhex(aiw.TechLevels.EnvironmentalTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Land Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Ground vehicle and surface transport technology\">{IntToEhex(aiw.TechLevels.LandTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Water Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Naval and aquatic transport technology\">{IntToEhex(aiw.TechLevels.WaterTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Air Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Aviation and atmospheric flight technology\">{IntToEhex(aiw.TechLevels.AirTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Space Transport:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Spacecraft, drives and orbital technology\">{IntToEhex(aiw.TechLevels.SpaceTransportTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Personal Military:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Personal weapons, armour and individual combat technology\">{IntToEhex(aiw.TechLevels.PersonalMilitaryTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Heavy Military:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"Military vehicles, warships and heavy weapons technology\">{IntToEhex(aiw.TechLevels.HeavyMilitaryTL)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Novelty:</td>");
+            html.AppendLine("                <td><span class=\"gov-tooltip\" data-tooltip=\"Experimental and cutting-edge technology (not yet defined)\">X</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Law Level
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">LAW LEVEL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Law Level:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.LawLevel)}</td>");
+            html.AppendLine("            </tr>");
+
+            // Judicial system fields
+            if (!string.IsNullOrEmpty(aiw.Judicial.JudicialSystemCode))
+            {
+                bool hasSecondary = aiw.Judicial.SecondarySystemCode != aiw.Judicial.JudicialSystemCode;
+                string jsPrimHtml = $"<span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(aiw.Judicial.JudicialSystemCode)}\">{aiw.Judicial.JudicialSystemCode} - {aiw.Judicial.JudicialSystemType}</span>";
+                string jsDisplay = hasSecondary
+                    ? jsPrimHtml + $" / <span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(aiw.Judicial.SecondarySystemCode)}\">{aiw.Judicial.SecondarySystemCode} - {aiw.Judicial.SecondarySystemType}</span>"
+                    : jsPrimHtml;
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Judicial System:</td>");
+                html.AppendLine($"                <td>{jsDisplay}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Law Uniformity:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetUniformityTooltip(aiw.Judicial.UniformityCode)}\">{aiw.Judicial.UniformityCode} - {aiw.Judicial.UniformityType}</span></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Presumption of Innocence:</td>");
+                html.AppendLine($"                <td>{(aiw.Judicial.PresumptionOfInnocence ? "Yes" : "No")}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Death Penalty:</td>");
+                html.AppendLine($"                <td>{(aiw.Judicial.DeathPenalty ? "Yes" : "No")}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Judicial Profile:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{JudicialProfileTooltip}\">{aiw.Judicial.Profile}</span></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Law Level Profile:</td>");
+                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{LawLevelProfileTooltip}\">{aiw.LawLevels.Profile}</span></td>");
+                html.AppendLine("            </tr>");
+            }
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Weapons:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetWeaponsTooltip(aiw.LawLevels.WeaponsLevel)}\">{IntToEhex(aiw.LawLevels.WeaponsLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Economics:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetEconomicTooltip(aiw.LawLevels.EconomicLevel)}\">{IntToEhex(aiw.LawLevels.EconomicLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Criminal:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetCriminalTooltip(aiw.LawLevels.CriminalLevel)}\">{IntToEhexFull(aiw.LawLevels.CriminalLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Private:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPrivateTooltip(aiw.LawLevels.PrivateLevel)}\">{IntToEhex(aiw.LawLevels.PrivateLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Personal Rights:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPersonalRightsTooltip(aiw.LawLevels.PersonalRightsLevel)}\">{IntToEhex(aiw.LawLevels.PersonalRightsLevel)}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Cultural Attributes
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th colspan=\"2\" class=\"header-tooltip\" data-tooltip=\"{CulturalSectionTooltip}\">CULTURAL</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Diversity:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Diversity)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Xenophilia:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Xenophilia)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Uniqueness:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Uniqueness)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Symbology:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Symbology)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Cohesion:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Cohesion)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Progressiveness:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Progressiveness)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Expansionism:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Expansionism)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Militancy:</td>");
+            html.AppendLine($"                <td>{IntToEhex(aiw.Culture.Militancy)}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Cultural Profile:</td>");
+            html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{aiw.Culture.Profile}</span></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Nations (Gov 7 only) — consolidated section showing all profiles per nation
+            if (aiw.GovernmentCode == 7 && aiw.Factions.Count > 0)
+            {
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th>NATIONS</th>");
+                html.AppendLine("            </tr>");
+                foreach (var f in aiw.Factions)
+                {
+                    string fTip = BuildFactionTooltip(f);
+                    string fGovProfileStr = f.Government.Code == 0 ? "0" : f.Government.Profile;
+                    string fGovTip = f.Government.Code == 0 || f.Government.Profile.EndsWith("n/a") ? "" :
+                        BuildGovernmentTooltip(f.Government.Code, f.Government.Type,
+                            f.Government.CentralisationCode, f.Government.CentralisationType,
+                            f.Government.AuthorityCode, f.Government.AuthorityType,
+                            f.Government.StructureCode, f.Government.StructureType);
+                    string fGovHtml = string.IsNullOrEmpty(fGovTip)
+                        ? fGovProfileStr
+                        : $"<span class=\"gov-tooltip\" data-tooltip=\"{fGovTip}\">{fGovProfileStr}</span>";
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><b><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></b> ({fGovHtml})</td>");
+                    html.AppendLine("            </tr>");
+                    string fRoman = MajorCity.ToRoman(f.Number);
+                    foreach (var n in f.Nations)
+                    {
+                        string nRoman = MajorCity.ToRoman(n.Number);
+                        string nKey = $"{fRoman}.{nRoman}";
+                        string nGovProfileStr = n.Government.Code == 0 ? "0" : n.Government.Profile;
+                        string nGovTip = n.Government.Code == 0
+                            ? $"Gov: 0 - {n.Government.Type}"
+                            : (n.Government.Profile.EndsWith("n/a") ? "" :
+                                BuildGovernmentTooltip(n.Government.Code, n.Government.Type,
+                                    n.Government.CentralisationCode, n.Government.CentralisationType,
+                                    n.Government.AuthorityCode, n.Government.AuthorityType,
+                                    n.Government.StructureCode, n.Government.StructureType));
+                        string nGovHtml = string.IsNullOrEmpty(nGovTip)
+                            ? nGovProfileStr
+                            : $"<span class=\"gov-tooltip\" data-tooltip=\"{nGovTip}\">{nGovProfileStr}</span>";
+                        string jTip = $"{nKey} Judicial System&#10;Primary: {n.Judicial.JudicialSystemType}&#10;Secondary: {n.Judicial.SecondarySystemType}&#10;Uniformity: {n.Judicial.UniformityType}&#10;Presumption of Innocence: {(n.Judicial.PresumptionOfInnocence ? "Yes" : "No")}&#10;Death Penalty: {(n.Judicial.DeathPenalty ? "Yes" : "No")}";
+                        string llTip = $"{nKey} Law Level {IntToEhex(n.LawLevel)}&#10;Weapons: {IntToEhex(n.LawLevels.WeaponsLevel)}&#10;Economic: {IntToEhex(n.LawLevels.EconomicLevel)}&#10;Criminal: {IntToEhexFull(n.LawLevels.CriminalLevel)}&#10;Private: {IntToEhex(n.LawLevels.PrivateLevel)}&#10;Personal Rights: {IntToEhex(n.LawLevels.PersonalRightsLevel)}";
+                        string tlTip = $"{nKey} Tech Levels&#10;High: {IntToEhex(n.TechLevels.HighCommonTL)}  Low: {IntToEhex(n.TechLevels.LowCommonTL)}&#10;Energy: {IntToEhex(n.TechLevels.EnergyTL)}  Electronics: {IntToEhex(n.TechLevels.ElectronicsTL)}  Manufacturing: {IntToEhex(n.TechLevels.ManufacturingTL)}&#10;Medical: {IntToEhex(n.TechLevels.MedicalTL)}  Environmental: {IntToEhex(n.TechLevels.EnvironmentalTL)}&#10;Land: {IntToEhex(n.TechLevels.LandTransportTL)}  Water: {IntToEhex(n.TechLevels.WaterTransportTL)}  Air: {IntToEhex(n.TechLevels.AirTransportTL)}  Space: {IntToEhex(n.TechLevels.SpaceTransportTL)}&#10;Personal Military: {IntToEhex(n.TechLevels.PersonalMilitaryTL)}  Heavy Military: {IntToEhex(n.TechLevels.HeavyMilitaryTL)}";
+                        string culturalHtml = (aiw.Culture.Diversity >= 12 && !string.IsNullOrEmpty(n.Culture.Profile))
+                            ? $"; Cultural: <span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{n.Culture.Profile}</span>"
+                            : "";
+                        html.AppendLine("            <tr>");
+                        html.AppendLine($"                <td style=\"padding-left: 30px;\"><b>{nKey}</b> {nGovHtml}; Judicial: <span class=\"gov-tooltip\" data-tooltip=\"{jTip}\">{n.Judicial.Profile}</span>; Law Level: <span class=\"gov-tooltip\" data-tooltip=\"{llTip}\">{n.LawLevels.Profile}</span>; Tech Levels: <span class=\"gov-tooltip\" data-tooltip=\"{tlTip}\">{n.TechLevels.Profile}</span>{culturalHtml}</td>");
+                        html.AppendLine("            </tr>");
+                    }
+                }
+                html.AppendLine("        </table>");
+            }
+
+            // ECONOMICS section (includes Trade Codes)
+            {
+                string tcCell = aiw.TradeCodes.Count > 0
+                    ? FormatTradeCodesWithTooltips(aiw.TradeCodes) : "None";
+                string impStr = aiw.Economics.Importance >= 0
+                    ? $"+{aiw.Economics.Importance}" : $"{aiw.Economics.Importance}";
+                string efStr = aiw.Economics.EfficiencyFactor > 0
+                    ? $"+{aiw.Economics.EfficiencyFactor}" : $"{aiw.Economics.EfficiencyFactor}";
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr><th colspan=\"2\">ECONOMICS</th></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Trade Code(s):</td><td>{tcCell}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Importance:</td><td>{impStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Resources:</td><td>{aiw.Economics.ResourceFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Labour:</td><td>{aiw.Economics.LabourFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Infrastructure:</td><td>{aiw.Economics.InfrastructureFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Efficiency:</td><td>{efStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">RU:</td><td>{aiw.Economics.ResourceUnits}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP per capita:</td><td>Cr {aiw.Economics.GWPPerCapita:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">WTN:</td><td>{IntToEhex(aiw.Economics.WorldTradeNumber)}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Inequality Rating:</td><td>{aiw.Economics.InequalityRating}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Development Score:</td><td>{aiw.Economics.DevelopmentScore:F2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP (MCr):</td><td>MCr {aiw.Economics.TotalGWPMCr:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Tariffs:</td><td>{aiw.Economics.Tariffs}</td></tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // STARPORT/BASES section
+            {
+                string highportStr = aiw.HasHighport ? "Yes" : "No";
+                string navyStr     = aiw.HasNavalBase    ? "Yes" : "No";
+                string scoutStr    = aiw.HasScoutBase   ? "Yes" : "No";
+                string milStr      = aiw.HasMilitaryBase ? "Yes" : "No";
+                string otherStr    = aiw.HasCorsairBase  ? "Corsair Base" : "No";
+                string trafficStr  = aiw.ExpectedWeeklyTraffic > 0
+                    ? aiw.ExpectedWeeklyTraffic.ToString("N0") : "-";
+                string capacityStr;
+                if (aiw.HasHighport)
+                    capacityStr = $"Highport: {aiw.HighportTotalDocking:N0} tons<br/>Downport: {aiw.DownportTotalDocking:N0} tons";
+                else if (aiw.DownportTotalDocking > 0)
+                    capacityStr = $"{aiw.DownportTotalDocking:N0} tons";
+                else
+                    capacityStr = "-";
+                string shipyardStr = aiw.StarportBuildCapacity > 0
+                    ? $"{aiw.StarportBuildCapacity:N0} tons" : "-";
+                string annualStr   = aiw.AnnualShipyardOutput > 0
+                    ? $"{aiw.AnnualShipyardOutput:N0} tons" : "-";
+                string berthingStr = string.IsNullOrEmpty(aiw.BerthingFees) ? "-" : aiw.BerthingFees;
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">SPACEPORT</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Class:</td>");
+                html.AppendLine($"                <td>{aiw.SpaceportClass}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Highport?</td>");
+                html.AppendLine($"                <td>{highportStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Expected Weekly Traffic:</td>");
+                html.AppendLine($"                <td>{trafficStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Berthing Fees:</td>");
+                html.AppendLine($"                <td>{berthingStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Capacity:</td>");
+                html.AppendLine($"                <td colspan=\"3\">{capacityStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Shipyard:</td>");
+                html.AppendLine($"                <td>{shipyardStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Annual Output:</td>");
+                html.AppendLine($"                <td colspan=\"2\">{annualStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Bases:</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{navyStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Scout:</td>");
+                html.AppendLine($"                <td>{scoutStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Military:</td>");
+                html.AppendLine($"                <td>{milStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Other:</td>");
+                html.AppendLine($"                <td>{otherStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Notes:</td>");
+                html.AppendLine("                <td colspan=\"8\" class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // MILITARY section
+            {
+                var m = aiw.Military;
+                string MilVal(int v) => v == 0 ? "-" : IntToEhex(v);
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">MILITARY</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Effective Budget %:</td>");
+                html.AppendLine($"                <td colspan=\"7\">{m.BasicMilitaryBudget:F2}%</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Enforcement:</td>");
+                html.AppendLine($"                <td>{MilVal(m.EnforcementBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Militia:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MilitiaBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Army:</td>");
+                html.AppendLine($"                <td>{MilVal(m.ArmyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Wet Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.WetNavyBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Air Force:</td>");
+                html.AppendLine($"                <td>{MilVal(m.AirForceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">System Defence:</td>");
+                html.AppendLine($"                <td>{MilVal(m.SystemDefenceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.NavyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Marine:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MarineBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // Comments
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>COMMENTS</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td style=\"height: 100px;\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        private string GeneratePopulatedWorldDetailsFormHtml()
+        {
+            if (mainworld == null || mainworld.Population == 0) return "";
+
+            StringBuilder html = new StringBuilder();
+
+            // Get primary object name
+            string primaryObjectName = primaryDesignation;
+
+            // Format trade codes with tooltips
+            string tradeCodes = mainworld.TradeCodes.Count > 0
+                ? FormatTradeCodesWithTooltips(mainworld.TradeCodes)
+                : "";
+
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">");
+            html.AppendLine("<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">");
+            html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            html.AppendLine("    <link rel=\"icon\" href=\"../favicon.ico\" type=\"image/x-icon\">");
+            html.AppendLine($"    <title>Inhabited World - {systemName ?? "Mainworld"}</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine("        body { font-family: Arial, sans-serif; font-size: 20px; margin: 20px; background-color: #f5f5f5; }");
+            html.AppendLine("        .container { max-width: 1800px; width: 95%; margin: 0 auto; background-color: white; padding: 20px; border: 2px solid #000; }");
+            html.AppendLine("        .header { background-color: #d3d3d3; padding: 10px; margin-bottom: 15px; border: 1px solid #000; text-align: center; }");
+            html.AppendLine("        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }");
+            html.AppendLine("        th, td { border: 1px solid #000; padding: 6px; }");
+            html.AppendLine("        th { background-color: #d3d3d3; font-weight: bold; text-align: left; }");
+            html.AppendLine("        .label { font-weight: bold; background-color: #e8e8e8; width: 180px; }");
+            html.AppendLine("        @media (max-width: 900px) {");
+            html.AppendLine("            body { margin: 8px; }");
+            html.AppendLine("            .container { padding: 10px; width: 100%; }");
+            html.AppendLine("            .label { width: 120px; }");
+            html.AppendLine("            .grid-2col { grid-template-columns: 1fr; }");
+            html.AppendLine("        }");
+            html.AppendLine("        .back-link { margin-bottom: 10px; }");
+            html.AppendLine("        .back-link a { text-decoration: none; color: #0066cc; }");
+            html.AppendLine("        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }");
+            html.AppendLine("        .grid-2col table { margin-bottom: 0; }");
+            html.AppendLine("        .empty-field { background-color: #f9f9f9; }");
+            html.AppendLine("        .indent-1 { padding-left: 20px; }");
+            html.AppendLine("        .indent-2 { padding-left: 40px; }");
+            html.AppendLine("        .indent-3 { padding-left: 60px; }");
+            html.AppendLine("        .gov-tooltip { position: relative; cursor: help; border-bottom: 1px dotted #666; }");
+            html.AppendLine("        .gov-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre-line; font-size: 17px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 260px; }");
+            html.AppendLine("        .header-tooltip { position: relative; }");
+            html.AppendLine("        .header-tooltip:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; z-index: 1000; background-color: #333; color: white; padding: 10px 15px; border-radius: 4px; white-space: pre; font-family: monospace; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); margin-bottom: 5px; min-width: 300px; }");
+            html.AppendLine("    </style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+            html.AppendLine("    <div class=\"container\">");
+
+            // Back link
+            html.AppendLine("        <div class=\"back-link\">");
+            html.AppendLine("            <a href=\"../StarSystem.html\">&larr; Back to System Overview</a>");
+            html.AppendLine("        </div>");
+
+            // Title
+            html.AppendLine("        <div class=\"header\">");
+            html.AppendLine("            <h2 style=\"margin: 0;\">INHABITED WORLD</h2>");
+            html.AppendLine("        </div>");
+
+            // World and UWP
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th style=\"width: 60%;\">World</th>");
+            html.AppendLine($"                <th style=\"width: 40%;\">UWP</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{systemName ?? "Mainworld"}</td>");
+            html.AppendLine($"                <td>{mainworld.UWP}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // Primary Object
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>Primary Object(s)</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <td>{primaryObjectName}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // POPULATION section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th colspan=\"2\">POPULATION</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Total:</td>");
+            html.AppendLine($"                <td>{mainworld.ActualPopulation:N0}</td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"label\">Demographics:</td>");
+            html.AppendLine("                <td class=\"empty-field\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            // MAJOR CITIES section
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine($"                <th colspan=\"2\">Major Cities: {mainworld.NumberOfMajorCities}</th>");
+            html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">PCR:</td>");
+            html.AppendLine($"                <td style=\"width: 60px;\">{mainworld.PCR}</td>");
+            html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">Urbanisation%:</td>");
+            html.AppendLine($"                <td style=\"width: 60px;\">{mainworld.UrbanisationPercent}%</td>");
+            html.AppendLine("            </tr>");
+
+            // Cities in grid layout
+            if (mainworld.MajorCities.Count > 0)
+            {
+                // Capital/Port (first city)
+                var capitalCity = mainworld.MajorCities[0];
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\" style=\"width: 140px;\">Capital/Port:</td>");
+                html.AppendLine($"                <td colspan=\"5\">{capitalCity.Name}: {capitalCity.Population:N0} Class {mainworld.Starport}</td>");
+                html.AppendLine("            </tr>");
+
+                // Other cities - 3 per row
+                for (int i = 1; i < mainworld.MajorCities.Count; i += 3)
+                {
+                    html.AppendLine("            <tr>");
+
+                    // First city in row
+                    var city1 = mainworld.MajorCities[i];
+                    html.AppendLine($"                <td class=\"label\">{city1.Name}:</td>");
+                    html.AppendLine($"                <td>{city1.Population:N0}</td>");
+
+                    // Second city in row (if exists)
+                    if (i + 1 < mainworld.MajorCities.Count)
+                    {
+                        var city2 = mainworld.MajorCities[i + 1];
+                        html.AppendLine($"                <td class=\"label\">{city2.Name}:</td>");
+                        html.AppendLine($"                <td>{city2.Population:N0}</td>");
+                    }
+                    else
+                    {
+                        html.AppendLine("                <td colspan=\"2\"></td>");
+                    }
+
+                    // Third city in row (if exists)
+                    if (i + 2 < mainworld.MajorCities.Count)
+                    {
+                        var city3 = mainworld.MajorCities[i + 2];
+                        html.AppendLine($"                <td class=\"label\">{city3.Name}:</td>");
+                        html.AppendLine($"                <td>{city3.Population:N0}</td>");
+                    }
+                    else
+                    {
+                        html.AppendLine("                <td colspan=\"2\"></td>");
+                    }
+
+                    html.AppendLine("            </tr>");
+                }
+            }
+            html.AppendLine("        </table>");
+
+            // Two-column layout for Culture and Government
+            html.AppendLine("        <div class=\"grid-2col\">");
+
+            // CULTURE section (left column)
+            html.AppendLine("            <table>");
+            html.AppendLine("                <tr>");
+            html.AppendLine($"                    <th colspan=\"2\" class=\"header-tooltip\" data-tooltip=\"{CulturalSectionTooltip}\">CULTURE</th>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Diversity:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Diversity)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Xenophilia:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Xenophilia)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Uniqueness:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Uniqueness)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Symbology:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Symbology)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Cohesion:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Cohesion)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Progressiveness:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Progressiveness)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Expansionism:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Expansionism)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Militancy:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Culture.Militancy)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Cultural Profile:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{mainworld.Culture.Profile}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Language(s):</td>");
+            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Cultural Traits:</td>");
+            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("            </table>");
+
+            // GOVERNMENT section (right column)
+            html.AppendLine("            <table>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <th colspan=\"2\">GOVERNMENT</th>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Type:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.Government)} - {mainworld.GovernmentType}</td>");
+            html.AppendLine("                </tr>");
+            if (mainworld.Government > 0)
+            {
+                if (mainworld.Government == 7)
+                {
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Centralisation:</td>");
+                    html.AppendLine("                    <td>n/a</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Authority:</td>");
+                    html.AppendLine("                    <td>n/a</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Profile:</td>");
+                    html.AppendLine("                    <td>See factions</td>");
+                    html.AppendLine("                </tr>");
+                }
+                else
+                {
+                    string govTooltip = BuildGovernmentTooltip(mainworld.Government, mainworld.GovernmentType,
+                        mainworld.CentralisationCode, mainworld.CentralisationType,
+                        mainworld.AuthorityCode, mainworld.AuthorityType,
+                        mainworld.StructureCode, mainworld.StructureType);
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Centralisation:</td>");
+                    html.AppendLine($"                    <td>{mainworld.CentralisationCode} - {mainworld.CentralisationType}</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Authority:</td>");
+                    html.AppendLine($"                    <td>{mainworld.AuthorityCode} - {mainworld.AuthorityType}</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Structure:</td>");
+                    html.AppendLine($"                    <td>{mainworld.StructureCode} - {mainworld.StructureType}</td>");
+                    html.AppendLine("                </tr>");
+                    html.AppendLine("                <tr>");
+                    html.AppendLine("                    <td class=\"label\">Profile:</td>");
+                    html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{govTooltip}\">{mainworld.GovernmentProfile}</span></td>");
+                    html.AppendLine("                </tr>");
+                }
+            }
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Contraband:</td>");
+            html.AppendLine("                    <td class=\"empty-field\"></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("            </table>");
+
+            html.AppendLine("        </div>");
+
+            // Two-column layout for Law Level and Tech Level
+            html.AppendLine("        <div class=\"grid-2col\">");
+
+            // LAW LEVEL section (left column)
+            html.AppendLine("            <table>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <th colspan=\"2\">LAW LEVEL</th>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Code:</td>");
+            html.AppendLine($"                    <td>{mainworld.LawLevel}</td>");
+            html.AppendLine("                </tr>");
+
+            // Judicial system fields
+            if (!string.IsNullOrEmpty(mainworld.Judicial.JudicialSystemCode))
+            {
+                bool hasSecondary = mainworld.Judicial.SecondarySystemCode != mainworld.Judicial.JudicialSystemCode;
+                string jsPrimHtml = $"<span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(mainworld.Judicial.JudicialSystemCode)}\">{mainworld.Judicial.JudicialSystemCode} - {mainworld.Judicial.JudicialSystemType}</span>";
+                string jsDisplay = hasSecondary
+                    ? jsPrimHtml + $" / <span class=\"gov-tooltip\" data-tooltip=\"{GetJudicialSystemTooltip(mainworld.Judicial.SecondarySystemCode)}\">{mainworld.Judicial.SecondarySystemCode} - {mainworld.Judicial.SecondarySystemType}</span>"
+                    : jsPrimHtml;
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Judicial System:</td>");
+                html.AppendLine($"                    <td>{jsDisplay}</td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Law Uniformity:</td>");
+                html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetUniformityTooltip(mainworld.Judicial.UniformityCode)}\">{mainworld.Judicial.UniformityCode} - {mainworld.Judicial.UniformityType}</span></td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Presumption of Innocence:</td>");
+                html.AppendLine($"                    <td>{(mainworld.Judicial.PresumptionOfInnocence ? "Yes" : "No")}</td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Death Penalty:</td>");
+                html.AppendLine($"                    <td>{(mainworld.Judicial.DeathPenalty ? "Yes" : "No")}</td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Judicial Profile:</td>");
+                html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{JudicialProfileTooltip}\">{mainworld.Judicial.Profile}</span></td>");
+                html.AppendLine("                </tr>");
+                html.AppendLine("                <tr>");
+                html.AppendLine("                    <td class=\"label\">Law Level Profile:</td>");
+                html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{LawLevelProfileTooltip}\">{mainworld.LawLevels.Profile}</span></td>");
+                html.AppendLine("                </tr>");
+
+            }
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Weapons:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetWeaponsTooltip(mainworld.LawLevels.WeaponsLevel)}\">{IntToEhex(mainworld.LawLevels.WeaponsLevel)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Economics:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetEconomicTooltip(mainworld.LawLevels.EconomicLevel)}\">{IntToEhex(mainworld.LawLevels.EconomicLevel)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Criminal:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetCriminalTooltip(mainworld.LawLevels.CriminalLevel)}\">{IntToEhexFull(mainworld.LawLevels.CriminalLevel)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Private:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPrivateTooltip(mainworld.LawLevels.PrivateLevel)}\">{IntToEhex(mainworld.LawLevels.PrivateLevel)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Personal Rights:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{GetPersonalRightsTooltip(mainworld.LawLevels.PersonalRightsLevel)}\">{IntToEhex(mainworld.LawLevels.PersonalRightsLevel)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("            </table>");
+
+            // TECH LEVEL section (right column)
+            html.AppendLine("            <table>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <th colspan=\"2\">TECH LEVEL</th>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Tech Level (UWP):</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.TechLevel)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">High Common TL:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.TechLevels.HighCommonTL)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Low Common TL:</td>");
+            html.AppendLine($"                    <td>{IntToEhex(mainworld.TechLevels.LowCommonTL)}</td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Tech Level Profile:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"{TechLevelProfileTooltip}\">{mainworld.TechLevels.Profile}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Energy:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Power generation, storage and distribution technology\">{IntToEhex(mainworld.TechLevels.EnergyTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Electronics:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Computing, communications and sensor technology\">{IntToEhex(mainworld.TechLevels.ElectronicsTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Manufacturing:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Industrial production and materials technology\">{IntToEhex(mainworld.TechLevels.ManufacturingTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Medical:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Healthcare, biology and pharmaceutical technology\">{IntToEhex(mainworld.TechLevels.MedicalTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Environmental:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Life support, terraforming and habitat technology\">{IntToEhex(mainworld.TechLevels.EnvironmentalTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Land Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Ground vehicle and surface transport technology\">{IntToEhex(mainworld.TechLevels.LandTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Water Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Naval and aquatic transport technology\">{IntToEhex(mainworld.TechLevels.WaterTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Air Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Aviation and atmospheric flight technology\">{IntToEhex(mainworld.TechLevels.AirTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Space Transport:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Spacecraft, drives and orbital technology\">{IntToEhex(mainworld.TechLevels.SpaceTransportTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Personal Military:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Personal weapons, armour and individual combat technology\">{IntToEhex(mainworld.TechLevels.PersonalMilitaryTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Heavy Military:</td>");
+            html.AppendLine($"                    <td><span class=\"gov-tooltip\" data-tooltip=\"Military vehicles, warships and heavy weapons technology\">{IntToEhex(mainworld.TechLevels.HeavyMilitaryTL)}</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("                <tr>");
+            html.AppendLine("                    <td class=\"label\">Novelty:</td>");
+            html.AppendLine("                    <td><span class=\"gov-tooltip\" data-tooltip=\"Experimental and cutting-edge technology (not yet defined)\">X</span></td>");
+            html.AppendLine("                </tr>");
+            html.AppendLine("            </table>");
+
+            html.AppendLine("        </div>");
+
+            // FACTIONS section (full width)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>FACTIONS</th>");
+            html.AppendLine("            </tr>");
+            if (worldFactions.Count == 0)
+            {
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("            </tr>");
+            }
+            else if (mainworld.Government != 7)
+            {
+                // Non-balkanised: simple list of faction profiles
+                foreach (var f in worldFactions)
+                {
+                    string fTip = BuildFactionTooltip(f);
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><b><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></b></td>");
+                    html.AppendLine("            </tr>");
+                }
+            }
+            else
+            {
+                // Balkanised: nested faction → nations → sub-factions
+                foreach (var f in worldFactions)
+                {
+                    string fTip = BuildFactionTooltip(f);
+                    string govProfileStr = f.Government.Code == 0 ? "0" : f.Government.Profile;
+                    string govTip = f.Government.Code == 0 || f.Government.Profile.EndsWith("n/a") ? "" :
+                        BuildGovernmentTooltip(f.Government.Code, f.Government.Type,
+                            f.Government.CentralisationCode, f.Government.CentralisationType,
+                            f.Government.AuthorityCode, f.Government.AuthorityType,
+                            f.Government.StructureCode, f.Government.StructureType);
+                    string govProfileHtml = string.IsNullOrEmpty(govTip)
+                        ? govProfileStr
+                        : $"<span class=\"gov-tooltip\" data-tooltip=\"{govTip}\">{govProfileStr}</span>";
+
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><b><span class=\"gov-tooltip\" data-tooltip=\"{fTip}\">{f.Profile}</span></b> ({govProfileHtml})</td>");
+                    html.AppendLine("            </tr>");
+
+                    string fRoman = MajorCity.ToRoman(f.Number);
+                    foreach (var n in f.Nations)
+                    {
+                        string nRoman = MajorCity.ToRoman(n.Number);
+                        string nKey = $"{fRoman}-{nRoman}";
+                        string nGovProfile = n.Government.Code == 0 ? "0" : n.Government.Profile;
+                        string nTip = n.Government.Code == 0
+                            ? $"Gov: 0 - {n.Government.Type}"
+                            : (n.Government.Profile.EndsWith("n/a") ? "" :
+                                BuildGovernmentTooltip(n.Government.Code, n.Government.Type,
+                                    n.Government.CentralisationCode, n.Government.CentralisationType,
+                                    n.Government.AuthorityCode, n.Government.AuthorityType,
+                                    n.Government.StructureCode, n.Government.StructureType));
+                        string nProfileHtml = string.IsNullOrEmpty(nTip)
+                            ? nGovProfile
+                            : $"<span class=\"gov-tooltip\" data-tooltip=\"{nTip}\">{nGovProfile}</span>";
+
+                        string nJTip = $"{nKey} Judicial System&#10;Primary: {n.Judicial.JudicialSystemType}&#10;Secondary: {n.Judicial.SecondarySystemType}&#10;Uniformity: {n.Judicial.UniformityType}&#10;Presumption of Innocence: {(n.Judicial.PresumptionOfInnocence ? "Yes" : "No")}&#10;Death Penalty: {(n.Judicial.DeathPenalty ? "Yes" : "No")}";
+                        string nLlTip = $"{nKey} Law Level {IntToEhex(n.LawLevel)}&#10;Weapons: {IntToEhex(n.LawLevels.WeaponsLevel)}&#10;Economic: {IntToEhex(n.LawLevels.EconomicLevel)}&#10;Criminal: {IntToEhexFull(n.LawLevels.CriminalLevel)}&#10;Private: {IntToEhex(n.LawLevels.PrivateLevel)}&#10;Personal Rights: {IntToEhex(n.LawLevels.PersonalRightsLevel)}";
+                        string nTlTip = $"{nKey} Tech Levels&#10;High: {IntToEhex(n.TechLevels.HighCommonTL)}  Low: {IntToEhex(n.TechLevels.LowCommonTL)}&#10;Energy: {IntToEhex(n.TechLevels.EnergyTL)}  Electronics: {IntToEhex(n.TechLevels.ElectronicsTL)}  Manufacturing: {IntToEhex(n.TechLevels.ManufacturingTL)}&#10;Medical: {IntToEhex(n.TechLevels.MedicalTL)}  Environmental: {IntToEhex(n.TechLevels.EnvironmentalTL)}&#10;Land: {IntToEhex(n.TechLevels.LandTransportTL)}  Water: {IntToEhex(n.TechLevels.WaterTransportTL)}  Air: {IntToEhex(n.TechLevels.AirTransportTL)}  Space: {IntToEhex(n.TechLevels.SpaceTransportTL)}&#10;Personal Military: {IntToEhex(n.TechLevels.PersonalMilitaryTL)}  Heavy Military: {IntToEhex(n.TechLevels.HeavyMilitaryTL)}";
+                        string nJudicialHtml = string.IsNullOrEmpty(n.Judicial.Profile) ? "" : $"; Judicial: <span class=\"gov-tooltip\" data-tooltip=\"{nJTip}\">{n.Judicial.Profile}</span>";
+                        string nLlHtml = string.IsNullOrEmpty(n.LawLevels.Profile) ? "" : $"; Law Level: <span class=\"gov-tooltip\" data-tooltip=\"{nLlTip}\">{n.LawLevels.Profile}</span>";
+                        string nTlHtml = string.IsNullOrEmpty(n.TechLevels.Profile) ? "" : $"; Tech Levels: <span class=\"gov-tooltip\" data-tooltip=\"{nTlTip}\">{n.TechLevels.Profile}</span>";
+                        string nCultureHtml = (mainworld.Culture.Diversity >= 12 && !string.IsNullOrEmpty(n.Culture.Profile))
+                            ? $"; Cultural: <span class=\"gov-tooltip\" data-tooltip=\"{CulturalProfileTooltip}\">{n.Culture.Profile}</span>"
+                            : "";
+                        html.AppendLine("            <tr>");
+                        html.AppendLine($"                <td class=\"indent-1\"><b>{nKey}</b> {nProfileHtml}{nJudicialHtml}{nLlHtml}{nTlHtml}{nCultureHtml}</td>");
+                        html.AppendLine("            </tr>");
+
+                        // Sub-factions under this nation
+                        foreach (var sf in n.SubFactions)
+                        {
+                            string sfTip = BuildFactionTooltip(sf);
+                            html.AppendLine("            <tr>");
+                            html.AppendLine($"                <td class=\"indent-2\"><b>{nKey}</b>-<span class=\"gov-tooltip\" data-tooltip=\"{sfTip}\">{sf.Profile}</span></td>");
+                            html.AppendLine("            </tr>");
+                        }
+                    }
+                }
+            }
+            html.AppendLine("        </table>");
+
+            // RELATIONSHIPS section (full width)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>FACTION RELATIONSHIPS</th>");
+            html.AppendLine("            </tr>");
+            if (factionRelationships.Count == 0)
+            {
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"empty-field\">—</td>");
+                html.AppendLine("            </tr>");
+            }
+            else
+            {
+                foreach (var rel in factionRelationships)
+                {
+                    string r1 = MajorCity.ToRoman(rel.Faction1Number);
+                    string r2 = MajorCity.ToRoman(rel.Faction2Number);
+                    string relTip = BuildRelationshipTooltip(rel, worldFactions);
+                    string relProfile = $"{r1} + {r2} = {rel.Code}";
+                    html.AppendLine("            <tr>");
+                    html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{relTip}\">{relProfile}</span></td>");
+                    html.AppendLine("            </tr>");
+                }
+                // Sub-faction relationships (within nations of balkanised worlds)
+                if (mainworld.Government == 7)
+                {
+                    foreach (var f in worldFactions)
+                    {
+                        string fRoman = MajorCity.ToRoman(f.Number);
+                        foreach (var n in f.Nations.Where(n => n.SubFactionRelationships.Count > 0))
+                        {
+                            string nRoman = MajorCity.ToRoman(n.Number);
+                            string prefix = $"{fRoman}-{nRoman}";
+                            foreach (var rel in n.SubFactionRelationships)
+                            {
+                                string r1 = MajorCity.ToRoman(rel.Faction1Number);
+                                string r2 = MajorCity.ToRoman(rel.Faction2Number);
+                                string relTip = $"Sub-faction {prefix}-{r1} vs {prefix}-{r2}&#10;{rel.Type}";
+                                string relProfile = $"{prefix}-{r1} + {prefix}-{r2} = {rel.Code}";
+                                html.AppendLine("            <tr>");
+                                html.AppendLine($"                <td><span class=\"gov-tooltip\" data-tooltip=\"{relTip}\">{relProfile}</span></td>");
+                                html.AppendLine("            </tr>");
+                            }
+                        }
+                    }
+                }
+            }
+            html.AppendLine("        </table>");
+
+            // ECONOMICS section (includes Trade Codes)
+            {
+                string impStr = mainworld.Economics.Importance >= 0
+                    ? $"+{mainworld.Economics.Importance}" : $"{mainworld.Economics.Importance}";
+                string efStr = mainworld.Economics.EfficiencyFactor > 0
+                    ? $"+{mainworld.Economics.EfficiencyFactor}" : $"{mainworld.Economics.EfficiencyFactor}";
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr><th colspan=\"2\">ECONOMICS</th></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Trade Code(s):</td><td>{tradeCodes}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Importance:</td><td>{impStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Resources:</td><td>{mainworld.Economics.ResourceFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Labour:</td><td>{mainworld.Economics.LabourFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Infrastructure:</td><td>{mainworld.Economics.InfrastructureFactor}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Efficiency:</td><td>{efStr}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">RU:</td><td>{mainworld.Economics.ResourceUnits}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP per capita:</td><td>Cr {mainworld.Economics.GWPPerCapita:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">WTN:</td><td>{IntToEhex(mainworld.Economics.WorldTradeNumber)}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Inequality Rating:</td><td>{mainworld.Economics.InequalityRating}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Development Score:</td><td>{mainworld.Economics.DevelopmentScore:F2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">GWP (MCr):</td><td>MCr {mainworld.Economics.TotalGWPMCr:N2}</td></tr>");
+                html.AppendLine($"            <tr><td class=\"label\">Tariffs:</td><td>{mainworld.Economics.Tariffs}</td></tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // STARPORT/BASES section
+            {
+                string highportStr  = mainworld.HasHighport     ? "Yes" : "No";
+                string navyStr      = mainworld.HasNavalBase    ? "Yes" : "No";
+                string scoutStr     = mainworld.HasScoutBase    ? "Yes" : "No";
+                string milStr       = mainworld.HasMilitaryBase ? "Yes" : "No";
+                var otherBases      = new List<string>();
+                if (mainworld.HasCorsairBase)      otherBases.Add("Corsair Base");
+                if (mainworld.HasXBoatWaystation)  otherBases.Add("X-Boat Waystation");
+                string otherStr     = otherBases.Count > 0 ? string.Join(", ", otherBases) : "No";
+                string trafficStr;
+                if (mainworld.ExpectedWeeklyTraffic > 0)
+                    trafficStr = mainworld.ExpectedWeeklyTraffic.ToString("N0");
+                else
+                    trafficStr = "-";
+                string capacityStr;
+                if (mainworld.HasHighport)
+                    capacityStr = $"Highport: {mainworld.HighportTotalDocking:N0} tons<br/>Downport: {mainworld.DownportTotalDocking:N0} tons";
+                else if (mainworld.DownportTotalDocking > 0)
+                    capacityStr = $"{mainworld.DownportTotalDocking:N0} tons";
+                else
+                    capacityStr = "-";
+                string shipyardStr = mainworld.StarportBuildCapacity > 0
+                    ? $"{mainworld.StarportBuildCapacity:N0} tons" : "-";
+                string annualStr = mainworld.AnnualShipyardOutput > 0
+                    ? $"{mainworld.AnnualShipyardOutput:N0} tons" : "-";
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">STARPORT</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Class:</td>");
+                html.AppendLine($"                <td>{mainworld.Starport}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Highport?</td>");
+                html.AppendLine($"                <td>{highportStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Expected Weekly Traffic:</td>");
+                html.AppendLine($"                <td>{trafficStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Berthing Fees:</td>");
+                html.AppendLine($"                <td>{mainworld.BerthingFees}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Capacity:</td>");
+                html.AppendLine($"                <td colspan=\"3\">{capacityStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Shipyard:</td>");
+                html.AppendLine($"                <td>{shipyardStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Annual Output:</td>");
+                html.AppendLine($"                <td colspan=\"2\">{annualStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Bases:</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{navyStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Scout:</td>");
+                html.AppendLine($"                <td>{scoutStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Military:</td>");
+                html.AppendLine($"                <td>{milStr}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Other:</td>");
+                html.AppendLine($"                <td>{otherStr}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Notes:</td>");
+                html.AppendLine("                <td colspan=\"8\" class=\"empty-field\" style=\"height: 40px;\"></td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // MILITARY section
+            if (mainworld != null)
+            {
+                var m = mainworld.Military;
+                string MilVal(int v) => v == 0 ? "-" : IntToEhex(v);
+                html.AppendLine("        <table>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <th style=\"width: 120px;\">MILITARY</th>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Effective Budget %:</td>");
+                html.AppendLine($"                <td colspan=\"7\">{m.BasicMilitaryBudget:F2}%</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Enforcement:</td>");
+                html.AppendLine($"                <td>{MilVal(m.EnforcementBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Militia:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MilitiaBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Army:</td>");
+                html.AppendLine($"                <td>{MilVal(m.ArmyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Wet Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.WetNavyBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("            <tr>");
+                html.AppendLine("                <td class=\"label\">Air Force:</td>");
+                html.AppendLine($"                <td>{MilVal(m.AirForceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">System Defence:</td>");
+                html.AppendLine($"                <td>{MilVal(m.SystemDefenceBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Navy:</td>");
+                html.AppendLine($"                <td>{MilVal(m.NavyBranch)}</td>");
+                html.AppendLine("                <td class=\"label\" style=\"width: auto;\">Marine:</td>");
+                html.AppendLine($"                <td>{MilVal(m.MarineBranch)}</td>");
+                html.AppendLine("            </tr>");
+                html.AppendLine("        </table>");
+            }
+
+            // NOTES section (full width)
+            html.AppendLine("        <table>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <th>NOTES</th>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("            <tr>");
+            html.AppendLine("                <td class=\"empty-field\" style=\"height: 100px;\"></td>");
+            html.AppendLine("            </tr>");
+            html.AppendLine("        </table>");
+
+            html.AppendLine("    </div>");
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
+        }
+
+        // Collect survey data without writing any files (used by GUI)
+        private List<SurveyData> CollectSurveyData()
+        {
+            return CollectSurveyDataInternal();
+        }
+
+        private List<SurveyData> GenerateSurveyForms()
+        {
+            // Create surveys folder (delete existing if not using unique filenames)
+            string surveysFolder = "surveys";
+            if (System.IO.Directory.Exists(surveysFolder) && !uniqueHtmlFilename)
+            {
+                try
+                {
+                    System.IO.Directory.Delete(surveysFolder, true);
+                    DebugLogger.Log("Deleted existing surveys folder");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"Warning: Could not delete surveys folder - {ex.Message}");
+                }
+            }
+
+            if (!System.IO.Directory.Exists(surveysFolder))
+            {
+                System.IO.Directory.CreateDirectory(surveysFolder);
+                DebugLogger.Log("Created surveys folder");
+            }
+
+            List<SurveyData> surveyDataList = CollectSurveyDataInternal();
+
+
+            WriteSurveyForms(surveyDataList, surveysFolder);
+            return surveyDataList;
+        }
+
+
+        private List<SurveyData> CollectSurveyDataInternal()
+        {
+            List<SurveyData> surveyDataList = new List<SurveyData>();
+
+            // Collect survey data for primary star's terrestrial worlds
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                foreach (var bodyObj in primaryObject.celestrialObjectOrbits)
+                {
+                    if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                    {
+                        // Check if this is the mainworld
+                        string worldName = tp.Designation;
+                        string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                        if (mainworld != null && tp == mainworld.PlacedWorld)
+                        {
+                            // Override with mainworld-specific values
+                            if (!string.IsNullOrEmpty(systemName))
+                                worldName = $"{systemName} ({tp.Designation})";
+                            sahUwp = mainworld.UWP;
+                        }
+                        else
+                        {
+                            // Check sophont world override
+                            var sophontTp = sophontWorlds.FirstOrDefault(sw => sw.PlacedWorld == tp);
+                            if (sophontTp != null)
+                                sahUwp = sophontTp.UWP;
+                            else
+                            {
+                                // Check additional inhabited world — append population digit
+                                var aiwTp = GetAdditionalInhabitedWorld(tp);
+                                if (aiwTp != null && !string.IsNullOrEmpty(aiwTp.UWP)) sahUwp = aiwTp.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
+                            }
+                        }
+
+                        // Prepend spaceport class for uninhabited worlds with a spaceport
+                        if (!sahUwp.Contains('-') && tp.SpaceportClass != 'Y')
+                            sahUwp = $"{tp.SpaceportClass}{sahUwp}";
+
+                        SurveyData surveyData = new SurveyData
+                        {
+                            WorldName = worldName,
+                            SAH_UWP = sahUwp,
+                            PrimaryObject = primaryStar.Designation,
+                            SystemAge = primaryStar.age.ToString("F2"),
+                            OrbitNumber = bodyObj.orbit,
+                            AU = bodyObj.orbitAU,
+                            Eccentricity = bodyObj.orbitEccentricity,
+                            Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                            Diameter = tp.Diameter,
+                            Composition = tp.Composition,
+                            Density = tp.Density,
+                            Gravity = tp.Gravity,
+                            Mass = tp.WorldMass,
+                            EscapeVelocity = tp.EscapeVelocity,
+                            Atmosphere = tp.Atmosphere,
+                            AtmosphereComposition = string.IsNullOrEmpty(tp.AtmosphereComposition)
+                                ? GetAtmosphereComposition(tp.Atmosphere)
+                                : tp.AtmosphereComposition,
+                            AtmosphericPressure = tp.AtmosphericPressure,
+                            MeanTemperatureK = tp.MeanTemperatureK,
+                            MeanTemperatureC = tp.MeanTemperatureC,
+                            HydrographicsCoverage = tp.HydrographicsCoverage,
+                            HydrographicsCode = tp.HydrographicsCode,
+                            SurfaceDistribution = tp.SurfaceDistribution,
+                            Albedo = tp.Albedo,
+                            Greenhouse = tp.Greenhouse,
+                            HighTemperatureK = tp.HighTemperatureK,
+                            HighTemperatureC = tp.HighTemperatureC,
+                            LowTemperatureK = tp.LowTemperatureK,
+                            LowTemperatureC = tp.LowTemperatureC,
+                            BasicRotationRateHours = tp.BasicRotationRateHours,
+                            SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
+                            SolarDayHours = tp.SolarDayHours,
+                            AxialTilt = tp.AxialTilt,
+                            TidalLockStatus = tp.TidalLockStatus,
+                            TotalTidalForce = tp.TotalTidalForce,
+                            TidalForceContributions = tp.TidalForceContributions,
+                            ResidualSeismicStress = tp.ResidualSeismicStress,
+                            TidalStressFactor = tp.TidalStressFactor,
+                            TidalHeatingEffects = tp.TidalHeatingEffects,
+                            TotalSeismicStress = tp.TotalSeismicStress,
+                            NumberOfMajorTectonicPlates = tp.NumberOfMajorTectonicPlates,
+                            AtmosphericTaint = tp.AtmosphericTaint,
+                            BiomassRating = tp.BiomassRating,
+                            BiocomplexityRating = tp.BiocomplexityRating,
+                            BiocomplexityDescription = tp.BiocomplexityDescription,
+                            CurrentNativeSophont = tp.CurrentNativeSophont,
+                            ExtinctNativeSophont = tp.ExtinctNativeSophont,
+                            BiodiversityRating = tp.BiodiversityRating,
+                            CompatibilityRating = tp.CompatibilityRating,
+                            ResourceRating = tp.ResourceRating,
+                            HabitabilityRating = tp.HabitabilityRating,
+                            Moons = tp.Moons,
+                            WorldObject = tp,
+                            Filename = $"{tp.Designation.Replace(" ", "_")}.html"
+                        };
+                        surveyDataList.Add(surveyData);
+
+                        // Generate surveys for moons
+                        foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
+                        {
+                            // Check if this moon is the mainworld
+                            string moonWorldName = $"{tp.Designation} {moon.Designation}";
+                            string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                            if (mainworld != null && moon == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    moonWorldName = $"{systemName} ({tp.Designation} {moon.Designation})";
+                                moonSahUwp = mainworld.UWP;
+                            }
+                            else
+                            {
+                                var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
+                            }
+
+                            if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
+
+                            SurveyData moonSurvey = new SurveyData
+                            {
+                                WorldName = moonWorldName,
+                                SAH_UWP = moonSahUwp,
+                                PrimaryObject = $"{tp.Designation}",
+                                SystemAge = primaryStar.age.ToString("F2"),
+                                OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
+                                Eccentricity = moon.Eccentricity,
+                                Period = FormatMoonOrbitalPeriod(moon),
+                                Diameter = moon.Diameter,
+                                Composition = moon.Composition,
+                                Density = moon.Density,
+                                Gravity = moon.Gravity,
+                                Mass = moon.Mass,
+                                EscapeVelocity = moon.EscapeVelocity,
+                                Atmosphere = moon.Atmosphere,
+                                AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(moon.Atmosphere)
+                                    : moon.AtmosphereComposition,
+                                AtmosphericPressure = moon.AtmosphericPressure,
+                                MeanTemperatureK = moon.MeanTemperatureK,
+                                MeanTemperatureC = moon.MeanTemperatureC,
+                                HighTemperatureK = moon.HighTemperatureK,
+                                HighTemperatureC = moon.HighTemperatureC,
+                                LowTemperatureK = moon.LowTemperatureK,
+                                LowTemperatureC = moon.LowTemperatureC,
+                                HydrographicsCoverage = moon.HydrographicsCoverage,
+                                HydrographicsCode = moon.HydrographicsCode,
+                                BasicRotationRateHours = moon.BasicRotationRateHours,
+                                SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                SolarDayHours = moon.SolarDayHours,
+                                AxialTilt = moon.AxialTilt,
+                                TidalLockStatus = moon.TidalLockStatus,
+                                TotalTidalForce = moon.TotalTidalForce,
+                                TidalForceContributions = moon.TidalForceContributions,
+                                ResidualSeismicStress = moon.ResidualSeismicStress,
+                                TidalStressFactor = moon.TidalStressFactor,
+                                TidalHeatingEffects = moon.TidalHeatingEffects,
+                                TotalSeismicStress = moon.TotalSeismicStress,
+                                NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                AtmosphericTaint = moon.AtmosphericTaint,
+                                BiomassRating = moon.BiomassRating,
+                                BiocomplexityRating = moon.BiocomplexityRating,
+                                BiocomplexityDescription = moon.BiocomplexityDescription,
+                                CurrentNativeSophont = moon.CurrentNativeSophont,
+                                ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                BiodiversityRating = moon.BiodiversityRating,
+                                CompatibilityRating = moon.CompatibilityRating,
+                                ResourceRating = moon.ResourceRating,
+                                HabitabilityRating = moon.HabitabilityRating,
+                                Moons = new List<Moon>(),
+                                WorldObject = moon,
+                                Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                            };
+                            surveyDataList.Add(moonSurvey);
+                        }
+                    }
+                    else if (bodyObj.celestrialObject is GasGiant gg)
+                    {
+                        // Generate surveys for gas giant moons
+                        foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
+                        {
+                            // Check if this moon is the mainworld
+                            string moonWorldName = $"{gg.Designation} {moon.Designation}";
+                            string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                            if (mainworld != null && moon == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
+                                moonSahUwp = mainworld.UWP;
+                            }
+                            else
+                            {
+                                var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
+                            }
+
+                            if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
+
+                            SurveyData moonSurvey = new SurveyData
+                            {
+                                WorldName = moonWorldName,
+                                SAH_UWP = moonSahUwp,
+                                PrimaryObject = $"{gg.Designation}",
+                                SystemAge = primaryStar.age.ToString("F2"),
+                                OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
+                                Eccentricity = moon.Eccentricity,
+                                Period = FormatMoonOrbitalPeriod(moon),
+                                Diameter = moon.Diameter,
+                                Composition = moon.Composition,
+                                Density = moon.Density,
+                                Gravity = moon.Gravity,
+                                Mass = moon.Mass,
+                                EscapeVelocity = moon.EscapeVelocity,
+                                Atmosphere = moon.Atmosphere,
+                                AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(moon.Atmosphere)
+                                    : moon.AtmosphereComposition,
+                                AtmosphericPressure = moon.AtmosphericPressure,
+                                MeanTemperatureK = moon.MeanTemperatureK,
+                                MeanTemperatureC = moon.MeanTemperatureC,
+                                HighTemperatureK = moon.HighTemperatureK,
+                                HighTemperatureC = moon.HighTemperatureC,
+                                LowTemperatureK = moon.LowTemperatureK,
+                                LowTemperatureC = moon.LowTemperatureC,
+                                HydrographicsCoverage = moon.HydrographicsCoverage,
+                                HydrographicsCode = moon.HydrographicsCode,
+                                BasicRotationRateHours = moon.BasicRotationRateHours,
+                                SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                SolarDayHours = moon.SolarDayHours,
+                                AxialTilt = moon.AxialTilt,
+                                TidalLockStatus = moon.TidalLockStatus,
+                                TotalTidalForce = moon.TotalTidalForce,
+                                TidalForceContributions = moon.TidalForceContributions,
+                                ResidualSeismicStress = moon.ResidualSeismicStress,
+                                TidalStressFactor = moon.TidalStressFactor,
+                                TidalHeatingEffects = moon.TidalHeatingEffects,
+                                TotalSeismicStress = moon.TotalSeismicStress,
+                                NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                AtmosphericTaint = moon.AtmosphericTaint,
+                                BiomassRating = moon.BiomassRating,
+                                BiocomplexityRating = moon.BiocomplexityRating,
+                                BiocomplexityDescription = moon.BiocomplexityDescription,
+                                CurrentNativeSophont = moon.CurrentNativeSophont,
+                                ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                BiodiversityRating = moon.BiodiversityRating,
+                                CompatibilityRating = moon.CompatibilityRating,
+                                ResourceRating = moon.ResourceRating,
+                                HabitabilityRating = moon.HabitabilityRating,
+                                Moons = new List<Moon>(),
+                                WorldObject = moon,
+                                Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                            };
+                            surveyDataList.Add(moonSurvey);
+                        }
+                    }
+                }
+            }
+
+            // Collect survey data for companion stars' terrestrial worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                        {
+                            // Check if this is the mainworld
+                            string worldName = tp.Designation;
+                            string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    worldName = $"{systemName} ({tp.Designation})";
+                                sahUwp = mainworld.UWP;
+                            }
+                            else
+                            {
+                                var aiwTp = GetAdditionalInhabitedWorld(tp);
+                                if (aiwTp != null && !string.IsNullOrEmpty(aiwTp.UWP)) sahUwp = aiwTp.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
+                            }
+
+                            if (!sahUwp.Contains('-') && tp.SpaceportClass != 'Y')
+                                sahUwp = $"{tp.SpaceportClass}{sahUwp}";
+
+                            SurveyData surveyData = new SurveyData
+                            {
+                                WorldName = worldName,
+                                SAH_UWP = sahUwp,
+                                PrimaryObject = companionStar.Designation + ", orbiting " + (primaryObject.celestrialObject as Star)?.Designation,
+                                SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
+                                OrbitNumber = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Eccentricity = bodyObj.orbitEccentricity,
+                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Diameter = tp.Diameter,
+                                Composition = tp.Composition,
+                                Density = tp.Density,
+                                Gravity = tp.Gravity,
+                                Mass = tp.WorldMass,
+                                EscapeVelocity = tp.EscapeVelocity,
+                                Atmosphere = tp.Atmosphere,
+                                AtmosphereComposition = string.IsNullOrEmpty(tp.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(tp.Atmosphere)
+                                    : tp.AtmosphereComposition,
+                                AtmosphericPressure = tp.AtmosphericPressure,
+                                MeanTemperatureK = tp.MeanTemperatureK,
+                                MeanTemperatureC = tp.MeanTemperatureC,
+                                HydrographicsCoverage = tp.HydrographicsCoverage,
+                                HydrographicsCode = tp.HydrographicsCode,
+                                SurfaceDistribution = tp.SurfaceDistribution,
+                                Albedo = tp.Albedo,
+                                Greenhouse = tp.Greenhouse,
+                                HighTemperatureK = tp.HighTemperatureK,
+                                HighTemperatureC = tp.HighTemperatureC,
+                                LowTemperatureK = tp.LowTemperatureK,
+                                LowTemperatureC = tp.LowTemperatureC,
+                                BasicRotationRateHours = tp.BasicRotationRateHours,
+                                SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
+                                SolarDayHours = tp.SolarDayHours,
+                                AxialTilt = tp.AxialTilt,
+                                TidalLockStatus = tp.TidalLockStatus,
+                                TotalTidalForce = tp.TotalTidalForce,
+                                TidalForceContributions = tp.TidalForceContributions,
+                                ResidualSeismicStress = tp.ResidualSeismicStress,
+                                TidalStressFactor = tp.TidalStressFactor,
+                                TidalHeatingEffects = tp.TidalHeatingEffects,
+                                TotalSeismicStress = tp.TotalSeismicStress,
+                                NumberOfMajorTectonicPlates = tp.NumberOfMajorTectonicPlates,
+                                BiomassRating = tp.BiomassRating,
+                                BiocomplexityRating = tp.BiocomplexityRating,
+                                BiocomplexityDescription = tp.BiocomplexityDescription,
+                                CurrentNativeSophont = tp.CurrentNativeSophont,
+                                ExtinctNativeSophont = tp.ExtinctNativeSophont,
+                                BiodiversityRating = tp.BiodiversityRating,
+                                CompatibilityRating = tp.CompatibilityRating,
+                                ResourceRating = tp.ResourceRating,
+                                HabitabilityRating = tp.HabitabilityRating,
+                                Moons = tp.Moons,
+                                WorldObject = tp,
+                                Filename = $"{tp.Designation.Replace(" ", "_")}.html"
+                            };
+                            surveyDataList.Add(surveyData);
+
+                            // Generate surveys for moons
+                            foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
+                            {
+                                string csMoonSah = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                var csMoonAiw = GetAdditionalInhabitedWorld(moon);
+                                if (csMoonAiw != null && !string.IsNullOrEmpty(csMoonAiw.UWP)) csMoonSah = csMoonAiw.UWP;
+                                else if (!csMoonSah.Contains('-') && moon.SpaceportClass != 'Y') csMoonSah = $"{moon.SpaceportClass}{csMoonSah}";
+
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = $"{tp.Designation} {moon.Designation}",
+                                    SAH_UWP = csMoonSah,
+                                    PrimaryObject = $"{tp.Designation}",
+                                    SystemAge = (primaryObject.celestrialObject as Star)?.age.ToString("F2") ?? "",
+                                    OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                    AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
+                                    Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
+                                    ResidualSeismicStress = moon.ResidualSeismicStress,
+                                    TidalStressFactor = moon.TidalStressFactor,
+                                    TidalHeatingEffects = moon.TidalHeatingEffects,
+                                    TotalSeismicStress = moon.TotalSeismicStress,
+                                    NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                    BiomassRating = moon.BiomassRating,
+                                    BiocomplexityRating = moon.BiocomplexityRating,
+                                    BiocomplexityDescription = moon.BiocomplexityDescription,
+                                    CurrentNativeSophont = moon.CurrentNativeSophont,
+                                    ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                    BiodiversityRating = moon.BiodiversityRating,
+                                    CompatibilityRating = moon.CompatibilityRating,
+                                    ResourceRating = moon.ResourceRating,
+                                    HabitabilityRating = moon.HabitabilityRating,
+                                    Moons = new List<Moon>(),
+                                    WorldObject = moon,
+                                    Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            // Generate surveys for gas giant moons
+                            foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
+                            {
+                                // Check if this moon is the mainworld
+                                string moonWorldName = $"{gg.Designation} {moon.Designation}";
+                                string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    // Override with mainworld-specific values
+                                    if (!string.IsNullOrEmpty(systemName))
+                                        moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
+                                    moonSahUwp = mainworld.UWP;
+                                }
+                                else
+                                {
+                                    var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                    if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                    else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
+                                }
+
+                                if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                    moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
+
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = moonWorldName,
+                                    SAH_UWP = moonSahUwp,
+                                    PrimaryObject = $"{gg.Designation}",
+                                    SystemAge = "",
+                                    OrbitNumber = moon.Orbit, // Moon orbit in world diameters
+                                    AU = moon.OrbitDistanceKm, // Store km for moons (not AU)
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
+                                    Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = GetAtmosphereComposition(moon.Atmosphere),
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
+                                    ResidualSeismicStress = moon.ResidualSeismicStress,
+                                    TidalStressFactor = moon.TidalStressFactor,
+                                    TidalHeatingEffects = moon.TidalHeatingEffects,
+                                    TotalSeismicStress = moon.TotalSeismicStress,
+                                    NumberOfMajorTectonicPlates = moon.NumberOfMajorTectonicPlates,
+                                    BiomassRating = moon.BiomassRating,
+                                    BiocomplexityRating = moon.BiocomplexityRating,
+                                    BiocomplexityDescription = moon.BiocomplexityDescription,
+                                    CurrentNativeSophont = moon.CurrentNativeSophont,
+                                    ExtinctNativeSophont = moon.ExtinctNativeSophont,
+                                    BiodiversityRating = moon.BiodiversityRating,
+                                    CompatibilityRating = moon.CompatibilityRating,
+                                    ResourceRating = moon.ResourceRating,
+                                    HabitabilityRating = moon.HabitabilityRating,
+                                    Moons = new List<Moon>(),
+                                    WorldObject = moon,
+                                    Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Collect survey data for companion stars' worlds
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (companionObj.celestrialObject is Star companionStar)
+                {
+                    foreach (var bodyObj in companionObj.celestrialObjectOrbits)
+                    {
+                        if (bodyObj.celestrialObject is TerrestrialPlanet tp)
+                        {
+                            // Check if this is the mainworld
+                            string worldName = tp.Designation;
+                            string sahUwp = tp.Size + tp.Atmosphere + tp.HydrographicsCode;
+                            if (mainworld != null && tp == mainworld.PlacedWorld)
+                            {
+                                // Override with mainworld-specific values
+                                if (!string.IsNullOrEmpty(systemName))
+                                    worldName = $"{systemName} ({tp.Designation})";
+                                sahUwp = mainworld.UWP;
+                            }
+                            else
+                            {
+                                var aiwTp = GetAdditionalInhabitedWorld(tp);
+                                if (aiwTp != null && !string.IsNullOrEmpty(aiwTp.UWP)) sahUwp = aiwTp.UWP;
+                                else if (GetAdditionalInhabitedPopDigit(tp) is string pd) sahUwp += pd;
+                            }
+
+                            if (!sahUwp.Contains('-') && tp.SpaceportClass != 'Y')
+                                sahUwp = $"{tp.SpaceportClass}{sahUwp}";
+
+                            SurveyData surveyData = new SurveyData
+                            {
+                                WorldName = worldName,
+                                SAH_UWP = sahUwp,
+                                PrimaryObject = companionStar.Designation,
+                                SystemAge = companionStar.age.ToString("F2"),
+                                OrbitNumber = bodyObj.orbit,
+                                AU = bodyObj.orbitAU,
+                                Eccentricity = bodyObj.orbitEccentricity,
+                                Period = FormatOrbitalPeriod(bodyObj.OrbitalPeriodYears),
+                                Diameter = tp.Diameter,
+                                Composition = tp.Composition,
+                                Density = tp.Density,
+                                Gravity = tp.Gravity,
+                                Mass = tp.WorldMass,
+                                EscapeVelocity = tp.EscapeVelocity,
+                                Atmosphere = tp.Atmosphere,
+                                AtmosphereComposition = string.IsNullOrEmpty(tp.AtmosphereComposition)
+                                    ? GetAtmosphereComposition(tp.Atmosphere)
+                                    : tp.AtmosphereComposition,
+                                AtmosphericPressure = tp.AtmosphericPressure,
+                                MeanTemperatureK = tp.MeanTemperatureK,
+                                MeanTemperatureC = tp.MeanTemperatureC,
+                                HydrographicsCoverage = tp.HydrographicsCoverage,
+                                HydrographicsCode = tp.HydrographicsCode,
+                                SurfaceDistribution = tp.SurfaceDistribution,
+                                Albedo = tp.Albedo,
+                                Greenhouse = tp.Greenhouse,
+                                HighTemperatureK = tp.HighTemperatureK,
+                                HighTemperatureC = tp.HighTemperatureC,
+                                LowTemperatureK = tp.LowTemperatureK,
+                                LowTemperatureC = tp.LowTemperatureC,
+                                BasicRotationRateHours = tp.BasicRotationRateHours,
+                                SolarDaysInLocalYear = tp.SolarDaysInLocalYear,
+                                SolarDayHours = tp.SolarDayHours,
+                                AxialTilt = tp.AxialTilt,
+                                TidalLockStatus = tp.TidalLockStatus,
+                                TotalTidalForce = tp.TotalTidalForce,
+                                TidalForceContributions = tp.TidalForceContributions,
+                                Moons = tp.Moons,
+                                WorldObject = tp,
+                                Filename = $"{tp.Designation.Replace(" ", "_")}.html"
+                            };
+                            surveyDataList.Add(surveyData);
+
+                            // Generate surveys for moons
+                            foreach (var moon in tp.Moons.Where(m => m.Size != "R"))
+                            {
+                                // Check if this moon is the mainworld
+                                string moonWorldName = $"{tp.Designation} {moon.Designation}";
+                                string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    // Override with mainworld-specific values
+                                    if (!string.IsNullOrEmpty(systemName))
+                                        moonWorldName = $"{systemName} ({tp.Designation} {moon.Designation})";
+                                    moonSahUwp = mainworld.UWP;
+                                }
+                                else
+                                {
+                                    var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                    if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                    else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
+                                }
+
+                                if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                    moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
+
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = moonWorldName,
+                                    SAH_UWP = moonSahUwp,
+                                    PrimaryObject = $"{tp.Designation}",
+                                    SystemAge = companionStar.age.ToString("F2"),
+                                    OrbitNumber = moon.Orbit,
+                                    AU = moon.OrbitDistanceKm,
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
+                                    Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                        ? GetAtmosphereComposition(moon.Atmosphere)
+                                        : moon.AtmosphereComposition,
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
+                                    Moons = new List<Moon>(),
+                                    WorldObject = moon,
+                                    Filename = $"{tp.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                        else if (bodyObj.celestrialObject is GasGiant gg)
+                        {
+                            // Generate surveys for gas giant moons
+                            foreach (var moon in gg.Moons.Where(m => m.Size != "R"))
+                            {
+                                // Check if this moon is the mainworld
+                                string moonWorldName = $"{gg.Designation} {moon.Designation}";
+                                string moonSahUwp = moon.Size + moon.Atmosphere + moon.HydrographicsCode;
+                                if (mainworld != null && moon == mainworld.PlacedWorld)
+                                {
+                                    // Override with mainworld-specific values
+                                    if (!string.IsNullOrEmpty(systemName))
+                                        moonWorldName = $"{systemName} ({gg.Designation} {moon.Designation})";
+                                    moonSahUwp = mainworld.UWP;
+                                }
+                                else
+                                {
+                                    var moonAiw = GetAdditionalInhabitedWorld(moon);
+                                    if (moonAiw != null && !string.IsNullOrEmpty(moonAiw.UWP)) moonSahUwp = moonAiw.UWP;
+                                    else if (GetAdditionalInhabitedPopDigit(moon) is string pd) moonSahUwp += pd;
+                                }
+
+                                if (!moonSahUwp.Contains('-') && moon.SpaceportClass != 'Y')
+                                    moonSahUwp = $"{moon.SpaceportClass}{moonSahUwp}";
+
+                                SurveyData moonSurvey = new SurveyData
+                                {
+                                    WorldName = moonWorldName,
+                                    SAH_UWP = moonSahUwp,
+                                    PrimaryObject = $"{gg.Designation}",
+                                    SystemAge = companionStar.age.ToString("F2"),
+                                    OrbitNumber = moon.Orbit,
+                                    AU = moon.OrbitDistanceKm,
+                                    Eccentricity = moon.Eccentricity,
+                                    Period = FormatMoonOrbitalPeriod(moon),
+                                    Diameter = moon.Diameter,
+                                    Composition = moon.Composition,
+                                    Density = moon.Density,
+                                    Gravity = moon.Gravity,
+                                    Mass = moon.Mass,
+                                    EscapeVelocity = moon.EscapeVelocity,
+                                    Atmosphere = moon.Atmosphere,
+                                    AtmosphereComposition = string.IsNullOrEmpty(moon.AtmosphereComposition)
+                                        ? GetAtmosphereComposition(moon.Atmosphere)
+                                        : moon.AtmosphereComposition,
+                                    AtmosphericPressure = moon.AtmosphericPressure,
+                                    MeanTemperatureK = moon.MeanTemperatureK,
+                                    MeanTemperatureC = moon.MeanTemperatureC,
+                                    HighTemperatureK = moon.HighTemperatureK,
+                                    HighTemperatureC = moon.HighTemperatureC,
+                                    LowTemperatureK = moon.LowTemperatureK,
+                                    LowTemperatureC = moon.LowTemperatureC,
+                                    HydrographicsCoverage = moon.HydrographicsCoverage,
+                                    HydrographicsCode = moon.HydrographicsCode,
+                                    SurfaceDistribution = moon.SurfaceDistribution,
+                                    Albedo = moon.Albedo,
+                                    Greenhouse = moon.Greenhouse,
+                                    BasicRotationRateHours = moon.BasicRotationRateHours,
+                                    SolarDaysInLocalYear = moon.SolarDaysInLocalYear,
+                                    SolarDayHours = moon.SolarDayHours,
+                                    AxialTilt = moon.AxialTilt,
+                                    TidalLockStatus = moon.TidalLockStatus,
+                                    TotalTidalForce = moon.TotalTidalForce,
+                                    TidalForceContributions = moon.TidalForceContributions,
+                                    Moons = new List<Moon>(),
+                                    WorldObject = moon,
+                                    Filename = $"{gg.Designation.Replace(" ", "_")}_{moon.Designation}.html"
+                                };
+                                surveyDataList.Add(moonSurvey);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Post-process: attach AIW data and update WorldName with authority status
+            foreach (var sd in surveyDataList)
+            {
+                if (sd.WorldObject != null)
+                {
+                    var aiw = GetAdditionalInhabitedWorld(sd.WorldObject);
+                    if (aiw != null)
+                    {
+                        sd.AIWData = aiw;
+                        string authStatus = aiw.IsIndependent
+                            ? "Independent World"
+                            : $"Under the authority of {aiw.AuthorityDesignation}";
+                        // Only update if the WorldName doesn't already contain a system name override
+                        if (!sd.WorldName.Contains("<br>"))
+                            sd.WorldName += $"<br>{authStatus}";
+                    }
+                }
+            }
+            return surveyDataList;
+        }
+        private void WriteSurveyForms(List<SurveyData> surveyDataList, string surveysFolder)
+        {
+            if (!System.IO.Directory.Exists(surveysFolder))
+                System.IO.Directory.CreateDirectory(surveysFolder);
+
+            // Generate HTML files
+            foreach (var surveyData in surveyDataList)
+            {
+                string html = GenerateSurveyFormHtml(surveyData);
+                string filepath = System.IO.Path.Combine(surveysFolder, surveyData.Filename);
+
+                try
+                {
+                    System.IO.File.WriteAllText(filepath, html);
+                    DebugLogger.LogFormat("Generated survey form: {0}", surveyData.Filename);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ERROR: Failed to write survey file {surveyData.Filename} - {ex.Message}");
+                }
+            }
+
+            Console.WriteLine($"Generated {surveyDataList.Count} IISS Class IV Survey forms in surveys/");
+
+            // Generate Populated World Details form for mainworld if it has population
+            if (mainworld != null && mainworld.Population > 0)
+            {
+                string popDetailsHtml = GeneratePopulatedWorldDetailsFormHtml();
+                if (!string.IsNullOrEmpty(popDetailsHtml))
+                {
+                    string popDetailsFilename = "PopulatedWorldDetails.html";
+                    string popDetailsPath = System.IO.Path.Combine(surveysFolder, popDetailsFilename);
+
+                    try
+                    {
+                        System.IO.File.WriteAllText(popDetailsPath, popDetailsHtml);
+                        DebugLogger.Log($"Generated Populated World Details form: {popDetailsFilename}");
+                        Console.WriteLine($"Generated Populated World Details form in surveys/");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"ERROR: Failed to write Populated World Details file - {ex.Message}");
+                    }
+                }
+            }
+
+            // Generate Inhabited World forms for secondary worlds
+            int inhabitedCount = 0;
+            foreach (var aiw in additionalInhabitedWorlds)
+            {
+                string inhabitedHtml = GenerateInhabitedWorldFormHtml(aiw);
+                string inhabitedFilename = aiw.WorldDesignation.Replace(" ", "_") + "_inhabited.html";
+                string inhabitedPath = System.IO.Path.Combine(surveysFolder, inhabitedFilename);
+
+                try
+                {
+                    System.IO.File.WriteAllText(inhabitedPath, inhabitedHtml);
+                    DebugLogger.Log($"Generated Inhabited World form: {inhabitedFilename}");
+                    inhabitedCount++;
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ERROR: Failed to write Inhabited World file {inhabitedFilename} - {ex.Message}");
+                }
+            }
+            if (inhabitedCount > 0)
+                Console.WriteLine($"Generated {inhabitedCount} Inhabited World form(s) in surveys/");
+        }
+
+        private int CountDStarsInSystem()
+        {
+            int count = 0;
+
+            // Check primary
+            if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "D")
+            {
+                count++;
+            }
+
+            // Check companions
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star star && star.type == "D")
+                {
+                    count++;
+                }
+
+                // Check sub-companions
+                foreach (var subObj in obj.celestrialObjectOrbits)
+                {
+                    if (subObj.celestrialObject is Star subStar && subStar.type == "D")
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        private bool IsSingleClassVStar()
+        {
+            // Must have exactly 1 star (no companions)
+            if (primaryObject.celestrialObjectOrbits.Count > 0)
+                return false;
+
+            // Primary must be Class V
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                return primaryStar.starclass == "V";
+            }
+
+            return false;
+        }
+
+        private bool IsPrimaryBDOrD()
+        {
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                return primaryStar.type == "BD" || primaryStar.type == "D";
+            }
+            return false;
+        }
+
+        private CelestrialObject? FindCompanionByOrbitType(Starhelper.starOrbitType orbitType)
+        {
+            // Search primaryObject.celestrialObjectOrbits for companion with matching orbit type
+            // Used in MaxAllowableOrbit calculations
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star star && star.starOrbitType == orbitType)
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        private bool HasCompanionOrbitCompanion(CelestrialObject companionObj)
+        {
+            // Check if this companion has any Companion orbit sub-companions
+            foreach (var subObj in companionObj.celestrialObjectOrbits)
+            {
+                if (subObj.celestrialObject is Star subStar &&
+                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private CelestrialObject? GetCompanionOrbitCompanion(CelestrialObject companionObj)
+        {
+            // Get the first Companion orbit sub-companion of this companion
+            foreach (var subObj in companionObj.celestrialObjectOrbits)
+            {
+                if (subObj.celestrialObject is Star subStar &&
+                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                {
+                    return subObj;
+                }
+            }
+            return null;
+        }
+
+        private void AdjustMinAllowableOrbitsForCompanions()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ADJUSTING MIN ALLOWABLE ORBITS FOR COMPANION COMPANIONS");
+
+            bool anyAdjustments = false;
+
+            // Check if primary star has a Companion orbit companion
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (HasCompanionOrbitCompanion(primaryObject))
+                {
+                    CelestrialObject? subCompanion = GetCompanionOrbitCompanion(primaryObject);
+                    if (subCompanion != null)
+                    {
+                        anyAdjustments = true;
+                        float oldMin = primaryStar.MinAllowableOrbit;
+                        float companionEcc = subCompanion.orbitEccentricity;
+
+                        DebugLogger.LogFormat("Primary star has Companion orbit companion (eccentricity {0:F3})", companionEcc);
+                        DebugLogger.LogFormat("  Original MinAllowableOrbit: {0:F3}", oldMin);
+
+                        if (oldMin <= 0.2f)
+                        {
+                            primaryStar.MinAllowableOrbit = 0.5f + companionEcc;
+                            DebugLogger.LogFormat("  MinAllowableOrbit <= 0.2, setting to: 0.5 + {0:F3} = {1:F3}",
+                                companionEcc, primaryStar.MinAllowableOrbit);
+                        }
+                        else
+                        {
+                            primaryStar.MinAllowableOrbit = oldMin + 0.5f + companionEcc;
+                            DebugLogger.LogFormat("  MinAllowableOrbit > 0.2, setting to: {0:F3} + 0.5 + {1:F3} = {2:F3}",
+                                oldMin, companionEcc, primaryStar.MinAllowableOrbit);
+                        }
+                    }
+                }
+            }
+
+            // Check each Close/Near/Far companion
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    // Check if this companion has a Companion orbit companion
+                    if (HasCompanionOrbitCompanion(companion))
+                    {
+                        CelestrialObject? subCompanion = GetCompanionOrbitCompanion(companion);
+                        if (subCompanion != null)
+                        {
+                            anyAdjustments = true;
+                            float oldMin = companionStar.MinAllowableOrbit;
+                            float companionEcc = subCompanion.orbitEccentricity;
+
+                            DebugLogger.LogFormat("{0} companion has Companion orbit companion (eccentricity {1:F3})",
+                                companionStar.starOrbitType, companionEcc);
+                            DebugLogger.LogFormat("  Original MinAllowableOrbit: {0:F3}", oldMin);
+
+                            if (oldMin <= 0.2f)
+                            {
+                                companionStar.MinAllowableOrbit = 0.5f + companionEcc;
+                                DebugLogger.LogFormat("  MinAllowableOrbit <= 0.2, setting to: 0.5 + {0:F3} = {1:F3}",
+                                    companionEcc, companionStar.MinAllowableOrbit);
+                            }
+                            else
+                            {
+                                companionStar.MinAllowableOrbit = oldMin + 0.5f + companionEcc;
+                                DebugLogger.LogFormat("  MinAllowableOrbit > 0.2, setting to: {0:F3} + 0.5 + {1:F3} = {2:F3}",
+                                    oldMin, companionEcc, companionStar.MinAllowableOrbit);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!anyAdjustments)
+            {
+                DebugLogger.Log("No stars with Companion orbit companions found - no adjustments needed");
+            }
+        }
+
+        private void CalculateAllMaxAllowableOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING MAX ALLOWABLE ORBITS");
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                primaryStar.MaxAllowableOrbit = 20f;
+                DebugLogger.Log("Primary star MaxAllowableOrbit: 20.000");
+            }
+
+            // Companions
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    CalculateMaxAllowableOrbitForStar(companionStar, companion);
+
+                    // Sub-companions (Companion orbit companions)
+                    foreach (var subCompanion in companion.celestrialObjectOrbits)
+                    {
+                        if (subCompanion.celestrialObject is Star subStar)
+                        {
+                            CalculateMaxAllowableOrbitForStar(subStar, subCompanion);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void CalculateMaxAllowableOrbitForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating MaxAllowableOrbit for {0} star...", star.starOrbitType);
+
+            // Companion orbit companions don't have MaxAllowableOrbit
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                star.MaxAllowableOrbit = 0;
+                DebugLogger.Log("  Companion orbit star - no MaxAllowableOrbit");
+                return;
+            }
+
+            // Base calculation: orbit - 3
+            float baseMax = starObj.orbit - 3;
+            DebugLogger.LogFormat("  Base calculation: {0:F3} - 3 = {1:F3}", starObj.orbit, baseMax);
+
+            int reductions = 0;
+
+            // Get all Close/Near/Far companions
+            CelestrialObject? closeCompanion = FindCompanionByOrbitType(Starhelper.starOrbitType.Close);
+            CelestrialObject? nearCompanion = FindCompanionByOrbitType(Starhelper.starOrbitType.Near);
+            CelestrialObject? farCompanion = FindCompanionByOrbitType(Starhelper.starOrbitType.Far);
+
+            // Apply reductions based on orbit type and other companions
+            if (star.starOrbitType == Starhelper.starOrbitType.Close)
+            {
+                // Reduction: Near companion exists
+                if (nearCompanion != null)
+                {
+                    reductions += 1;
+                    DebugLogger.Log("  -1 (Near companion exists)");
+                }
+
+                // Reductions: Eccentricity > 0.2
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.2)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.2)", nearCompanion.orbitEccentricity);
+                }
+
+                // Reductions: Eccentricity > 0.5
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.5)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.5)", nearCompanion.orbitEccentricity);
+                }
+            }
+            else if (star.starOrbitType == Starhelper.starOrbitType.Near)
+            {
+                // Reduction: Close or Far companion exists
+                if (closeCompanion != null || farCompanion != null)
+                {
+                    reductions += 1;
+                    DebugLogger.Log("  -1 (Close or Far companion exists)");
+                }
+
+                // Reductions: Eccentricity > 0.2
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.2)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.2)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.2)", farCompanion.orbitEccentricity);
+                }
+
+                // Reductions: Eccentricity > 0.5
+                if (closeCompanion != null && closeCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Close eccentricity {0:F3} > 0.5)", closeCompanion.orbitEccentricity);
+                }
+
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.5)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.5)", farCompanion.orbitEccentricity);
+                }
+            }
+            else if (star.starOrbitType == Starhelper.starOrbitType.Far)
+            {
+                // Reduction: Near companion exists
+                if (nearCompanion != null)
+                {
+                    reductions += 1;
+                    DebugLogger.Log("  -1 (Near companion exists)");
+                }
+
+                // Reductions: Eccentricity > 0.2
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.2)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.2f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.2)", farCompanion.orbitEccentricity);
+                }
+
+                // Reductions: Eccentricity > 0.5
+                if (nearCompanion != null && nearCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Near eccentricity {0:F3} > 0.5)", nearCompanion.orbitEccentricity);
+                }
+
+                if (farCompanion != null && farCompanion.orbitEccentricity > 0.5f)
+                {
+                    reductions += 1;
+                    DebugLogger.LogFormat("  -1 (Far eccentricity {0:F3} > 0.5)", farCompanion.orbitEccentricity);
+                }
+            }
+
+            // Calculate final MaxAllowableOrbit
+            float finalMax = baseMax - reductions;
+
+            // Clamp to MinAllowableOrbit if negative (can happen for companions at orbit < 3)
+            if (finalMax < star.MinAllowableOrbit)
+            {
+                DebugLogger.LogFormat("  Calculated MaxAllowableOrbit ({0:F3}) < MinAllowableOrbit ({1:F3})",
+                    finalMax, star.MinAllowableOrbit);
+                finalMax = star.MinAllowableOrbit;
+                DebugLogger.LogFormat("  Clamping MaxAllowableOrbit to MinAllowableOrbit: {0:F3}", finalMax);
+            }
+
+            star.MaxAllowableOrbit = finalMax;
+
+            if (reductions > 0)
+            {
+                DebugLogger.LogFormat("  Final MaxAllowableOrbit: {0:F3} - {1} = {2:F3}", baseMax, reductions, finalMax);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Final MaxAllowableOrbit: {0:F3}", finalMax);
+            }
+        }
+
+        private void CalculateAllUnavailableOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING UNAVAILABLE ORBITS");
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateUnavailableOrbitsForStar(primaryStar, primaryObject);
+            }
+
+            // Companions (but NOT Companion orbit companions)
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        CalculateUnavailableOrbitsForStar(companionStar, companion);
+                    }
+                }
+            }
+        }
+
+        private void CalculateUnavailableOrbitsForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating unavailable orbits for {0} star...", star.starOrbitType);
+
+            // Companion orbit stars don't have unavailable orbits
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                DebugLogger.Log("  Companion orbit star - no unavailable orbits");
+                return;
+            }
+
+            star.UnavailableOrbitRanges.Clear();
+
+            // Get all Close/Near/Far companions from primary
+            List<CelestrialObject> companionsToCheck = new List<CelestrialObject>();
+            foreach (var obj in primaryObject.celestrialObjectOrbits)
+            {
+                if (obj.celestrialObject is Star s &&
+                    s.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    companionsToCheck.Add(obj);
+                }
+            }
+
+            // Check each other companion
+            foreach (var otherCompanion in companionsToCheck)
+            {
+                // Don't compare with self
+                if (otherCompanion == starObj)
+                {
+                    continue;
+                }
+
+                if (otherCompanion.celestrialObject is Star otherStar)
+                {
+                    float companionOrbit = otherCompanion.orbit;
+                    float companionEccentricity = otherCompanion.orbitEccentricity;
+
+                    // Base range: ±1
+                    float rangeOffset = 1f;
+
+                    // If eccentricity > 0.2: expand to ±2
+                    if (companionEccentricity > 0.2f)
+                    {
+                        rangeOffset = 2f;
+                        DebugLogger.LogFormat("  {0} companion (ecc {1:F3} > 0.2): expanding range to ±2",
+                            otherStar.starOrbitType, companionEccentricity);
+                    }
+
+                    // If Close or Near companion with eccentricity > 0.5: expand to ±3
+                    if ((otherStar.starOrbitType == Starhelper.starOrbitType.Close ||
+                         otherStar.starOrbitType == Starhelper.starOrbitType.Near) &&
+                        companionEccentricity > 0.5f)
+                    {
+                        rangeOffset = 3f;
+                        DebugLogger.LogFormat("  {0} companion (ecc {1:F3} > 0.5): expanding range to ±3",
+                            otherStar.starOrbitType, companionEccentricity);
+                    }
+
+                    float minUnavailable = companionOrbit - rangeOffset;
+                    float maxUnavailable = companionOrbit + rangeOffset;
+
+                    // Clamp minimum to 0 (orbits can't be negative)
+                    if (minUnavailable < 0)
+                    {
+                        minUnavailable = 0;
+                    }
+
+                    star.UnavailableOrbitRanges.Add((minUnavailable, maxUnavailable));
+
+                    DebugLogger.LogFormat("  {0} companion at orbit {1:F2} (ecc {2:F3})",
+                        otherStar.starOrbitType, companionOrbit, companionEccentricity);
+                    DebugLogger.LogFormat("    Makes orbits {0:F2} to {1:F2} unavailable",
+                        minUnavailable, maxUnavailable);
+                }
+            }
+
+            if (star.UnavailableOrbitRanges.Count == 0)
+            {
+                DebugLogger.Log("  No unavailable orbits for this star");
+            }
+        }
+
+        private void CalculateOrbitalAvailability()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ORBITAL AVAILABILITY CALCULATIONS");
+
+            // Step 1: Adjust MinAllowableOrbit for stars with Companion companions
+            AdjustMinAllowableOrbitsForCompanions();
+
+            // Step 2: Calculate MaxAllowableOrbit for all stars
+            CalculateAllMaxAllowableOrbits();
+
+            // Step 3: Calculate unavailable orbits for all stars (except Companion orbit stars)
+            CalculateAllUnavailableOrbits();
+
+            DebugLogger.Log("");
+            DebugLogger.Log("Orbital availability calculations complete");
+        }
+
+        private float ConvertAUToOrbitNumber(float au)
+        {
+            // Find the orbit number that corresponds to this AU value
+            // Use Starhelper.orbitValues dictionary to interpolate
+
+            for (int i = 0; i < 20; i++)
+            {
+                float lowerAU = Starhelper.orbitValues[i];
+                float upperAU = Starhelper.orbitValues[i + 1];
+
+                if (au >= lowerAU && au <= upperAU)
+                {
+                    // Interpolate between orbit numbers
+                    float fraction = (au - lowerAU) / (upperAU - lowerAU);
+                    float orbitNumber = i + fraction;
+                    return orbitNumber;
+                }
+            }
+
+            // If AU is beyond orbit 20, return 20
+            if (au > Starhelper.orbitValues[20])
+                return 20f;
+
+            // If AU is less than orbit 0, return 0
+            return 0f;
+        }
+
+        private void CalculateAllHZCO()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING HABITABLE ZONE CENTER ORBITS");
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateHZCOForStar(primaryStar, primaryObject);
+            }
+
+            // Close/Near/Far companions (but NOT Companion orbit companions)
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        CalculateHZCOForStar(companionStar, companion);
+                    }
+                }
+            }
+        }
+
+        private void CalculateHZCOForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating HZCO for {0} star...", star.starOrbitType);
+
+            // Companion orbit stars don't have HZCO
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                star.HZCO = 0;
+                DebugLogger.Log("  Companion orbit star - no HZCO");
+                return;
+            }
+
+            // Step 1: Calculate initial HZCO in AU
+            float totalLuminosity = star.luminosity;
+            DebugLogger.LogFormat("  Star luminosity: {0:F6}", star.luminosity);
+
+            // Add luminosity of any Companion companion
+            foreach (var subObj in starObj.celestrialObjectOrbits)
+            {
+                if (subObj.celestrialObject is Star subStar &&
+                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                {
+                    totalLuminosity += subStar.luminosity;
+                    DebugLogger.LogFormat("  + Companion companion luminosity: {0:F6}", subStar.luminosity);
+                }
+            }
+
+            float hzcoAU = (float)Math.Sqrt(totalLuminosity);
+            DebugLogger.LogFormat("  Initial HZCO (AU): sqrt({0:F6}) = {1:F6}", totalLuminosity, hzcoAU);
+
+            // Step 2: Convert to orbit number
+            float initialHZCO = ConvertAUToOrbitNumber(hzcoAU);
+            DebugLogger.LogFormat("  Initial HZCO (orbit): {0:F3}", initialHZCO);
+
+            // Step 3: For PRIMARY only, check if we need to recalculate
+            if (star.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                // Check if any Close/Near/Far companions have orbits < initial HZCO
+                bool needsRecalculation = false;
+                List<CelestrialObject> starsToInclude = new List<CelestrialObject>();
+
+                foreach (var companion in primaryObject.celestrialObjectOrbits)
+                {
+                    if (companion.celestrialObject is Star companionStar &&
+                        companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        if (companion.orbit < initialHZCO)
+                        {
+                            needsRecalculation = true;
+                            starsToInclude.Add(companion);
+                            DebugLogger.LogFormat("  {0} companion at orbit {1:F2} < initial HZCO {2:F3}",
+                                companionStar.starOrbitType, companion.orbit, initialHZCO);
+                        }
+                    }
+                }
+
+                if (needsRecalculation)
+                {
+                    DebugLogger.Log("  Recalculating HZCO to include inner companions...");
+
+                    // Recalculate with all stars in orbits < initial HZCO
+                    totalLuminosity = star.luminosity;
+                    DebugLogger.LogFormat("  Primary luminosity: {0:F6}", star.luminosity);
+
+                    // Add primary's Companion companion
+                    foreach (var subObj in starObj.celestrialObjectOrbits)
+                    {
+                        if (subObj.celestrialObject is Star subStar &&
+                            subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                        {
+                            totalLuminosity += subStar.luminosity;
+                            DebugLogger.LogFormat("  + Primary's Companion companion luminosity: {0:F6}", subStar.luminosity);
+                        }
+                    }
+
+                    // Add inner companions and their Companion companions
+                    foreach (var innerComp in starsToInclude)
+                    {
+                        if (innerComp.celestrialObject is Star innerStar)
+                        {
+                            totalLuminosity += innerStar.luminosity;
+                            DebugLogger.LogFormat("  + {0} companion luminosity: {1:F6}",
+                                innerStar.starOrbitType, innerStar.luminosity);
+
+                            // Add any Companion companions of this inner companion
+                            foreach (var subObj in innerComp.celestrialObjectOrbits)
+                            {
+                                if (subObj.celestrialObject is Star subStar &&
+                                    subStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                                {
+                                    totalLuminosity += subStar.luminosity;
+                                    DebugLogger.LogFormat("  + {0} companion's Companion companion luminosity: {1:F6}",
+                                        innerStar.starOrbitType, subStar.luminosity);
+                                }
+                            }
+                        }
+                    }
+
+                    hzcoAU = (float)Math.Sqrt(totalLuminosity);
+                    DebugLogger.LogFormat("  Recalculated HZCO (AU): sqrt({0:F6}) = {1:F6}", totalLuminosity, hzcoAU);
+
+                    star.HZCO = ConvertAUToOrbitNumber(hzcoAU);
+                    DebugLogger.LogFormat("  Final HZCO (orbit): {0:F3}", star.HZCO);
+                }
+                else
+                {
+                    star.HZCO = initialHZCO;
+                    DebugLogger.Log("  No companions in inner orbits - using initial HZCO");
+                }
+            }
+            else
+            {
+                // Not primary - use initial HZCO
+                star.HZCO = initialHZCO;
+                DebugLogger.LogFormat("  Final HZCO (orbit): {0:F3}", star.HZCO);
+            }
+        }
+
+        private void CalculateAllTotalAvailableOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING TOTAL AVAILABLE ORBITS");
+
+            SystemTotalAvailableOrbits = 0;
+
+            // Primary star
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                CalculateTotalAvailableOrbitsForStar(primaryStar, primaryObject);
+                SystemTotalAvailableOrbits += primaryStar.TotalAvailableOrbits;
+            }
+
+            // Close/Near/Far companions (but NOT Companion orbit companions)
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                    {
+                        CalculateTotalAvailableOrbitsForStar(companionStar, companion);
+                        SystemTotalAvailableOrbits += companionStar.TotalAvailableOrbits;
+                    }
+                }
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("System Total Available Orbits: {0:F2}", SystemTotalAvailableOrbits);
+        }
+
+        private void CalculateTotalAvailableOrbitsForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating Total Available Orbits for {0} star...", star.starOrbitType);
+
+            // Companion orbit stars don't have Total Available Orbits
+            if (star.starOrbitType == Starhelper.starOrbitType.Companion)
+            {
+                star.TotalAvailableOrbits = 0;
+                DebugLogger.Log("  Companion orbit star - no Total Available Orbits");
+                return;
+            }
+
+            // Start with Max - Min
+            float total = star.MaxAllowableOrbit - star.MinAllowableOrbit;
+            DebugLogger.LogFormat("  Base calculation: {0:F3} - {1:F3} = {2:F3}",
+                star.MaxAllowableOrbit, star.MinAllowableOrbit, total);
+
+            // Subtract unavailable orbit ranges (only the portions that overlap with available range)
+            float totalUnavailable = 0;
+            foreach (var range in star.UnavailableOrbitRanges)
+            {
+                // Calculate overlap between unavailable range and [MinAllowableOrbit, MaxAllowableOrbit]
+                float overlapMin = Math.Max(range.min, star.MinAllowableOrbit);
+                float overlapMax = Math.Min(range.max, star.MaxAllowableOrbit);
+
+                if (overlapMax > overlapMin)
+                {
+                    // There is an overlap
+                    float overlapSize = overlapMax - overlapMin;
+                    totalUnavailable += overlapSize;
+                    DebugLogger.LogFormat("  Unavailable range {0:F2} to {1:F2} overlaps {2:F2} to {3:F2}: -{4:F2}",
+                        range.min, range.max, overlapMin, overlapMax, overlapSize);
+                }
+                else
+                {
+                    // No overlap - range is outside Min/Max allowable orbits
+                    DebugLogger.LogFormat("  Unavailable range {0:F2} to {1:F2} is outside allowable range ({2:F3} to {3:F3}): no effect",
+                        range.min, range.max, star.MinAllowableOrbit, star.MaxAllowableOrbit);
+                }
+            }
+
+            if (totalUnavailable > 0)
+            {
+                total -= totalUnavailable;
+                DebugLogger.LogFormat("  After subtracting unavailable orbits: {0:F3} - {1:F2} = {2:F3}",
+                    star.MaxAllowableOrbit - star.MinAllowableOrbit, totalUnavailable, total);
+            }
+
+            // Check if this is a multi-star system (has non-Companion companions)
+            bool hasNonCompanionCompanions = false;
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    hasNonCompanionCompanions = true;
+                    break;
+                }
+            }
+
+            // If multi-star system and star doesn't have Companion companion and Total > 0, add 1
+            bool hasCompanionCompanion = HasCompanionOrbitCompanion(starObj);
+            if (hasNonCompanionCompanions && !hasCompanionCompanion && total > 0)
+            {
+                total += 1;
+                DebugLogger.LogFormat("  Multi-star system, no Companion companion, and Total > 0: +1 = {0:F3}", total);
+            }
+
+            // Clamp to 0 if negative (star has no usable orbits)
+            if (total < 0)
+            {
+                DebugLogger.LogFormat("  Total Available Orbits is negative ({0:F3}), clamping to 0", total);
+                total = 0;
+            }
+
+            star.TotalAvailableOrbits = total;
+            DebugLogger.LogFormat("  Final Total Available Orbits: {0:F3}", star.TotalAvailableOrbits);
+        }
+
+        private void CalculateSystemTotalWorlds()
+        {
+            SystemTotalWorlds = GasGiantCount + PlanetoidBeltCount + TerrestrialPlanetCount;
+
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING SYSTEM TOTAL WORLDS");
+            DebugLogger.LogFormat("Gas Giants: {0}", GasGiantCount);
+            DebugLogger.LogFormat("Planetoid Belts: {0}", PlanetoidBeltCount);
+            DebugLogger.LogFormat("Terrestrial Planets: {0}", TerrestrialPlanetCount);
+            DebugLogger.LogFormat("System Total Worlds: {0}", SystemTotalWorlds);
+        }
+
+        private void AssignWorldsToStars()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("ASSIGNING WORLDS TO STARS");
+
+            // Get all non-Companion companions
+            List<(Star star, CelestrialObject obj)> nonCompanionStars = new List<(Star, CelestrialObject)>();
+
+            // Add primary
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                nonCompanionStars.Add((primaryStar, primaryObject));
+            }
+
+            // Add Close/Near/Far companions
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    nonCompanionStars.Add((companionStar, companion));
+                }
+            }
+
+            // Filter to only include stars with TotalAvailableOrbits > 0
+            List<(Star star, CelestrialObject obj)> starsWithOrbits = new List<(Star, CelestrialObject)>();
+            List<(Star star, CelestrialObject obj)> starsWithoutOrbits = new List<(Star, CelestrialObject)>();
+
+            foreach (var (star, obj) in nonCompanionStars)
+            {
+                if (star.TotalAvailableOrbits > 0)
+                {
+                    starsWithOrbits.Add((star, obj));
+                }
+                else
+                {
+                    starsWithoutOrbits.Add((star, obj));
+                    star.WorldsAssigned = 0;
+                    DebugLogger.LogFormat("{0} star has no available orbits - assigning 0 worlds", star.starOrbitType);
+                }
+            }
+
+            // If no stars have available orbits, all get 0 worlds
+            if (starsWithOrbits.Count == 0)
+            {
+                DebugLogger.Log("No stars have available orbits - no worlds can be assigned");
+                return;
+            }
+
+            // Recalculate SystemTotalAvailableOrbits using only stars with orbits
+            float effectiveSystemTotalAvailableOrbits = 0;
+            foreach (var (star, obj) in starsWithOrbits)
+            {
+                effectiveSystemTotalAvailableOrbits += star.TotalAvailableOrbits;
+            }
+            DebugLogger.LogFormat("Effective System Total Available Orbits (excluding stars with 0): {0:F2}", effectiveSystemTotalAvailableOrbits);
+
+            // Check if we only have one star with available orbits
+            if (starsWithOrbits.Count == 1)
+            {
+                Star onlyStar = starsWithOrbits[0].star;
+                onlyStar.WorldsAssigned = SystemTotalWorlds;
+                DebugLogger.LogFormat("Only one star has available orbits - assigning all {0} worlds to {1} star",
+                    SystemTotalWorlds, onlyStar.starOrbitType);
+                return;
+            }
+
+            // Multiple stars with available orbits - need to distribute worlds
+            DebugLogger.LogFormat("System has {0} stars with available orbits - distributing worlds...", starsWithOrbits.Count);
+
+            // Find outermost star with available orbits
+            // Order: Primary, Close, Near, Far
+            Star? outermostStar = null;
+            Starhelper.starOrbitType outermostType = Starhelper.starOrbitType.Primary;
+
+            // Check in reverse order to find outermost
+            foreach (var (star, obj) in starsWithOrbits)
+            {
+                if (star.starOrbitType == Starhelper.starOrbitType.Far)
+                {
+                    outermostStar = star;
+                    outermostType = Starhelper.starOrbitType.Far;
+                    break;
+                }
+            }
+            if (outermostStar == null)
+            {
+                foreach (var (star, obj) in starsWithOrbits)
+                {
+                    if (star.starOrbitType == Starhelper.starOrbitType.Near)
+                    {
+                        outermostStar = star;
+                        outermostType = Starhelper.starOrbitType.Near;
+                        break;
+                    }
+                }
+            }
+            if (outermostStar == null)
+            {
+                foreach (var (star, obj) in starsWithOrbits)
+                {
+                    if (star.starOrbitType == Starhelper.starOrbitType.Close)
+                    {
+                        outermostStar = star;
+                        outermostType = Starhelper.starOrbitType.Close;
+                        break;
+                    }
+                }
+            }
+            if (outermostStar == null)
+            {
+                // Must be only primary (shouldn't happen because we checked count == 1 above)
+                outermostStar = starsWithOrbits[0].star;
+                outermostType = Starhelper.starOrbitType.Primary;
+            }
+
+            DebugLogger.LogFormat("Outermost star with available orbits: {0}", outermostType);
+
+            // Assign worlds to each star with available orbits
+            int totalAssigned = 0;
+
+            // Process in order: Primary, Close, Near, Far
+            Starhelper.starOrbitType[] order = new[]
+            {
+                Starhelper.starOrbitType.Primary,
+                Starhelper.starOrbitType.Close,
+                Starhelper.starOrbitType.Near,
+                Starhelper.starOrbitType.Far
+            };
+
+            foreach (var orbitType in order)
+            {
+                Star? star = starsWithOrbits.FirstOrDefault(s => s.star.starOrbitType == orbitType).star;
+                if (star == null) continue;
+
+                if (star == outermostStar)
+                {
+                    // Outermost star gets remaining worlds
+                    star.WorldsAssigned = SystemTotalWorlds - totalAssigned;
+                    DebugLogger.LogFormat("{0} star (outermost): {1} worlds (remaining)", orbitType, star.WorldsAssigned);
+                }
+                else
+                {
+                    // Calculate proportional allocation using effective system total
+                    float proportion = (SystemTotalWorlds * star.TotalAvailableOrbits) / effectiveSystemTotalAvailableOrbits;
+
+                    if (orbitType == Starhelper.starOrbitType.Primary)
+                    {
+                        // Round up for primary
+                        star.WorldsAssigned = (int)Math.Ceiling(proportion);
+                        DebugLogger.LogFormat("{0} star: ({1} × {2:F3}) / {3:F2} = {4:F3}, rounded UP to {5} worlds",
+                            orbitType, SystemTotalWorlds, star.TotalAvailableOrbits,
+                            effectiveSystemTotalAvailableOrbits, proportion, star.WorldsAssigned);
+                    }
+                    else
+                    {
+                        // Round down for non-primary, non-outermost
+                        star.WorldsAssigned = (int)Math.Floor(proportion);
+                        DebugLogger.LogFormat("{0} star: ({1} × {2:F3}) / {3:F2} = {4:F3}, rounded DOWN to {5} worlds",
+                            orbitType, SystemTotalWorlds, star.TotalAvailableOrbits,
+                            effectiveSystemTotalAvailableOrbits, proportion, star.WorldsAssigned);
+                    }
+
+                    totalAssigned += star.WorldsAssigned;
+                }
+            }
+
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Total worlds assigned: {0} (should equal System Total Worlds: {1})",
+                totalAssigned + outermostStar.WorldsAssigned, SystemTotalWorlds);
+        }
+
+        private void CalculateOrbitsAndWorlds()
+        {
+            // Calculate total available orbits for each star
+            CalculateAllTotalAvailableOrbits();
+
+            // Calculate system total worlds
+            CalculateSystemTotalWorlds();
+
+            // Assign worlds to stars
+            AssignWorldsToStars();
+        }
+
+        private void CalculateAllSystemBaselineNumbers()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING SYSTEM BASELINE NUMBERS");
+
+            // Calculate for Primary star only (companions don't get baseline numbers)
+            if (primaryObject.celestrialObject is Star primaryStar &&
+                primaryStar.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                CalculateSystemBaselineNumberForStar(primaryStar, primaryObject);
+            }
+        }
+
+        private bool IsHZCOInUnavailableOrbits(Star star)
+        {
+            // Check if HZCO lies within any unavailable orbit range
+            foreach (var range in star.UnavailableOrbitRanges)
+            {
+                if (star.HZCO >= range.min && star.HZCO <= range.max)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void CalculateSystemBaselineNumberForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating System Baseline Number for {0} star...", star.starOrbitType);
+
+            // Check if star has any worlds assigned
+            if (star.WorldsAssigned <= 0)
+            {
+                star.SystemBaselineNumber = 0;
+                star.InnerZoneWorldCount = 0;
+                star.OuterZoneWorldCount = 0;
+                DebugLogger.Log("  Star has no worlds assigned - System Baseline Number = 0");
+                return;
+            }
+
+            // Check if HZCO lies within unavailable orbits
+            bool hzcoInUnavailable = IsHZCOInUnavailableOrbits(star);
+
+            if (hzcoInUnavailable)
+            {
+                DebugLogger.LogFormat("  HZCO ({0:F3}) lies within unavailable orbits", star.HZCO);
+                CalculateBaselineNumberScenarioA(star, starObj);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  HZCO ({0:F3}) does NOT lie within unavailable orbits", star.HZCO);
+                CalculateBaselineNumberScenarioB(star, starObj);
+            }
+        }
+
+        private void CalculateBaselineNumberScenarioA(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("  Scenario A: HZCO in unavailable orbits");
+
+            // Find the unavailable range that contains HZCO
+            (float min, float max)? containingRange = null;
+            foreach (var range in star.UnavailableOrbitRanges)
+            {
+                if (star.HZCO >= range.min && star.HZCO <= range.max)
+                {
+                    containingRange = range;
+                    break;
+                }
+            }
+
+            if (containingRange == null)
+            {
+                // Shouldn't happen, but handle gracefully
+                star.SystemBaselineNumber = 0;
+                star.InnerZoneWorldCount = 0;
+                star.OuterZoneWorldCount = star.WorldsAssigned;
+                DebugLogger.Log("  ERROR: Could not find unavailable range containing HZCO");
+                return;
+            }
+
+            float unavailableStart = containingRange.Value.min;
+            float unavailableEnd = containingRange.Value.max;
+
+            DebugLogger.LogFormat("  HZCO is in unavailable range {0:F2} to {1:F2}", unavailableStart, unavailableEnd);
+
+            // Check if there are available orbits between MinAllowableOrbit and the unavailable range
+            if (star.MinAllowableOrbit >= unavailableStart)
+            {
+                // No available orbits closer to primary than HZCO
+                star.SystemBaselineNumber = 0;
+                star.InnerZoneWorldCount = 0;
+                star.OuterZoneWorldCount = star.WorldsAssigned;
+                DebugLogger.LogFormat("  MinAllowableOrbit ({0:F3}) >= unavailable range start ({1:F2})",
+                    star.MinAllowableOrbit, unavailableStart);
+                DebugLogger.Log("  No available orbits closer to primary than HZCO");
+                DebugLogger.Log("  System Baseline Number = 0");
+                DebugLogger.LogFormat("  All {0} worlds assigned to outer zone", star.WorldsAssigned);
+                return;
+            }
+
+            // There ARE available orbits in the inner region (MinAllowableOrbit to unavailableStart)
+            float innerRegionSize = unavailableStart - star.MinAllowableOrbit;
+            DebugLogger.LogFormat("  Inner region available: {0:F3} to {1:F2} (size: {2:F2})",
+                star.MinAllowableOrbit, unavailableStart, innerRegionSize);
+
+            // Calculate maximum worlds that can fit in inner region
+            int maxInnerWorlds = (int)Math.Floor(innerRegionSize / 0.01f);
+            DebugLogger.LogFormat("  Maximum worlds that can fit in inner region: ({0:F2} / 0.01) = {1}",
+                innerRegionSize, maxInnerWorlds);
+
+            // Cap at System Total Worlds
+            maxInnerWorlds = Math.Min(maxInnerWorlds, star.WorldsAssigned);
+            DebugLogger.LogFormat("  Capped at worlds assigned to this star: {0}", maxInnerWorlds);
+
+            // Randomly determine how many worlds to place in inner region (0 to maxInnerWorlds)
+            int innerWorldCount = 0;
+            if (maxInnerWorlds > 0)
+            {
+                innerWorldCount = Starhelper.diceRoll(maxInnerWorlds + 1, 1, dice) - 1; // Roll 1 to (max+1), subtract 1 to get 0 to max
+                DebugLogger.LogFormat("  Random roll for inner worlds: {0} (range 0 to {1})", innerWorldCount, maxInnerWorlds);
+            }
+            else
+            {
+                DebugLogger.Log("  No room for worlds in inner region (maxInnerWorlds = 0)");
+            }
+
+            star.InnerZoneWorldCount = innerWorldCount;
+            star.OuterZoneWorldCount = star.WorldsAssigned - innerWorldCount;
+            star.SystemBaselineNumber = 1 + innerWorldCount;
+
+            DebugLogger.LogFormat("  Inner zone worlds: {0}", star.InnerZoneWorldCount);
+            DebugLogger.LogFormat("  Outer zone worlds: {0}", star.OuterZoneWorldCount);
+            DebugLogger.LogFormat("  System Baseline Number = 1 + {0} = {1}", innerWorldCount, star.SystemBaselineNumber);
+        }
+
+        private void CalculateBaselineNumberScenarioB(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("  Scenario B: HZCO not in unavailable orbits");
+
+            // All worlds are in a single zone (not split between inner/outer)
+            star.InnerZoneWorldCount = 0;
+            star.OuterZoneWorldCount = 0;
+
+            // Roll 2D6
+            int baseRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, baseRoll, "System Baseline Number base roll");
+
+            int modifiers = 0;
+
+            // Primary has a Companion companion: +2
+            if (HasCompanionOrbitCompanion(starObj))
+            {
+                modifiers += 2;
+                DebugLogger.Log("  +2 (Primary has Companion companion)");
+            }
+
+            // Primary star class modifiers
+            if (star.starclass == "Ia" || star.starclass == "Ib" || star.starclass == "II")
+            {
+                modifiers += 3;
+                DebugLogger.LogFormat("  +3 (Primary is class {0})", star.starclass);
+            }
+            else if (star.starclass == "III")
+            {
+                modifiers += 2;
+                DebugLogger.Log("  +2 (Primary is class III)");
+            }
+            else if (star.starclass == "IV")
+            {
+                modifiers += 1;
+                DebugLogger.Log("  +1 (Primary is class IV)");
+            }
+            else if (star.starclass == "VI")
+            {
+                modifiers -= 1;
+                DebugLogger.Log("  -1 (Primary is class VI)");
+            }
+
+            // Primary is white dwarf: -2
+            if (star.type == "D")
+            {
+                modifiers -= 2;
+                DebugLogger.Log("  -2 (Primary is white dwarf)");
+            }
+
+            // Worlds Assigned modifiers
+            if (star.WorldsAssigned < 6)
+            {
+                modifiers -= 4;
+                DebugLogger.LogFormat("  -4 (Worlds Assigned {0} < 6)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 6 && star.WorldsAssigned <= 9)
+            {
+                modifiers -= 3;
+                DebugLogger.LogFormat("  -3 (Worlds Assigned {0} is 6-9)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 10 && star.WorldsAssigned <= 12)
+            {
+                modifiers -= 2;
+                DebugLogger.LogFormat("  -2 (Worlds Assigned {0} is 10-12)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 13 && star.WorldsAssigned <= 15)
+            {
+                modifiers -= 1;
+                DebugLogger.LogFormat("  -1 (Worlds Assigned {0} is 13-15)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned >= 18 && star.WorldsAssigned <= 20)
+            {
+                modifiers += 1;
+                DebugLogger.LogFormat("  +1 (Worlds Assigned {0} is 18-20)", star.WorldsAssigned);
+            }
+            else if (star.WorldsAssigned > 20)
+            {
+                modifiers += 2;
+                DebugLogger.LogFormat("  +2 (Worlds Assigned {0} > 20)", star.WorldsAssigned);
+            }
+
+            // For each Close/Near/Far companion: -1
+            int companionCount = 0;
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (companion.celestrialObject is Star companionStar &&
+                    companionStar.starOrbitType != Starhelper.starOrbitType.Companion)
+                {
+                    companionCount++;
+                }
+            }
+
+            if (companionCount > 0)
+            {
+                modifiers -= companionCount;
+                DebugLogger.LogFormat("  -{0} ({1} Close/Near/Far companion(s))", companionCount, companionCount);
+            }
+
+            int finalRoll = baseRoll + modifiers;
+            star.SystemBaselineNumber = finalRoll;
+
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Final roll: {0} + ({1}) = {2}", baseRoll, modifiers, finalRoll);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Final roll: {0}", finalRoll);
+            }
+
+            DebugLogger.LogFormat("  System Baseline Number = {0}", star.SystemBaselineNumber);
+        }
+
+        private void CalculateAllBaselineOrbits()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING BASELINE ORBITS");
+
+            // Calculate for Primary star only
+            if (primaryObject.celestrialObject is Star primaryStar &&
+                primaryStar.starOrbitType == Starhelper.starOrbitType.Primary)
+            {
+                CalculateBaselineOrbitForStar(primaryStar, primaryObject);
+            }
+        }
+
+        private void CalculateBaselineOrbitForStar(Star star, CelestrialObject starObj)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogFormat("Calculating Baseline Orbit for {0} star...", star.starOrbitType);
+
+            // Check if star has any worlds assigned
+            if (star.WorldsAssigned <= 0)
+            {
+                star.BaselineOrbit = 0;
+                star.InsideBaseline = 0;
+                star.OutsideBaseline = 0;
+                DebugLogger.Log("  Star has no worlds assigned - Baseline Orbit = 0");
+                return;
+            }
+
+            // Log input values
+            DebugLogger.LogFormat("  System Baseline Number: {0}", star.SystemBaselineNumber);
+            DebugLogger.LogFormat("  System Total Worlds: {0}", SystemTotalWorlds);
+            DebugLogger.LogFormat("  Worlds Assigned: {0}", star.WorldsAssigned);
+            DebugLogger.LogFormat("  HZCO: {0:F3}", star.HZCO);
+            DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3}", star.MinAllowableOrbit);
+
+            // Determine scenario
+            if (star.SystemBaselineNumber < 1)
+            {
+                DebugLogger.Log("  Scenario 2: System Baseline Number < 1");
+                CalculateBaselineOrbitScenario2(star, starObj);
+            }
+            else if (star.SystemBaselineNumber > SystemTotalWorlds || star.SystemBaselineNumber > star.WorldsAssigned)
+            {
+                DebugLogger.Log("  Scenario 3: System Baseline Number > System Total Worlds OR > Worlds Assigned");
+                CalculateBaselineOrbitScenario3(star, starObj);
+            }
+            else // star.SystemBaselineNumber >= 1 && <= SystemTotalWorlds && <= WorldsAssigned
+            {
+                DebugLogger.Log("  Scenario 1: System Baseline Number >= 1 AND <= System Total Worlds AND <= Worlds Assigned");
+                CalculateBaselineOrbitScenario1(star, starObj);
+            }
+
+            // Apply post-calculation adjustments
+            ApplyBaselineOrbitAdjustments(star);
+        }
+
+        private void CalculateBaselineOrbitScenario1(Star star, CelestrialObject starObj)
+        {
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
+
+            float variance;
+            if (star.HZCO >= 1)
+            {
+                variance = (diceRoll - 7) / 10f;
+                DebugLogger.LogFormat("  HZCO >= 1: variance = ({0} - 7) / 10 = {1:F3}", diceRoll, variance);
+            }
+            else
+            {
+                variance = (diceRoll - 7) / 100f;
+                DebugLogger.LogFormat("  HZCO < 1: variance = ({0} - 7) / 100 = {1:F4}", diceRoll, variance);
+            }
+
+            star.BaselineOrbit = star.HZCO + variance;
+            DebugLogger.LogFormat("  Baseline Orbit = HZCO + variance = {0:F3} + {1:F4} = {2:F4}",
+                star.HZCO, variance, star.BaselineOrbit);
+
+            // Calculate InsideBaseline and OutsideBaseline
+            star.OutsideBaseline = star.WorldsAssigned - star.SystemBaselineNumber;
+            star.InsideBaseline = star.WorldsAssigned - (star.OutsideBaseline + 1);
+
+            DebugLogger.LogFormat("  OutsideBaseline = Worlds Assigned - System Baseline # = {0} - {1} = {2}",
+                star.WorldsAssigned, star.SystemBaselineNumber, star.OutsideBaseline);
+            DebugLogger.LogFormat("  InsideBaseline = Worlds Assigned - (OutsideBaseline + 1) = {0} - ({1} + 1) = {2}",
+                star.WorldsAssigned, star.OutsideBaseline, star.InsideBaseline);
+        }
+
+        private void CalculateBaselineOrbitScenario2(Star star, CelestrialObject starObj)
+        {
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
+
+            float variance;
+            if (star.MinAllowableOrbit >= 1)
+            {
+                variance = (diceRoll - 2) / 10f;
+                DebugLogger.LogFormat("  Min Allowable Orbit >= 1: variance = ({0} - 2) / 10 = {1:F3}",
+                    diceRoll, variance);
+                star.BaselineOrbit = star.HZCO - star.SystemBaselineNumber + star.WorldsAssigned + variance;
+                DebugLogger.LogFormat("  Baseline Orbit = HZCO - System Baseline # + Worlds Assigned + variance");
+                DebugLogger.LogFormat("  Baseline Orbit = {0:F3} - {1} + {2} + {3:F3} = {4:F4}",
+                    star.HZCO, star.SystemBaselineNumber, star.WorldsAssigned, variance, star.BaselineOrbit);
+            }
+            else
+            {
+                variance = (diceRoll - 2) / 100f;
+                DebugLogger.LogFormat("  Min Allowable Orbit < 1: variance = ({0} - 2) / 100 = {1:F4}",
+                    diceRoll, variance);
+                float systemBaselineComponent = star.SystemBaselineNumber / 10f;
+                star.BaselineOrbit = star.HZCO - systemBaselineComponent + star.WorldsAssigned + variance;
+                DebugLogger.LogFormat("  Baseline Orbit = HZCO - (System Baseline # / 10) + Worlds Assigned + variance");
+                DebugLogger.LogFormat("  Baseline Orbit = {0:F3} - {1:F3} + {2} + {3:F4} = {4:F4}",
+                    star.HZCO, systemBaselineComponent, star.WorldsAssigned, variance, star.BaselineOrbit);
+            }
+
+            star.OutsideBaseline = star.WorldsAssigned - 1;
+            star.InsideBaseline = 0;
+
+            DebugLogger.LogFormat("  OutsideBaseline = Worlds Assigned - 1 = {0} - 1 = {1}",
+                star.WorldsAssigned, star.OutsideBaseline);
+            DebugLogger.Log("  InsideBaseline = 0");
+        }
+
+        private void CalculateBaselineOrbitScenario3(Star star, CelestrialObject starObj)
+        {
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "Baseline orbit variance roll");
+
+            float calculatedValue = star.HZCO - star.SystemBaselineNumber + star.WorldsAssigned;
+            DebugLogger.LogFormat("  Calculated value = HZCO - System Baseline # + Worlds Assigned");
+            DebugLogger.LogFormat("  Calculated value = {0:F3} - {1} + {2} = {3:F4}",
+                star.HZCO, star.SystemBaselineNumber, star.WorldsAssigned, calculatedValue);
+
+            float variance = (diceRoll - 7) / 5f;
+            DebugLogger.LogFormat("  Variance = ({0} - 7) / 5 = {1:F3}", diceRoll, variance);
+
+            if (calculatedValue >= 1)
+            {
+                star.BaselineOrbit = calculatedValue + variance;
+                DebugLogger.LogFormat("  Calculated value >= 1: Baseline Orbit = {0:F4} + {1:F3} = {2:F4}",
+                    calculatedValue, variance, star.BaselineOrbit);
+            }
+            else
+            {
+                star.BaselineOrbit = (star.SystemBaselineNumber + star.WorldsAssigned + variance) / 10f;
+                DebugLogger.LogFormat("  Calculated value < 1: Baseline Orbit = (System Baseline # + Worlds Assigned + variance) / 10");
+                DebugLogger.LogFormat("  Baseline Orbit = ({0} + {1} + {2:F3}) / 10 = {3:F4}",
+                    star.SystemBaselineNumber, star.WorldsAssigned, variance, star.BaselineOrbit);
+            }
+
+            star.OutsideBaseline = 0;
+            star.InsideBaseline = star.WorldsAssigned - 1;
+
+            DebugLogger.Log("  OutsideBaseline = 0");
+            DebugLogger.LogFormat("  InsideBaseline = Worlds Assigned - 1 = {0} - 1 = {1}",
+                star.WorldsAssigned, star.InsideBaseline);
+        }
+
+        private void ApplyBaselineOrbitAdjustments(Star star)
+        {
+            DebugLogger.LogFormat("  Baseline Orbit before adjustments: {0:F4}", star.BaselineOrbit);
+
+            if (star.BaselineOrbit < 0)
+            {
+                DebugLogger.Log("  Baseline Orbit < 0, applying adjustment...");
+
+                float adjustedValue = star.HZCO - 0.1f;
+                DebugLogger.LogFormat("  Adjusted value = HZCO - 0.1 = {0:F3} - 0.1 = {1:F4}",
+                    star.HZCO, adjustedValue);
+
+                if (adjustedValue < star.MinAllowableOrbit)
+                {
+                    star.BaselineOrbit = star.MinAllowableOrbit + (star.WorldsAssigned * 0.01f);
+                    DebugLogger.LogFormat("  Adjusted value < Min Allowable Orbit ({0:F3})", star.MinAllowableOrbit);
+                    DebugLogger.LogFormat("  Final Baseline Orbit = Min Allowable Orbit + (Worlds Assigned × 0.01)");
+                    DebugLogger.LogFormat("  Final Baseline Orbit = {0:F3} + ({1} × 0.01) = {2:F4}",
+                        star.MinAllowableOrbit, star.WorldsAssigned, star.BaselineOrbit);
+                }
+                else
+                {
+                    star.BaselineOrbit = adjustedValue;
+                    DebugLogger.LogFormat("  Final Baseline Orbit = {0:F4}", star.BaselineOrbit);
+                }
+            }
+            else
+            {
+                DebugLogger.Log("  No adjustment needed (Baseline Orbit >= 0)");
+            }
+
+            DebugLogger.LogFormat("  FINAL VALUES:");
+            DebugLogger.LogFormat("    Baseline Orbit: {0:F4}", star.BaselineOrbit);
+            DebugLogger.LogFormat("    InsideBaseline: {0}", star.InsideBaseline);
+            DebugLogger.LogFormat("    OutsideBaseline: {0}", star.OutsideBaseline);
+        }
+
+        private void CalculateEmptyOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING EMPTY ORBITS");
+
+            int diceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, diceRoll, "System Total Potential Empty Orbits");
+
+            int systemPotentialEmpty = 0;
+            if (diceRoll <= 9)
+                systemPotentialEmpty = 0;
+            else if (diceRoll == 10)
+                systemPotentialEmpty = 1;
+            else if (diceRoll == 11)
+                systemPotentialEmpty = 2;
+            else if (diceRoll >= 12)
+                systemPotentialEmpty = 3;
+
+            DebugLogger.LogFormat("System Total Potential Empty Orbits: {0}", systemPotentialEmpty);
+
+            if (systemPotentialEmpty <= 0)
+            {
+                DebugLogger.Log("No empty orbits for this system");
+                return;
+            }
+
+            // Distribute to Close/Near/Far companions first
+            foreach (var companion in primaryObject.celestrialObjectOrbits)
+            {
+                if (systemPotentialEmpty <= 0) break;
+
+                if (companion.celestrialObject is Star companionStar)
+                {
+                    if (companionStar.starOrbitType != Starhelper.starOrbitType.Companion &&
+                        companionStar.WorldsAssigned > 0)
+                    {
+                        companionStar.EmptyOrbits = 1;
+                        companionStar.WorldsAssigned += 1;
+                        systemPotentialEmpty--;
+
+                        DebugLogger.LogFormat("  {0} companion: Added 1 empty orbit (Worlds Assigned now {1})",
+                            companionStar.starOrbitType, companionStar.WorldsAssigned);
+                    }
+                }
+            }
+
+            // Remaining goes to primary
+            if (systemPotentialEmpty > 0 && primaryObject.celestrialObject is Star primaryStar)
+            {
+                primaryStar.EmptyOrbits = systemPotentialEmpty;
+                primaryStar.WorldsAssigned += systemPotentialEmpty;
+
+                DebugLogger.LogFormat("  Primary: Added {0} empty orbit(s) (Worlds Assigned now {1})",
+                    systemPotentialEmpty, primaryStar.WorldsAssigned);
+            }
+        }
+
+        private void CalculateSystemSpread()
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("CALCULATING SYSTEM SPREAD");
+
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (primaryStar.WorldsAssigned <= 0)
+                {
+                    primaryStar.SystemSpread = 0;
+                    DebugLogger.Log("Primary has no worlds - System Spread = 0");
+                    return;
+                }
+
+                // Treat System Baseline Number < 1 as 1
+                int effectiveBaselineNumber = primaryStar.SystemBaselineNumber < 1 ? 1 : primaryStar.SystemBaselineNumber;
+
+                if (effectiveBaselineNumber != primaryStar.SystemBaselineNumber)
+                {
+                    DebugLogger.LogFormat("System Baseline # ({0}) < 1, treating as 1 for spread calculation",
+                        primaryStar.SystemBaselineNumber);
+                }
+
+                float spread = (primaryStar.BaselineOrbit - primaryStar.MinAllowableOrbit) /
+                               effectiveBaselineNumber;
+                primaryStar.SystemSpread = spread;
+
+                DebugLogger.LogFormat("System Spread = (Baseline Orbit - Min Allowable Orbit) / System Baseline #");
+                DebugLogger.LogFormat("System Spread = ({0:F4} - {1:F3}) / {2} = {3:F4}",
+                    primaryStar.BaselineOrbit, primaryStar.MinAllowableOrbit,
+                    effectiveBaselineNumber, spread);
+            }
+        }
+
+        private bool IsOrbitInUnavailableRange(float orbit, List<(float min, float max)> ranges, out float rangeWidth)
+        {
+            rangeWidth = 0;
+            foreach (var range in ranges)
+            {
+                if (orbit >= range.min && orbit <= range.max)
+                {
+                    rangeWidth = range.max - range.min;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private float GetSmallestOrbitSeparation(CelestrialObject starCobj, Star star)
+        {
+            const float DEFAULT_SEPARATION = 0.2f;
+
+            // Get all occupied orbit numbers
+            List<float> occupiedOrbits = new List<float>();
+            foreach (var orbit in starCobj.celestrialObjectOrbits)
+            {
+                occupiedOrbits.Add(orbit.orbit);
+            }
+
+            // Need at least 2 orbits to calculate separation
+            if (occupiedOrbits.Count < 2)
+            {
+                return DEFAULT_SEPARATION;
+            }
+
+            // Sort orbits
+            occupiedOrbits.Sort();
+
+            // Find minimum separation in AU
+            float minSeparation = float.MaxValue;
+            for (int i = 0; i < occupiedOrbits.Count - 1; i++)
+            {
+                float orbitAU1 = new CelestrialObject().OrbitAU(occupiedOrbits[i]);
+                float orbitAU2 = new CelestrialObject().OrbitAU(occupiedOrbits[i + 1]);
+                float separation = orbitAU2 - orbitAU1;
+
+                if (separation < minSeparation)
+                {
+                    minSeparation = separation;
+                }
+            }
+
+            return Math.Max(DEFAULT_SEPARATION, minSeparation);
+        }
+
+        private float SelectRandomAvailableOrbit(Star star, CelestrialObject starCobj, Random dice, int maxAttempts = 100)
+        {
+            float minSeparation = GetSmallestOrbitSeparation(starCobj, star);
+
+            DebugLogger.LogFormat("  Attempting to find random orbit (min separation: {0:F2} AU, max attempts: {1})",
+                minSeparation, maxAttempts);
+
+            // Get all occupied orbits for checking
+            List<float> occupiedOrbits = starCobj.celestrialObjectOrbits.Select(o => o.orbit).OrderBy(o => o).ToList();
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                // Generate random orbit between MinAllowableOrbit and MaxAllowableOrbit
+                float minOrbit = star.MinAllowableOrbit;
+                float maxOrbit = star.MaxAllowableOrbit;
+                float candidateOrbit = minOrbit + (float)(dice.NextDouble() * (maxOrbit - minOrbit));
+
+                // Round to 4 decimal places for consistency
+                candidateOrbit = (float)Math.Round(candidateOrbit, 4);
+
+                if (attempt < 5 || attempt % 10 == 0)
+                {
+                    DebugLogger.LogFormat("    Attempt {0}: candidate orbit {1:F4}", attempt + 1, candidateOrbit);
+                }
+
+                // Check if in unavailable range
+                if (IsOrbitInUnavailableRange(candidateOrbit, star.UnavailableOrbitRanges, out float rangeWidth))
+                {
+                    if (attempt < 5 || attempt % 10 == 0)
+                    {
+                        DebugLogger.LogFormat("      Rejected: in unavailable range (width {0:F2})", rangeWidth);
+                    }
+                    continue;
+                }
+
+                // Calculate candidate orbit AU
+                float candidateAU = new CelestrialObject().OrbitAU(candidateOrbit);
+
+                // Check separation from all existing orbits
+                bool separationValid = true;
+                foreach (float existingOrbit in occupiedOrbits)
+                {
+                    float existingAU = new CelestrialObject().OrbitAU(existingOrbit);
+                    float separation = Math.Abs(candidateAU - existingAU);
+
+                    if (separation < minSeparation)
+                    {
+                        if (attempt < 5 || attempt % 10 == 0)
+                        {
+                            DebugLogger.LogFormat("      Rejected: too close to orbit {0:F4} (separation {1:F2} AU < {2:F2} AU)",
+                                existingOrbit, separation, minSeparation);
+                        }
+                        separationValid = false;
+                        break;
+                    }
+                }
+
+                if (!separationValid)
+                {
+                    continue;
+                }
+
+                // Check if this is the furthest orbit - apply 25% rule
+                if (occupiedOrbits.Count > 0)
+                {
+                    float maxOccupiedOrbit = occupiedOrbits.Max();
+
+                    if (candidateOrbit > maxOccupiedOrbit)
+                    {
+                        float maxOccupiedAU = new CelestrialObject().OrbitAU(maxOccupiedOrbit);
+                        float maxAllowedAU = maxOccupiedAU * 1.25f;
+
+                        if (candidateAU > maxAllowedAU)
+                        {
+                            // Adjust candidate to 125% of furthest orbit
+                            float adjustedOrbit = ConvertAUToOrbitNumber(maxAllowedAU);
+
+                            // Check if adjusted orbit is in unavailable range
+                            if (IsOrbitInUnavailableRange(adjustedOrbit, star.UnavailableOrbitRanges, out float adjustedRangeWidth))
+                            {
+                                // Move out 10%
+                                adjustedOrbit = adjustedOrbit * 1.1f;
+                                DebugLogger.LogFormat("      Candidate beyond 125% limit, adjusted to {0:F4} and moved out 10% to {1:F4}",
+                                    ConvertAUToOrbitNumber(maxAllowedAU), adjustedOrbit);
+                            }
+                            else
+                            {
+                                DebugLogger.LogFormat("      Candidate beyond 125% limit ({0:F2} AU > {1:F2} AU), adjusted to {2:F4}",
+                                    candidateAU, maxAllowedAU, adjustedOrbit);
+                            }
+
+                            candidateOrbit = adjustedOrbit;
+                            candidateAU = new CelestrialObject().OrbitAU(candidateOrbit);
+                        }
+                    }
+                }
+
+                // All constraints satisfied
+                DebugLogger.LogFormat("    ✓ Valid orbit found: {0:F4} ({1:F2} AU)", candidateOrbit, candidateAU);
+                return candidateOrbit;
+            }
+
+            DebugLogger.Log("    ✗ No valid orbit found after maximum attempts");
+            return -1;
+        }
+
+        private void ApplyOrbitReduction(List<float> orbits, int skipIndex, float percentage = 0.05f)
+        {
+            for (int i = 0; i < orbits.Count; i++)
+            {
+                if (i != skipIndex)
+                {
+                    orbits[i] = orbits[i] * (1 - percentage);
+                }
+            }
+        }
+
+        private void PlacePrimaryStarOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("PLACING PRIMARY STAR ORBITS");
+
+            if (!(primaryObject.celestrialObject is Star primaryStar))
+            {
+                DebugLogger.Log("No primary star found");
+                return;
+            }
+
+            if (primaryStar.WorldsAssigned <= 0)
+            {
+                DebugLogger.Log("Primary has no worlds assigned - skipping orbit placement");
+                return;
+            }
+
+            List<float> orbits = new List<float>();
+            float spread = primaryStar.SystemSpread;
+
+            // Handle zero or negative spread
+            if (spread <= 0)
+            {
+                DebugLogger.Log("System Spread is 0 or negative - using fallback value of 0.5");
+                spread = 0.5f;
+            }
+
+            DebugLogger.LogFormat("Total objects to place: {0}", primaryStar.WorldsAssigned);
+            DebugLogger.LogFormat("Inside Baseline: {0}", primaryStar.InsideBaseline);
+            DebugLogger.LogFormat("Outside Baseline: {0}", primaryStar.OutsideBaseline);
+            DebugLogger.LogFormat("System Spread: {0:F4}", spread);
+
+            // Phase A: Inside Baseline objects
+            if (primaryStar.InsideBaseline > 0)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("PHASE A: Placing Inside Baseline objects");
+
+                for (int i = 0; i < primaryStar.InsideBaseline; i++)
+                {
+                    float orbit;
+                    int varianceRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+                    float variance = (varianceRoll * spread) / 10f;
+
+                    if (i == 0)
+                    {
+                        orbit = (primaryStar.MinAllowableOrbit + spread) + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"First inside baseline object variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = (Min Allowable + Spread) + variance");
+                        DebugLogger.LogFormat("  Orbit = ({0:F3} + {1:F4}) + {2:F4} = {3:F4}",
+                            primaryStar.MinAllowableOrbit, spread, variance, orbit);
+
+                        // Check for negative orbit
+                        if (orbit < primaryStar.MinAllowableOrbit)
+                        {
+                            orbit = primaryStar.MinAllowableOrbit;
+                            DebugLogger.LogFormat("  Orbit adjusted to Min Allowable: {0:F3}", orbit);
+                        }
+                    }
+                    else
+                    {
+                        float previousOrbit = orbits[orbits.Count - 1];
+                        orbit = previousOrbit + spread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"Inside baseline object {i + 1} variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = Previous + Spread + variance");
+                        DebugLogger.LogFormat("  Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            previousOrbit, spread, variance, orbit);
+                    }
+
+                    orbits.Add(orbit);
+                    DebugLogger.LogFormat("  Placed inside baseline object {0} at orbit {1:F4}", i + 1, orbit);
+                }
+
+                // Check if last orbit + spread exceeds baseline
+                DebugLogger.Log("");
+                DebugLogger.Log("Checking inside baseline spacing...");
+                float lastOrbitPlusSpread = orbits[orbits.Count - 1] + spread;
+                DebugLogger.LogFormat("  Last orbit + Spread = {0:F4} + {1:F4} = {2:F4}",
+                    orbits[orbits.Count - 1], spread, lastOrbitPlusSpread);
+                DebugLogger.LogFormat("  Baseline Orbit = {0:F4}", primaryStar.BaselineOrbit);
+
+                int iterations = 0;
+                while (lastOrbitPlusSpread > primaryStar.BaselineOrbit && iterations < 100)
+                {
+                    DebugLogger.LogFormat("  Last orbit + Spread ({0:F4}) > Baseline ({1:F4}) - applying 5% reduction",
+                        lastOrbitPlusSpread, primaryStar.BaselineOrbit);
+
+                    ApplyOrbitReduction(orbits, 0, 0.05f);
+                    lastOrbitPlusSpread = orbits[orbits.Count - 1] + spread;
+                    iterations++;
+
+                    DebugLogger.LogFormat("    After reduction: last orbit + Spread = {0:F4}", lastOrbitPlusSpread);
+                }
+
+                if (iterations >= 100)
+                {
+                    DebugLogger.Log("  WARNING: Maximum iterations reached for inside baseline adjustment");
+                }
+            }
+
+            // Phase B: Baseline object (always exactly 1)
+            DebugLogger.Log("");
+            DebugLogger.Log("PHASE B: Placing Baseline object");
+            orbits.Add(primaryStar.BaselineOrbit);
+            DebugLogger.LogFormat("  Placed baseline object at orbit {0:F4}", primaryStar.BaselineOrbit);
+
+            // Phase C: Outside Baseline objects
+            if (primaryStar.OutsideBaseline > 0)
+            {
+                DebugLogger.Log("");
+                DebugLogger.Log("PHASE C: Placing Outside Baseline objects");
+
+                int baselineIndex = orbits.Count - 1;
+
+                for (int i = 0; i < primaryStar.OutsideBaseline; i++)
+                {
+                    float orbit;
+                    int varianceRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+                    float variance = (varianceRoll * spread) / 10f;
+
+                    if (i == 0)
+                    {
+                        orbit = primaryStar.BaselineOrbit + spread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, "First outside baseline object variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = Baseline + Spread + variance");
+                        DebugLogger.LogFormat("  Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            primaryStar.BaselineOrbit, spread, variance, orbit);
+                    }
+                    else
+                    {
+                        float previousOrbit = orbits[orbits.Count - 1];
+                        orbit = previousOrbit + spread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"Outside baseline object {i + 1} variance");
+                        DebugLogger.LogFormat("  Variance: ({0} * {1:F4}) / 10 = {2:F4}", varianceRoll, spread, variance);
+                        DebugLogger.LogFormat("  Orbit = Previous + Spread + variance");
+                        DebugLogger.LogFormat("  Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            previousOrbit, spread, variance, orbit);
+                    }
+
+                    // Check for unavailable orbit ranges
+                    if (IsOrbitInUnavailableRange(orbit, primaryStar.UnavailableOrbitRanges, out float rangeWidth))
+                    {
+                        float adjustedOrbit = orbit + rangeWidth;
+                        DebugLogger.LogFormat("  Orbit {0:F4} falls in unavailable range (width {1:F4})",
+                            orbit, rangeWidth);
+                        DebugLogger.LogFormat("  Adjusting to {0:F4}", adjustedOrbit);
+                        orbit = adjustedOrbit;
+                    }
+
+                    orbits.Add(orbit);
+                    DebugLogger.LogFormat("  Placed outside baseline object {0} at orbit {1:F4}", i + 1, orbit);
+                }
+
+                // Check if last orbit exceeds orbit 20
+                DebugLogger.Log("");
+                DebugLogger.Log("Checking outside baseline maximum orbit...");
+                float lastOrbit = orbits[orbits.Count - 1];
+                DebugLogger.LogFormat("  Last orbit = {0:F4}", lastOrbit);
+
+                int iterations = 0;
+                while (lastOrbit > 20 && iterations < 100)
+                {
+                    DebugLogger.LogFormat("  Last orbit ({0:F4}) > 20 - applying 5% reduction", lastOrbit);
+
+                    // Reduce all except baseline
+                    for (int i = baselineIndex + 1; i < orbits.Count; i++)
+                    {
+                        orbits[i] = orbits[i] * 0.95f;
+                    }
+
+                    // Re-check for unavailable ranges
+                    for (int i = baselineIndex + 1; i < orbits.Count; i++)
+                    {
+                        if (IsOrbitInUnavailableRange(orbits[i], primaryStar.UnavailableOrbitRanges, out float rangeWidth))
+                        {
+                            orbits[i] = orbits[i] + rangeWidth;
+                            DebugLogger.LogFormat("    Orbit {0} adjusted for unavailable range to {1:F4}",
+                                i, orbits[i]);
+                        }
+                    }
+
+                    lastOrbit = orbits[orbits.Count - 1];
+                    iterations++;
+
+                    DebugLogger.LogFormat("    After reduction: last orbit = {0:F4}", lastOrbit);
+                }
+
+                if (iterations >= 100)
+                {
+                    DebugLogger.Log("  WARNING: Maximum iterations reached for outside baseline adjustment");
+                }
+            }
+
+            // Add all orbits to the primary star's celestrialObjectOrbits
+            DebugLogger.Log("");
+            DebugLogger.Log("Adding celestial bodies to primary star:");
+            for (int i = 0; i < orbits.Count; i++)
+            {
+                primaryObject.AddCelestialBody(orbits[i], dice);
+                float au = primaryObject.celestrialObjectOrbits[primaryObject.celestrialObjectOrbits.Count - 1].orbitAU;
+                DebugLogger.LogFormat("  Object {0}: Orbit {1:F4} ({2:F2} AU)", i + 1, orbits[i], au);
+            }
+
+            DebugLogger.LogFormat("Total objects placed: {0}", orbits.Count);
+        }
+
+        private void PlaceCompanionStarOrbits(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("PLACING COMPANION STAR ORBITS");
+
+            if (!(primaryObject.celestrialObject is Star primaryStar))
+            {
+                DebugLogger.Log("No primary star found");
+                return;
+            }
+
+            float systemSpread = primaryStar.SystemSpread;
+
+            // Handle zero or negative spread
+            if (systemSpread <= 0)
+            {
+                DebugLogger.Log("System Spread is 0 or negative - using fallback value of 0.5");
+                systemSpread = 0.5f;
+            }
+
+            foreach (var companionObj in primaryObject.celestrialObjectOrbits)
+            {
+                if (!(companionObj.celestrialObject is Star companionStar))
+                    continue;
+
+                // Only process Close/Near/Far companions
+                if (companionStar.starOrbitType == Starhelper.starOrbitType.Companion)
+                    continue;
+
+                if (companionStar.WorldsAssigned <= 0)
+                {
+                    DebugLogger.LogFormat("{0} companion has no worlds assigned - skipping",
+                        companionStar.starOrbitType);
+                    continue;
+                }
+
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("Placing orbits for {0} companion:", companionStar.starOrbitType);
+                DebugLogger.LogFormat("  Worlds Assigned: {0}", companionStar.WorldsAssigned);
+                DebugLogger.LogFormat("  Using System Spread: {0:F4}", systemSpread);
+                DebugLogger.LogFormat("  Min Allowable Orbit: {0:F3}", companionStar.MinAllowableOrbit);
+                DebugLogger.LogFormat("  Max Allowable Orbit: {0:F3}", companionStar.MaxAllowableOrbit);
+
+                List<float> orbits = new List<float>();
+
+                for (int i = 0; i < companionStar.WorldsAssigned; i++)
+                {
+                    float orbit;
+                    int varianceRoll = Starhelper.diceRoll(6, 2, dice) - 7;
+                    float variance = (varianceRoll * systemSpread) / 10f;
+
+                    if (i == 0)
+                    {
+                        orbit = (companionStar.MinAllowableOrbit + systemSpread) + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, "First object variance");
+                        DebugLogger.LogFormat("    Variance: ({0} * {1:F4}) / 10 = {2:F4}",
+                            varianceRoll, systemSpread, variance);
+                        DebugLogger.LogFormat("    Orbit = (Min Allowable + System Spread) + variance");
+                        DebugLogger.LogFormat("    Orbit = ({0:F3} + {1:F4}) + {2:F4} = {3:F4}",
+                            companionStar.MinAllowableOrbit, systemSpread, variance, orbit);
+
+                        // Check for negative orbit
+                        if (orbit < companionStar.MinAllowableOrbit)
+                        {
+                            orbit = companionStar.MinAllowableOrbit;
+                            DebugLogger.LogFormat("    Orbit adjusted to Min Allowable: {0:F3}", orbit);
+                        }
+                    }
+                    else
+                    {
+                        float previousOrbit = orbits[orbits.Count - 1];
+                        orbit = previousOrbit + systemSpread + variance;
+                        DebugLogger.LogDiceRoll(2, varianceRoll + 7, $"Object {i + 1} variance");
+                        DebugLogger.LogFormat("    Variance: ({0} * {1:F4}) / 10 = {2:F4}",
+                            varianceRoll, systemSpread, variance);
+                        DebugLogger.LogFormat("    Orbit = Previous + System Spread + variance");
+                        DebugLogger.LogFormat("    Orbit = {0:F4} + {1:F4} + {2:F4} = {3:F4}",
+                            previousOrbit, systemSpread, variance, orbit);
+                    }
+
+                    orbits.Add(orbit);
+                    DebugLogger.LogFormat("    Placed object {0} at orbit {1:F4}", i + 1, orbit);
+                }
+
+                // Check if last orbit exceeds max allowable
+                DebugLogger.Log("");
+                DebugLogger.Log("  Checking maximum orbit constraint...");
+                float lastOrbit = orbits[orbits.Count - 1];
+                DebugLogger.LogFormat("    Last orbit = {0:F4}", lastOrbit);
+                DebugLogger.LogFormat("    Max Allowable = {0:F3}", companionStar.MaxAllowableOrbit);
+
+                int iterations = 0;
+                while (lastOrbit > companionStar.MaxAllowableOrbit && iterations < 100)
+                {
+                    DebugLogger.LogFormat("    Last orbit ({0:F4}) > Max Allowable ({1:F3}) - applying 5% reduction",
+                        lastOrbit, companionStar.MaxAllowableOrbit);
+
+                    ApplyOrbitReduction(orbits, 0, 0.05f);
+                    lastOrbit = orbits[orbits.Count - 1];
+                    iterations++;
+
+                    DebugLogger.LogFormat("      After reduction: last orbit = {0:F4}", lastOrbit);
+                }
+
+                if (iterations >= 100)
+                {
+                    DebugLogger.Log("    WARNING: Maximum iterations reached for companion orbit adjustment");
+                }
+
+                // Add all orbits to the companion star's celestrialObjectOrbits
+                DebugLogger.Log("");
+                DebugLogger.LogFormat("  Adding celestial bodies to {0} companion:", companionStar.starOrbitType);
+                for (int i = 0; i < orbits.Count; i++)
+                {
+                    companionObj.AddCelestialBody(orbits[i], dice);
+                    float au = companionObj.celestrialObjectOrbits[companionObj.celestrialObjectOrbits.Count - 1].orbitAU;
+                    DebugLogger.LogFormat("    Object {0}: Orbit {1:F4} ({2:F2} AU)", i + 1, orbits[i], au);
+                }
+
+                DebugLogger.LogFormat("  Total objects placed: {0}", orbits.Count);
+            }
+        }
+
+        private bool DetermineDPlanetarySystem(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("D PRIMARY - PLANETARY SYSTEM CHECK");
+
+            int roll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, roll, "Planetary system presence check");
+
+            int modifiers = 0;
+
+            // -2 if the system includes more than one white dwarf
+            int dStarCount = CountDStarsInSystem();
+            if (dStarCount > 1)
+            {
+                modifiers -= 2;
+                DebugLogger.LogFormat("  {0} D stars in system (more than one): -2", dStarCount);
+            }
+
+            int finalRoll = roll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", roll, modifiers, finalRoll);
+            }
+
+            if (finalRoll >= 8)
+            {
+                DebugLogger.Log("  D primary has a planetary system (rolled 8+)");
+                return true;
+            }
+            else
+            {
+                DebugLogger.Log("  D primary does NOT have a planetary system (rolled less than 8)");
+                DebugLogger.Log("  Gas Giants: 0, Planetoid Belts: 0, Terrestrial Planets: 0");
+                return false;
+            }
+        }
+
+        private int DetermineGasGiants(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("DETERMINING GAS GIANTS");
+
+            bool isPrimaryBD = false;
+            bool isPrimaryD = false;
+            if (primaryObject.celestrialObject is Star primaryStar)
+            {
+                if (primaryStar.type == "BD") isPrimaryBD = true;
+                if (primaryStar.type == "D") isPrimaryD = true;
+            }
+
+            // Check if gas giants are present
+            int presenceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, presenceRoll, "Gas giant presence check");
+
+            if (isPrimaryBD)
+            {
+                // BD primary: present on 2-7, not present on 8+
+                if (presenceRoll >= 8)
+                {
+                    DebugLogger.Log("  No gas giants in system (BD primary, rolled 8+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Gas giants present (BD primary system) - determining count");
+            }
+            else if (isPrimaryD)
+            {
+                // D primary: present on 2-5, not present on 6+
+                if (presenceRoll >= 6)
+                {
+                    DebugLogger.Log("  No gas giants in system (D primary, rolled 6+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Gas giants present (D primary system) - determining count");
+            }
+            else
+            {
+                // Normal: present on 2-9, not present on 10+
+                if (presenceRoll >= 10)
+                {
+                    DebugLogger.Log("  No gas giants in system (rolled 10+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Gas giants present - determining count");
+            }
+
+            // Roll for count
+            int countRoll;
+            if (isPrimaryBD || isPrimaryD)
+            {
+                // BD/D primary: roll 2d6-2
+                countRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", countRoll);
+            }
+            else
+            {
+                // Normal: roll 2d6
+                countRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, countRoll, "Gas giant count (base)");
+            }
+
+            int modifiers = 0;
+
+            if (isPrimaryBD || isPrimaryD)
+            {
+                // BD/D primary: only D star and 4+ star modifiers apply
+                // Each D star: -1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers -= dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                }
+
+                // 4 or more stars: -1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 4)
+                {
+                    modifiers -= 1;
+                    DebugLogger.LogFormat("  {0} stars in system (4+): -1", totalStars);
+                }
+            }
+            else
+            {
+                // Normal modifiers
+                // Single Class V star: +1
+                if (IsSingleClassVStar())
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  System has single Class V star: +1");
+                }
+
+                // Primary is BD or D: -2
+                if (IsPrimaryBDOrD())
+                {
+                    modifiers -= 2;
+                    DebugLogger.Log("  Primary is BD or D: -2");
+                }
+
+                // Each D star: -1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers -= dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                }
+
+                // 4 or more stars: -1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 4)
+                {
+                    modifiers -= 1;
+                    DebugLogger.LogFormat("  {0} stars in system (4+): -1", totalStars);
+                }
+            }
+
+            int finalRoll = countRoll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", countRoll, modifiers, finalRoll);
+            }
+
+            // Determine count from table (ensure minimum of 0)
+            int gasGiantCount;
+            if (finalRoll <= 0) gasGiantCount = 0;
+            else if (finalRoll <= 4) gasGiantCount = 1;
+            else if (finalRoll <= 6) gasGiantCount = 2;
+            else if (finalRoll <= 8) gasGiantCount = 3;
+            else if (finalRoll <= 11) gasGiantCount = 4;
+            else if (finalRoll == 12) gasGiantCount = 5;
+            else gasGiantCount = 6;
+
+            DebugLogger.LogFormat("  Result: {0} gas giant(s)", gasGiantCount);
+            return gasGiantCount;
+        }
+
+        private int DeterminePlanetoidBelts(Random dice, int gasGiantCount)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("DETERMINING PLANETOID BELTS");
+
+            bool isPrimaryD = primaryObject.celestrialObject is Star pStar && pStar.type == "D";
+
+            // Check if planetoid belts are present
+            int presenceRoll = Starhelper.diceRoll(6, 2, dice);
+            DebugLogger.LogDiceRoll(2, presenceRoll, "Planetoid belt presence check");
+
+            if (isPrimaryD)
+            {
+                // D primary: present on 6+
+                if (presenceRoll < 6)
+                {
+                    DebugLogger.Log("  No planetoid belts in system (D primary, need 6+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Planetoid belts present (D primary system) - determining count");
+            }
+            else
+            {
+                // Normal: present on 8+
+                if (presenceRoll < 8)
+                {
+                    DebugLogger.Log("  No planetoid belts in system (need 8+)");
+                    return 0;
+                }
+                DebugLogger.Log("  Planetoid belts present - determining count");
+            }
+
+            // Roll for count
+            int countRoll;
+            if (isPrimaryD)
+            {
+                // D primary: roll 2d6+1
+                countRoll = Starhelper.diceRoll(6, 2, dice) + 1;
+                DebugLogger.LogFormat("Base roll: 2d6 + 1 = {0}", countRoll);
+            }
+            else
+            {
+                countRoll = Starhelper.diceRoll(6, 2, dice);
+                DebugLogger.LogDiceRoll(2, countRoll, "Planetoid belt count (base)");
+            }
+
+            int modifiers = 0;
+
+            if (isPrimaryD)
+            {
+                // D primary modifiers
+                // At least 1 gas giant: +1
+                if (gasGiantCount >= 1)
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  System has gas giant(s): +1");
+                }
+
+                // Each D star (including primary): +1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers += dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system (including primary): +{1}", dStarCount, dStarCount);
+                }
+
+                // 2 or more stars: +1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 2)
+                {
+                    modifiers += 1;
+                    DebugLogger.LogFormat("  {0} stars in system (2+): +1", totalStars);
+                }
+            }
+            else
+            {
+                // Normal modifiers
+                // At least 1 gas giant: +1
+                if (gasGiantCount >= 1)
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  System has gas giant(s): +1");
+                }
+
+                // Primary is D: +1
+                if (primaryObject.celestrialObject is Star primaryStar && primaryStar.type == "D")
+                {
+                    modifiers += 1;
+                    DebugLogger.Log("  Primary is D: +1");
+                }
+
+                // Each D star: +1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers += dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: +{1}", dStarCount, dStarCount);
+                }
+
+                // 2 or more stars: +1
+                int totalStars = CountStarsInSystem();
+                if (totalStars >= 2)
+                {
+                    modifiers += 1;
+                    DebugLogger.LogFormat("  {0} stars in system (2+): +1", totalStars);
+                }
+            }
+
+            int finalRoll = countRoll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + {1} = {2}", countRoll, modifiers, finalRoll);
+            }
+
+            // Determine count from table
+            int beltCount;
+            if (finalRoll <= 6) beltCount = 1;
+            else if (finalRoll <= 11) beltCount = 2;
+            else beltCount = 3;
+
+            DebugLogger.LogFormat("  Result: {0} planetoid belt(s)", beltCount);
+            return beltCount;
+        }
+
+        private int DetermineTerrestrialPlanets(Random dice)
+        {
+            DebugLogger.Log("");
+            DebugLogger.LogSection("DETERMINING TERRESTRIAL PLANETS");
+
+            bool isPrimaryD = primaryObject.celestrialObject is Star pStar && pStar.type == "D";
+
+            int baseRoll;
+            if (isPrimaryD)
+            {
+                // D primary: roll d6 - 2
+                baseRoll = Starhelper.diceRoll(6, 1, dice) - 2;
+                DebugLogger.LogFormat("Base roll: d6 - 2 = {0} (D primary)", baseRoll);
+            }
+            else
+            {
+                // Normal: roll 2d6 - 2
+                baseRoll = Starhelper.diceRoll(6, 2, dice) - 2;
+                DebugLogger.LogFormat("Base roll: 2d6 - 2 = {0}", baseRoll);
+            }
+
+            int modifiers = 0;
+
+            if (isPrimaryD)
+            {
+                // D primary: -1 for each additional D star (not counting the primary)
+                int dStarCount = CountDStarsInSystem();
+                int additionalDStars = dStarCount - 1; // Exclude the primary
+                if (additionalDStars > 0)
+                {
+                    modifiers -= additionalDStars;
+                    DebugLogger.LogFormat("  {0} additional D star(s) in system: -{1}", additionalDStars, additionalDStars);
+                }
+            }
+            else
+            {
+                // Normal: each D star -1
+                int dStarCount = CountDStarsInSystem();
+                if (dStarCount > 0)
+                {
+                    modifiers -= dStarCount;
+                    DebugLogger.LogFormat("  {0} D star(s) in system: -{1}", dStarCount, dStarCount);
+                }
+            }
+
+            int originalTotal = baseRoll + modifiers;
+            if (modifiers != 0)
+            {
+                DebugLogger.LogFormat("  Modified roll: {0} + ({1}) = {2}", baseRoll, modifiers, originalTotal);
+            }
+            else
+            {
+                DebugLogger.LogFormat("  Total: {0}", originalTotal);
+            }
+
+            int finalCount;
+
+            // Adjust based on original total
+            if (originalTotal < 3)
+            {
+                DebugLogger.Log("  Total < 3, regenerating with 1d3 + 2");
+                int regenRoll = Starhelper.diceRoll(3, 1, dice);
+                finalCount = regenRoll + 2;
+                DebugLogger.LogFormat("  Regenerated: 1d3 + 2 = {0} + 2 = {1}", regenRoll, finalCount);
+            }
+            else
+            {
+                DebugLogger.Log("  Total >= 3, adding 1d3 - 1");
+                int additionalRoll = Starhelper.diceRoll(3, 1, dice) - 1;
+                finalCount = originalTotal + additionalRoll;
+                DebugLogger.LogFormat("  Final: {0} + (1d3 - 1) = {0} + {1} = {2}", originalTotal, additionalRoll, finalCount);
+            }
+
+            DebugLogger.LogFormat("  Result: {0} terrestrial planet(s)", finalCount);
+            return finalCount;
+        }
+
+        public Star? primary { get; set; }
+        public CelestrialObject primaryObject { get; set; } = null!;
+
+        public int GasGiantCount { get; private set; }
+        public int PlanetoidBeltCount { get; private set; }
+        public int TerrestrialPlanetCount { get; private set; }
+
+        public float SystemTotalAvailableOrbits { get; private set; }
+        public int SystemTotalWorlds { get; private set; }
+
+        public bool UnlikelyLife { get; private set; } = false;  // True if life exists outside HZ (2d6 = 12)
+
+        public static Dictionary<int, float> orbitValues = new Dictionary<int, float>();
+    }
+}
